@@ -10,17 +10,17 @@
       --brand:#60a5fa;--brand-2:#38bdf8;--danger:#ef4444;--ok:#22c55e;--border:#1b2433;
       --warning:#f59e0b;--shadow:0 10px 32px rgba(0,0,0,.45);
       --field:#0a1222;--field-hover:#0c1630;--field-focus:#0e1b3a;
-      --ring:#1e3a8a;--header-bg:#0a1a33;--divider:#0f233e;
+      --header-bg:#0a1a33;--divider:#0f233e;
       --section-gap:18px;--block-gap:14px;
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
-      margin:0;background:linear-gradient(180deg,var(--bg),#0a0f1a);
-      color:var(--text);
-      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"
+      margin:0;background:linear-gradient(180deg,var(--bg),#0a0f1a);color:var(--text);
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+      color-scheme: dark;
     }
 
-    /* Header is visually distinct */
+    /* Header visually distinct */
     header{
       position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);
       background:linear-gradient(180deg,var(--header-bg) 75%, rgba(0,0,0,0));
@@ -28,21 +28,38 @@
       display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
       box-shadow:0 8px 26px rgba(0,0,0,.35)
     }
-
     .token-input{width:100%}
 
-    /* Inputs — darker & softer */
+    /* Inputs — dark only, no white backgrounds */
     input[type="password"],input[type="text"],input[type="search"],input[type="url"],select,textarea{
-      width:100%;background:var(--field);border:1px solid var(--border);color:var(--text);
+      width:100%;background:var(--field)!important;border:1px solid var(--border);color:var(--text)!important;
       border-radius:12px;padding:11px 12px;outline:none;
-      transition:border .15s, box-shadow .15s, background .15s, transform .02s
+      transition:border .15s, box-shadow .15s, background .15s, transform .02s;
+      -webkit-text-fill-color: var(--text);
     }
     input::placeholder,textarea::placeholder{color:var(--muted)}
-    input:hover,textarea:hover,select:hover{background:var(--field-hover)}
+    input:hover,textarea:hover,select:hover{background:var(--field-hover)!important}
     input:focus,textarea:focus,select:focus{
-      background:var(--field-focus);border-color:#2a436f;
+      background:var(--field-focus)!important;border-color:#2a436f;
       box-shadow:0 0 0 3px rgba(96,165,250,.12), inset 0 0 0 1px rgba(96,165,250,.08)
     }
+
+    /* Kill white autofill */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    select:-webkit-autofill,
+    textarea:-webkit-autofill{
+      -webkit-text-fill-color: var(--text);
+      -webkit-box-shadow: 0 0 0px 1000px var(--field-focus) inset;
+      transition: background-color 9999s ease-in-out 0s;
+      caret-color: var(--text);
+    }
+
+    /* Number inputs */
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
+    input[type=number]{ -moz-appearance:textfield }
 
     .btn{
       background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#fff;padding:11px 14px;border-radius:12px;cursor:pointer;
@@ -51,6 +68,7 @@
     .btn:hover{filter:brightness(1.05)}
     .btn.muted{background:var(--panel-2);color:var(--text);border:1px solid var(--border);box-shadow:none}
     .btn.warn{background:var(--warning);color:#111}
+    .btn.ghost{background:transparent;border:1px dashed var(--border)}
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .btn:active{transform:translateY(1px)}
 
@@ -115,7 +133,7 @@
   </style>
 </head>
 <body>
-  <!-- Header (distinct background) -->
+  <!-- Header -->
   <header>
     <div class="token-input">
       <input id="token" type="password" placeholder="Bearer token (stored locally)" autocomplete="off"/>
@@ -125,7 +143,7 @@
   </header>
 
   <main>
-    <!-- Single module (no extra tabs) -->
+    <!-- Single module -->
     <section class="sidebar" aria-label="Examples list">
       <div class="side-head">
         <input id="search" type="search" placeholder="Search by name…"/>
@@ -149,7 +167,7 @@
         </div>
 
         <button id="formatBtn" class="btn muted" title="Prettify JSON">Format</button>
-        <button id="copyEntityBtn" class="btn muted" title="Copy editor JSON">Copy editor JSON</button>
+        <button id="copyEntityBtn" className="btn muted" title="Copy editor JSON">Copy editor JSON</button>
         <button id="copyFullBtn" class="btn muted" title="Copy full item (entity + stats)">Copy full JSON</button>
         <button id="promptBtn" class="btn" title="Build GPT prompt from dictionaries + current JSON">Build GPT prompt</button>
         <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
@@ -235,25 +253,32 @@
         <!-- Equipment -->
         <div class="section">
           <div class="section-title">Equipment *</div>
+
           <div id="equipTokens" class="token-list" aria-live="polite"></div>
+
           <div class="grid two">
             <div class="field">
-              <input id="equipInput" list="equipOptions" placeholder="Type name to search or paste ID"/>
-              <datalist id="equipOptions"></datalist>
+              <label for="equipSelect">Select equipment</label>
+              <select id="equipSelect" size="6"></select>
+              <div class="hint">Use Ctrl/Cmd or Shift to multi-select. Stored as <code>{ equipmentId }</code>.</div>
             </div>
-            <button id="equipAdd" class="btn" type="button">Add</button>
+            <div class="field" style="align-content:start;gap:8px">
+              <button id="equipAdd" class="btn" type="button">Add selected</button>
+              <button id="equipClear" class="btn muted" type="button">Clear all</button>
+            </div>
           </div>
-          <div class="hint">Accepts name or ID. Stored as <code>{ equipmentId }</code>. Unknown items block saving.</div>
+
           <hr class="divider"/>
         </div>
 
         <!-- Muscles -->
         <div class="section">
           <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+
           <div id="bundles" style="display:grid;gap:8px"></div>
+
           <div class="bundle-row">
-            <input id="muscleInput" list="muscleOptions" placeholder="Type name to search or paste ID"/>
-            <datalist id="muscleOptions"></datalist>
+            <select id="muscleSelect"></select>
             <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
             <button id="bundleAdd" class="btn" type="button">Add bundle</button>
           </div>
@@ -280,7 +305,7 @@
     // ===== Configuration =====
     const API_BASE = 'https://grippo-app.com';
     const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
-    const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;        // POST -> ExerciseExampleCreateResponse
+    const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;
     const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
     const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
@@ -292,6 +317,7 @@
     let current = null;
     let isNew = false;
 
+    // Canonical keys for your DTO
     const FIELD = {
       equipmentRefs: 'equipmentRefs',            // Array<{ equipmentId: string }>
       bundles: 'exerciseExampleBundles',         // Array<{ muscleId: string, percentage: number }>
@@ -299,7 +325,8 @@
       percentage: 'percentage'
     };
 
-    const dict = { equipment: new Map(), muscles: new Map() }; // id -> name
+    // Dictionaries (id -> name)
+    const dict = { equipment: new Map(), muscles: new Map() };
     const dictIndex = { equipmentByName: new Map(), musclesByName: new Map() };
     const normalizeName = (s)=> String(s||'').trim().toLowerCase();
     function rebuildNameIndexes(){
@@ -343,13 +370,12 @@
       fId: document.getElementById('fId'),
 
       equipTokens: document.getElementById('equipTokens'),
-      equipInput: document.getElementById('equipInput'),
-      equipOptions: document.getElementById('equipOptions'),
+      equipSelect: document.getElementById('equipSelect'),
       equipAdd: document.getElementById('equipAdd'),
+      equipClear: document.getElementById('equipClear'),
 
       bundles: document.getElementById('bundles'),
-      muscleInput: document.getElementById('muscleInput'),
-      muscleOptions: document.getElementById('muscleOptions'),
+      muscleSelect: document.getElementById('muscleSelect'),
       percentInput: document.getElementById('percentInput'),
       bundleAdd: document.getElementById('bundleAdd'),
       bundleSumInfo: document.getElementById('bundleSumInfo'),
@@ -408,13 +434,19 @@
       }catch(e){ console.warn('Muscle dict fetch failed:', e); }
     }
     function refreshOptionLists(){
-      els.equipOptions.innerHTML = '';
+      // Equipment select
+      els.equipSelect.innerHTML = '';
       for (const [id,name] of dict.equipment.entries()){
-        const opt = document.createElement('option'); opt.value = id; opt.label = name; els.equipOptions.appendChild(opt);
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = `${name} — ${id}`;
+        els.equipSelect.appendChild(opt);
       }
-      els.muscleOptions.innerHTML = '';
+      // Muscle select (single)
+      els.muscleSelect.innerHTML = '';
       for (const [id,name] of dict.muscles.entries()){
-        const opt = document.createElement('option'); opt.value = id; opt.label = name; els.muscleOptions.appendChild(opt);
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = `${name} — ${id}`;
+        els.muscleSelect.appendChild(opt);
       }
     }
 
@@ -443,7 +475,7 @@
       renderList();
     }
 
-    // ===== Canonical entity (DTO shape) =====
+    // ===== Canonical entity (DTO) =====
     function emptyTemplate(){
       return {
         id: uuidv4(),
@@ -454,14 +486,13 @@
         experience: '',
         forceType: '',
         imageUrl: '',
-        [FIELD.bundles]: [],                    // [{ muscleId, percentage }]
-        [FIELD.equipmentRefs]: [],               // [{ equipmentId }]
+        [FIELD.bundles]: [],
+        [FIELD.equipmentRefs]: [],
         tutorials: []
       };
     }
     function normalizeEntityShape(src){
       const e = {...src};
-      // equipmentRefs -> [{ equipmentId }]
       const eq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
       e[FIELD.equipmentRefs] = eq.map(x=>{
         if (typeof x === 'string') return { equipmentId: x };
@@ -471,7 +502,6 @@
         }
         return null;
       }).filter(Boolean);
-      // bundles -> [{ muscleId, percentage }]
       const rawB = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
       e[FIELD.bundles] = rawB.map(b=>{
         if (!b || typeof b !== 'object') return null;
@@ -518,7 +548,7 @@
       renderBundles(entity);
     }
 
-    // ===== Equipment UI =====
+    // ===== Equipment UI (select-based) =====
     function renderEquipmentTokens(entity){
       const eq = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
       els.equipTokens.innerHTML = '';
@@ -539,28 +569,22 @@
       });
       els.equipTokens.appendChild(frag);
     }
-    function addEquipmentFromInput(){
-      const raw = els.equipInput.value.trim();
-      if (!raw) return;
-      let id = raw;
-      if (!dict.equipment.has(id)) {
-        const byName = dictIndex.equipmentByName.get(normalizeName(raw));
-        if (byName) id = byName;
-      }
-      if (!dict.equipment.has(id)) {
-        toast({ title: 'Unknown equipment', message: 'Pick from suggestions or enter a valid ID', type: 'error' });
-        return;
-      }
+    function addSelectedEquipments(){
+      const selected = Array.from(els.equipSelect.selectedOptions).map(o=>o.value);
+      if (!selected.length){ toast({title:'Nothing selected', type:'error'}); return; }
       const ent = getEntity();
       if (!Array.isArray(ent[FIELD.equipmentRefs])) ent[FIELD.equipmentRefs] = [];
-      if (!ent[FIELD.equipmentRefs].some(x => x.equipmentId === id)) {
-        ent[FIELD.equipmentRefs].push({ equipmentId: id });
-        setEntity(ent);
+      for (const id of selected){
+        if (!dict.equipment.has(id)) continue;
+        if (!ent[FIELD.equipmentRefs].some(x => x.equipmentId === id)) {
+          ent[FIELD.equipmentRefs].push({ equipmentId: id });
+        }
       }
-      els.equipInput.value = '';
+      setEntity(ent);
+      els.equipSelect.selectedIndex = -1;
     }
 
-    // ===== Bundles UI =====
+    // ===== Bundles UI (select-based) =====
     function renderBundles(entity){
       const arr = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
       els.bundles.innerHTML = '';
@@ -570,11 +594,17 @@
       arr.forEach((b, i)=>{
         const row = document.createElement('div'); row.className='bundle-row';
 
-        const muscle = document.createElement('input');
-        muscle.placeholder = 'Muscle name or ID…'; muscle.setAttribute('list','muscleOptions');
-        muscle.value = String(b?.muscleId || '');
-        if (!dict.muscles.has(String(muscle.value))) muscle.classList.add('invalid');
+        // Muscle select
+        const muscle = document.createElement('select');
+        for (const [id,name] of dict.muscles.entries()){
+          const opt = document.createElement('option');
+          opt.value=id; opt.textContent=`${name} — ${id}`;
+          if (String(b?.muscleId||'')===id) opt.selected=true;
+          muscle.appendChild(opt);
+        }
+        if (!dict.muscles.has(String(b?.muscleId||''))) muscle.classList.add('invalid');
 
+        // Percentage input
         const percent = document.createElement('input');
         percent.type='number'; percent.min='0'; percent.max='100'; percent.step='1';
         const p = Number(b?.percentage ?? 0); percent.value = String(p);
@@ -585,12 +615,7 @@
 
         muscle.addEventListener('change', ()=>{
           const ent = getEntity();
-          let v = muscle.value.trim();
-          if (!dict.muscles.has(v)) {
-            const byName = dictIndex.musclesByName.get(normalizeName(v));
-            if (byName) v = byName;
-          }
-          ent[FIELD.bundles][i].muscleId = v;
+          ent[FIELD.bundles][i].muscleId = muscle.value;
           setEntity(ent);
         });
         percent.addEventListener('change', ()=>{
@@ -609,27 +634,26 @@
       els.bundles.appendChild(frag);
       els.bundleSumInfo.textContent = `Sum: ${sum}%`;
       els.bundleSumInfo.className = 'sum ' + (sum===100?'ok':'bad');
+
+      // Refill the "add" select with current dict (once on first render)
+      if (!els.muscleSelect.options.length){
+        for (const [id,name] of dict.muscles.entries()){
+          const opt = document.createElement('option'); opt.value=id; opt.textContent=`${name} — ${id}`;
+          els.muscleSelect.appendChild(opt);
+        }
+      }
     }
     function addBundleFromInputs(){
-      const raw = els.muscleInput.value.trim();
+      const muscleId = els.muscleSelect.value;
       const p = Number(els.percentInput.value || 0);
-      if (!raw || !isFinite(p)) return;
-
-      let muscleId = raw;
-      if (!dict.muscles.has(muscleId)) {
-        const byName = dictIndex.musclesByName.get(normalizeName(raw));
-        if (byName) muscleId = byName;
-      }
-      if (!dict.muscles.has(muscleId)) {
-        toast({ title: 'Unknown muscle', message: 'Pick from suggestions or enter a valid ID', type: 'error' });
-        return;
-      }
+      if (!muscleId || !isFinite(p)){ toast({title:'Select muscle and %', type:'error'}); return; }
+      if (!dict.muscles.has(muscleId)){ toast({title:'Unknown muscle', type:'error'}); return; }
 
       const ent = getEntity();
       if (!Array.isArray(ent[FIELD.bundles])) ent[FIELD.bundles] = [];
       ent[FIELD.bundles].push({ muscleId, percentage: p });
       setEntity(ent);
-      els.muscleInput.value=''; els.percentInput.value='';
+      els.percentInput.value='';
     }
 
     // ===== Selection & CRUD =====
@@ -710,14 +734,13 @@
       }finally{ els.saveBtn.disabled = false; }
     }
 
-    // ===== Validation (errors vs warnings) =====
+    // ===== Validation (imageUrl -> warning only) =====
     function validateAll(){
       const ent = getEntity();
 
       const errors = [];
       const warnings = [];
 
-      // required fields (except imageUrl)
       if (!ent.name) errors.push('Missing: name');
       if (!ent.description) errors.push('Missing: description');
       if (!ent.weightType) errors.push('Missing: weightType');
@@ -725,10 +748,8 @@
       if (!ent.experience) errors.push('Missing: experience');
       if (!ent.forceType) errors.push('Missing: forceType');
 
-      // imageUrl is optional -> warning only
       if (!ent.imageUrl) warnings.push('imageUrl is empty');
 
-      // enums (basic guard)
       const weightOk = ['free','fixed','body_weight'].includes(ent.weightType);
       const catOk = ['compound','isolation'].includes(ent.category);
       const expOk = ['beginner','intermediate','advanced','pro'].includes(ent.experience);
@@ -738,13 +759,11 @@
       if (ent.experience && !expOk) errors.push('experience invalid');
       if (ent.forceType && !forceOk) errors.push('forceType invalid');
 
-      // equipment IDs
       const eq = Array.isArray(ent[FIELD.equipmentRefs]) ? ent[FIELD.equipmentRefs] : [];
       if (eq.length === 0) errors.push('No equipment selected');
       const unknownEq = eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id));
       if (unknownEq.length) errors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
 
-      // bundles
       const bundles = Array.isArray(ent[FIELD.bundles]) ? ent[FIELD.bundles] : [];
       if (bundles.length === 0) errors.push('No muscle bundles added');
       let sum = 0, outOfRange = false; const unknownMuscles = [];
@@ -759,7 +778,6 @@
       if (outOfRange) errors.push('Bundle percentage out of [0..100]');
       if (unknownMuscles.length) errors.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
 
-      // status + buttons
       const ok = errors.length === 0;
       if (!ok) setStatus('bad', errors[0]);
       else if (warnings.length) setStatus('warn', warnings[0]);
@@ -784,18 +802,14 @@
       lines.push(`- "${FIELD.equipmentRefs}" MUST use valid equipment IDs from the dictionary below.`);
       lines.push('- Improve quality if needed (e.g., muscle ratios), but keep logical consistency and existing relations. Do NOT break database constraints.');
       lines.push('');
-
       lines.push('Muscles dictionary (name — id):');
       for (const [id,name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
       lines.push('');
       lines.push('Equipment dictionary (name — id):');
       for (const [id,name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
       lines.push('');
-
-      lines.push('Current JSON:');
-      lines.push(pretty(getEntity()));
-      lines.push('');
-      lines.push('Return: ONLY the final JSON (no code fences).');
+      lines.push('Current JSON:'); lines.push(pretty(getEntity()));
+      lines.push(''); lines.push('Return: ONLY the final JSON (no code fences).');
       return lines.join('\n');
     }
     async function copyPrompt(){
@@ -850,15 +864,17 @@
       els.viewForm.addEventListener('click', setViewForm);
       els.viewJson.addEventListener('click', setViewJson);
 
-      // Form inputs (use change on selects)
+      // Form inputs
       [els.fName, els.fImage, els.fDescription].forEach(input=> input.addEventListener('input', ()=>{ setEntity(readFormToEntity(getEntity())); }));
       [els.fWeightType, els.fCategory, els.fExperience, els.fForceType].forEach(sel=> sel.addEventListener('change', ()=>{ setEntity(readFormToEntity(getEntity())); }));
 
-      // Equipment
-      els.equipAdd.addEventListener('click', addEquipmentFromInput);
-      els.equipInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addEquipmentFromInput(); } });
+      // Equipment actions
+      els.equipAdd.addEventListener('click', addSelectedEquipments);
+      els.equipClear.addEventListener('click', ()=>{
+        const ent=getEntity(); ent[FIELD.equipmentRefs]=[]; setEntity(ent);
+      });
 
-      // Bundles
+      // Bundles actions
       els.bundleAdd.addEventListener('click', addBundleFromInputs);
       els.percentInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addBundleFromInputs(); } });
 
