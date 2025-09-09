@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grippo Admin — Exercise Examples</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111827;
+      --panel-2: #0f172a;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --brand: #60a5fa;
+      --brand-2: #38bdf8;
+      --danger: #ef4444;
+      --ok: #22c55e;
+      --border: #1f2937;
+      --accent: #1d4ed8;
+      --warning: #f59e0b;
+      --shadow: 0 8px 30px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, var(--bg), #0a0f1a);
+      color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(6px);
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+    .token-input { width: 100%; }
+    input[type="password"], input[type="text"], input[type="search"] {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    input::placeholder { color: var(--muted); }
+    .btn {
+      background: linear-gradient(90deg, var(--brand), var(--brand-2));
+      border: 0; color: white; padding: 10px 14px; border-radius: 10px; cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: transform .05s ease;
+      font-weight: 600;
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn:active { transform: translateY(1px); }
+    .btn.muted { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
+    .btn.warn { background: var(--warning); color: #111; }
+    main { display: grid; grid-template-columns: 380px 1fr; gap: 12px; padding: 12px; height: calc(100% - 64px); }
+    @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
+
+    /* Sidebar */
+    .sidebar { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; min-height: 0; }
+    .side-head { padding: 12px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); }
+    .list { overflow: auto; padding: 8px; display: grid; gap: 8px; }
+    .item { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px; cursor: pointer; display: grid; gap: 4px; }
+    .item:hover { border-color: #2b394f; }
+    .item.active { outline: 2px solid var(--brand); }
+    .name { font-weight: 600; }
+    .meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; align-items: center; }
+    .pill { background: #0b253d; color: #9dd1ff; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid #123756; }
+
+    /* Editor */
+    .editor { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; min-height: 0; }
+    .ed-head { padding: 10px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .spacer { flex: 1; }
+    .status { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2); }
+    .status.ok { color: #d1fae5; background: #08351a; border-color: #14532d; }
+    .status.bad { color: #fee2e2; background: #3a0d0d; border-color: #7f1d1d; }
+    .status.warn { color: #fff7ed; background: #3a270b; border-color: #92400e; }
+
+    textarea {
+      width: 100%; height: 100%; flex: 1; resize: none; border: 0; outline: none; padding: 14px; background: #0a1324; color: #dbeafe;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px; line-height: 1.45; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;
+    }
+
+    .toast { position: fixed; right: 16px; bottom: 16px; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 12px; box-shadow: var(--shadow); min-width: 220px; display: grid; gap: 6px; }
+    .toast.success { border-color: #155e31; background: #0a2a18; }
+    .toast.error { border-color: #7f1d1d; background: #3a0d0d; }
+    .toast .title { font-weight: 700; }
+
+    .help { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="token-input">
+      <input id="token" type="password" placeholder="Bearer token (stored locally)" autocomplete="off" />
+    </div>
+    <button id="saveToken" class="btn muted" title="Save token to localStorage">Save token</button>
+    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
+  </header>
+
+  <main>
+    <section class="sidebar">
+      <div class="side-head">
+        <input id="search" type="search" placeholder="Search by name…" />
+        <button id="clearSearch" class="btn muted" title="Clear">×</button>
+      </div>
+      <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
+    </section>
+
+    <section class="editor">
+      <div class="ed-head">
+        <span id="currentId" class="help">No item selected</span>
+        <span class="spacer"></span>
+        <span id="jsonStatus" class="status warn">Waiting…</span>
+        <button id="formatBtn" class="btn muted" title="Prettify JSON">Format</button>
+        <button id="copyEntityBtn" class="btn muted" title="Copy editor JSON">Copy editor JSON</button>
+        <button id="copyFullBtn" class="btn muted" title="Copy full item (entity + stats)">Copy full JSON</button>
+        <button id="saveBtn" class="btn" disabled title="PUT /exercise-examples?id={id}">Save</button>
+      </div>
+      <textarea id="editor" placeholder="Select an item from the left to load its JSON…" spellcheck="false"></textarea>
+    </section>
+  </main>
+
+  <template id="itemTemplate">
+    <div class="item" role="option" tabindex="0">
+      <div class="name"></div>
+      <div class="meta">
+        <span class="pill usage"></span>
+        <span class="lastUsed"></span>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // ======= Configuration =======
+    const API_BASE = 'https://grippo-app.com';
+    const LIST_ENDPOINT = `${API_BASE}/exercise-examples`;
+    const PUT_ENDPOINT = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
+
+    // ======= State =======
+    let items = [];          // Array<ExerciseExampleWithStatsResponse>
+    let filtered = [];       // Filtered view
+    let current = null;      // Current ExerciseExampleWithStatsResponse
+
+    // ======= Elements =======
+    const els = {
+      token: document.getElementById('token'),
+      saveToken: document.getElementById('saveToken'),
+      load: document.getElementById('loadBtn'),
+      list: document.getElementById('list'),
+      search: document.getElementById('search'),
+      clearSearch: document.getElementById('clearSearch'),
+      editor: document.getElementById('editor'),
+      status: document.getElementById('jsonStatus'),
+      saveBtn: document.getElementById('saveBtn'),
+      formatBtn: document.getElementById('formatBtn'),
+      copyEntityBtn: document.getElementById('copyEntityBtn'),
+      copyFullBtn: document.getElementById('copyFullBtn'),
+      currentId: document.getElementById('currentId'),
+      itemTemplate: document.getElementById('itemTemplate'),
+    };
+
+    // ======= Utilities =======
+    function toast({ title, message = '', type = 'success', ms = 3000 }) {
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<div class="title">${title}</div>${message ? `<div>${message}</div>` : ''}`;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), ms);
+    }
+
+    function saveTokenLocal(v) { localStorage.setItem('grippo_admin_token', v || ''); }
+    function loadTokenLocal() { return localStorage.getItem('grippo_admin_token') || ''; }
+
+    function bearer() {
+      const tok = els.token.value.trim();
+      return tok ? { 'Authorization': `Bearer ${tok}` } : {};
+    }
+
+    function formatIso(d) {
+      try { return new Date(d).toISOString().replace('T', ' ').replace('Z', 'Z'); } catch { return String(d); }
+    }
+
+    function pretty(json) { return JSON.stringify(json, null, 2); }
+
+    function setStatus(kind, text) {
+      els.status.classList.remove('ok', 'bad', 'warn');
+      els.status.classList.add(kind);
+      els.status.textContent = text;
+    }
+
+    function validateEditorJson() {
+      const content = els.editor.value;
+      if (!content.trim()) { els.saveBtn.disabled = true; setStatus('warn', 'Empty'); return null; }
+      try {
+        const parsed = JSON.parse(content);
+        // Minimal domain validation to avoid sending obviously bad payloads
+        const required = ['name', 'description', 'weightType', 'category', 'experience', 'forceType', 'imageUrl', 'exerciseExampleBundles', 'equipmentRefs', 'tutorials'];
+        const missing = required.filter(k => !(k in parsed));
+        if (missing.length) {
+          setStatus('warn', `Missing fields: ${missing.join(', ')}`);
+          els.saveBtn.disabled = false; // Still allow saving if user is intentionally updating shape
+        } else {
+          setStatus('ok', 'Valid JSON');
+          els.saveBtn.disabled = false;
+        }
+        return parsed;
+      } catch (e) {
+        setStatus('bad', `Invalid JSON: ${e.message.split('\n')[0]}`);
+        els.saveBtn.disabled = true;
+        return null;
+      }
+    }
+
+    function renderList() {
+      els.list.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      filtered.forEach((it) => {
+        const node = els.itemTemplate.content.firstElementChild.cloneNode(true);
+        const entity = it.entity;
+        node.querySelector('.name').textContent = entity?.name || '(no name)';
+        node.querySelector('.usage').textContent = `used ${it.usageCount ?? 0}`;
+        node.querySelector('.lastUsed').textContent = it.lastUsed ? `last: ${formatIso(it.lastUsed)}` : 'last: —';
+        node.addEventListener('click', () => selectItem(it));
+        node.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectItem(it); } });
+        if (current && current.entity?.id === entity?.id) node.classList.add('active');
+        frag.appendChild(node);
+      });
+      els.list.appendChild(frag);
+    }
+
+    function applySearch() {
+      const q = els.search.value.trim().toLowerCase();
+      filtered = !q
+        ? items.slice()
+        : items.filter(it => (it.entity?.name || '').toLowerCase().includes(q));
+      renderList();
+    }
+
+    function selectItem(it) {
+      current = it;
+      els.currentId.textContent = it?.entity?.id ? `Editing ID: ${it.entity.id}` : 'Editing: unknown ID';
+      els.editor.value = pretty(it.entity ?? {});
+      validateEditorJson();
+      renderList();
+    }
+
+    async function loadList() {
+      const headers = { 'accept': 'application/json', ...bearer() };
+      if (!headers.Authorization) {
+        toast({ title: 'Token required', message: 'Set a valid Bearer token first.', type: 'error', ms: 3500 });
+        return;
+      }
+      els.load.disabled = true;
+      try {
+        const resp = await fetch(LIST_ENDPOINT, { headers, method: 'GET' });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 300)}`);
+        }
+        const data = await resp.json();
+        if (!Array.isArray(data)) throw new Error('Unexpected response shape: expected an array');
+        items = data;
+        filtered = items.slice();
+        renderList();
+        toast({ title: 'Loaded', message: `Items: ${items.length}` });
+      } catch (e) {
+        toast({ title: 'Load failed', message: String(e.message || e), type: 'error', ms: 6000 });
+        console.error(e);
+      } finally {
+        els.load.disabled = false;
+      }
+    }
+
+    async function saveCurrent() {
+      if (!current || !current.entity?.id) {
+        toast({ title: 'Nothing selected', message: 'Pick an item from the list first.', type: 'error' });
+        return;
+      }
+      const parsed = validateEditorJson();
+      if (!parsed) return;
+
+      const headers = {
+        'accept': 'application/json',
+        'content-type': 'application/json',
+        ...bearer(),
+      };
+      if (!headers.Authorization) {
+        toast({ title: 'Token required', message: 'Set a valid Bearer token first.', type: 'error', ms: 3500 });
+        return;
+      }
+
+      els.saveBtn.disabled = true;
+      try {
+        const id = current.entity.id;
+        const resp = await fetch(PUT_ENDPOINT(id), { method: 'PUT', headers, body: JSON.stringify(parsed) });
+        if (!resp.ok) {
+          const text = await resp.text();
+          throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+        }
+        // 204 No Content expected
+        toast({ title: 'Saved', message: `ID ${id} updated successfully.` });
+        // Update in-memory entity with edited content
+        current.entity = parsed;
+        renderList();
+      } catch (e) {
+        toast({ title: 'Save failed', message: String(e.message || e), type: 'error', ms: 7000 });
+        console.error(e);
+      } finally {
+        els.saveBtn.disabled = false;
+      }
+    }
+
+    async function copyToClipboard(text, label = 'Copied') {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({ title: label });
+      } catch (e) {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+        toast({ title: label });
+      }
+    }
+
+    // ======= Wire up UI =======
+    window.addEventListener('DOMContentLoaded', () => {
+      els.token.value = loadTokenLocal();
+      els.saveToken.addEventListener('click', () => { saveTokenLocal(els.token.value); toast({ title: 'Token saved' }); });
+      els.load.addEventListener('click', loadList);
+      els.search.addEventListener('input', applySearch);
+      els.clearSearch.addEventListener('click', () => { els.search.value = ''; applySearch(); });
+      els.editor.addEventListener('input', () => validateEditorJson());
+      els.formatBtn.addEventListener('click', () => {
+        try { const obj = JSON.parse(els.editor.value); els.editor.value = pretty(obj); validateEditorJson(); }
+        catch (e) { toast({ title: 'Format error', message: String(e.message || e), type: 'error' }); }
+      });
+      els.copyEntityBtn.addEventListener('click', () => copyToClipboard(els.editor.value, 'Editor JSON copied'));
+      els.copyFullBtn.addEventListener('click', () => {
+        if (!current) { toast({ title: 'Nothing selected', type: 'error' }); return; }
+        copyToClipboard(pretty(current), 'Full item JSON copied');
+      });
+      els.saveBtn.addEventListener('click', saveCurrent);
+    });
+
+    // ======= Helpful errors for CORS =======
+    (function patchFetchForHints(){
+      const orig = window.fetch;
+      window.fetch = async (...args) => {
+        try { return await orig(...args); }
+        catch (e) {
+          toast({
+            title: 'Network error',
+            message: 'If you see this on GitHub Pages, ensure CORS is enabled on grippo-app.com with methods GET, PUT, and header Authorization.',
+            type: 'error', ms: 8000
+          });
+          throw e;
+        }
+      };
+    })();
+  </script>
+</body>
+</html>
