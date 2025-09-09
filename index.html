@@ -97,6 +97,35 @@
     .toast .title { font-weight: 700; }
 
     .help { color: var(--muted); font-size: 12px; }
+
+    /* ===== Builder UI ===== */
+    .view-toggle { display: flex; gap: 8px; margin-left: auto; }
+    .segment { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: inline-flex; gap: 6px; }
+    .segment .seg { background: transparent; border: 0; color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+    .segment .seg.active { background: var(--panel); border: 1px solid var(--border); }
+
+    .builder { padding: 10px; border-bottom: 1px solid var(--border); display: none; }
+    .builder.show { display: block; }
+    .field { display: grid; gap: 8px; margin: 10px 0; }
+    .field label { font-weight: 600; }
+
+    .token-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .token { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #0b253d; color: #9dd1ff; border: 1px solid #123756; border-radius: 999px; font-size: 12px; }
+    .token button { background: transparent; border: 0; color: #9dd1ff; cursor: pointer; font-size: 14px; line-height: 1; }
+    .token.invalid { border-color: #7f1d1d; color: #fecaca; background: #3a0d0d; }
+
+    .token-input-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    #equipInput, #muscleInput, #percentInput { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 8px 10px; }
+
+    .bundle-add { display: grid; grid-template-columns: 1.5fr 0.6fr auto; gap: 8px; }
+    .bundle-row { display: grid; grid-template-columns: 1.5fr 0.6fr auto; gap: 8px; align-items: center; margin-bottom: 6px; }
+    .bundle-row input { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 8px; }
+    .bundle-row .btn.muted { padding: 6px 10px; }
+
+    .small { font-size: 12px; color: var(--muted); }
+    .warn-text { color: #fca5a5; }
+    .ok-text { color: #86efac; }
+    .invalid { border-color: #7f1d1d !important; box-shadow: inset 0 0 0 1px #7f1d1d; }
   </style>
 </head>
 <body>
@@ -122,11 +151,50 @@
         <span id="currentId" class="help">No item selected</span>
         <span class="spacer"></span>
         <span id="jsonStatus" class="status warn">Waiting…</span>
+
+        <!-- Editor mode toggle -->
+        <div class="view-toggle">
+          <div class="segment" role="tablist" aria-label="Editor mode">
+            <button id="viewForm" class="seg" role="tab" aria-selected="false" title="Form builder">Form</button>
+            <button id="viewJson" class="seg active" role="tab" aria-selected="true" title="Raw JSON">JSON</button>
+          </div>
+        </div>
+
         <button id="formatBtn" class="btn muted" title="Prettify JSON">Format</button>
         <button id="copyEntityBtn" class="btn muted" title="Copy editor JSON">Copy editor JSON</button>
         <button id="copyFullBtn" class="btn muted" title="Copy full item (entity + stats)">Copy full JSON</button>
         <button id="saveBtn" class="btn" disabled title="PUT /exercise-examples?id={id}">Save</button>
       </div>
+
+      <!-- Builder panel -->
+      <div id="builder" class="builder" aria-label="Exercise Example Builder" hidden>
+        <div class="small" id="idLockNote">ID is locked for existing items. It will not be changed.</div>
+
+        <div class="field">
+          <label for="equipInput">Equipment</label>
+          <div id="equipTokens" class="token-list" aria-live="polite"></div>
+          <div class="token-input-row">
+            <input id="equipInput" list="equipOptions" placeholder="Add equipment by id or name…" autocomplete="off" />
+            <datalist id="equipOptions"></datalist>
+            <button id="equipAdd" class="btn" type="button">Add</button>
+          </div>
+          <div class="small">Tip: suggestions are fetched from backend (public). Mode will match current JSON: string IDs or objects with <code>id</code>/<code>name</code>.</div>
+        </div>
+
+        <div class="field">
+          <label>Muscle bundles</label>
+          <div id="bundles" aria-live="polite"></div>
+          <div class="bundle-add">
+            <input id="muscleInput" list="muscleOptions" placeholder="Muscle id or name…" autocomplete="off" />
+            <datalist id="muscleOptions"></datalist>
+            <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%" />
+            <button id="bundleAdd" class="btn" type="button">Add bundle</button>
+          </div>
+          <div class="small" id="bundleSumInfo">Sum: 0%</div>
+          <div class="small">The total percent must be exactly 100% to enable Save.</div>
+        </div>
+      </div>
+
       <textarea id="editor" placeholder="Select an item from the left to load its JSON…" spellcheck="false"></textarea>
     </section>
   </main>
@@ -147,10 +215,34 @@
     const LIST_ENDPOINT = `${API_BASE}/exercise-examples`;
     const PUT_ENDPOINT = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
+    // Public endpoints (no auth required). If your actual routes differ, adjust here.
+    const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`; // can return either array of Equipment or EquipmentGroupResponse[]
+    const MUSCLE_GROUPS_ENDPOINT   = `${API_BASE}/muscles`;    // returns MuscleGroupsResponse[]
+
     // ======= State =======
     let items = [];          // Array<ExerciseExampleWithStatsResponse>
     let filtered = [];       // Filtered view
     let current = null;      // Current ExerciseExampleWithStatsResponse
+
+    // ======= Builder config/state (schema-agnostic) =======
+    const FIELD = {
+      bundles: 'exerciseExampleBundles',
+      defaultBundleMuscleKey: 'muscleId',
+      defaultBundlePercentKey: 'percent',
+      equipment: 'equipmentRefs',
+      equipmentIdKeyFallbacks: ['id', 'key', 'code'],
+      equipmentNameKeyFallbacks: ['name', 'title', 'label'],
+    };
+
+    // Dictionaries populated from backend + items
+    let dict = {
+      muscles: new Map(),   // id -> label
+      equipment: new Map(), // id -> label
+    };
+
+    // Runtime-detected keys for current entity
+    let currentBundleKeys = { muscle: FIELD.defaultBundleMuscleKey, percent: FIELD.defaultBundlePercentKey };
+    let equipmentMode = 'string'; // 'string' or 'object'
 
     // ======= Elements =======
     const els = {
@@ -168,6 +260,26 @@
       copyFullBtn: document.getElementById('copyFullBtn'),
       currentId: document.getElementById('currentId'),
       itemTemplate: document.getElementById('itemTemplate'),
+
+      // Builder & tabs
+      viewForm: document.getElementById('viewForm'),
+      viewJson: document.getElementById('viewJson'),
+      builder: document.getElementById('builder'),
+      idLockNote: document.getElementById('idLockNote'),
+
+      // Equipment controls
+      equipTokens: document.getElementById('equipTokens'),
+      equipInput: document.getElementById('equipInput'),
+      equipOptions: document.getElementById('equipOptions'),
+      equipAdd: document.getElementById('equipAdd'),
+
+      // Bundles controls
+      bundles: document.getElementById('bundles'),
+      muscleInput: document.getElementById('muscleInput'),
+      muscleOptions: document.getElementById('muscleOptions'),
+      percentInput: document.getElementById('percentInput'),
+      bundleAdd: document.getElementById('bundleAdd'),
+      bundleSumInfo: document.getElementById('bundleSumInfo'),
     };
 
     // ======= Utilities =======
@@ -199,29 +311,75 @@
       els.status.textContent = text;
     }
 
-    function validateEditorJson() {
-      const content = els.editor.value;
-      if (!content.trim()) { els.saveBtn.disabled = true; setStatus('warn', 'Empty'); return null; }
+    function buildStatusMessage(parts) {
+      return parts.filter(Boolean).join(' • ');
+    }
+
+    // ======= Backend dictionaries (public) =======
+    async function fetchEquipmentDict() {
       try {
-        const parsed = JSON.parse(content);
-        // Minimal domain validation to avoid sending obviously bad payloads
-        const required = ['name', 'description', 'weightType', 'category', 'experience', 'forceType', 'imageUrl', 'exerciseExampleBundles', 'equipmentRefs', 'tutorials'];
-        const missing = required.filter(k => !(k in parsed));
-        if (missing.length) {
-          setStatus('warn', `Missing fields: ${missing.join(', ')}`);
-          els.saveBtn.disabled = false; // Still allow saving if user is intentionally updating shape
-        } else {
-          setStatus('ok', 'Valid JSON');
-          els.saveBtn.disabled = false;
+        const resp = await fetch(EQUIPMENT_GROUPS_ENDPOINT, { headers: { 'accept': 'application/json' }});
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        const data = await resp.json();
+        // Normalize: can be Equipment[] or EquipmentGroupResponse[]
+        const equipments = [];
+        if (Array.isArray(data)) {
+          if (data.length && Array.isArray(data[0]?.equipments)) {
+            // Array of groups
+            for (const g of data) {
+              (g.equipments || []).forEach(e => equipments.push(e));
+            }
+          } else {
+            // Array of equipments
+            data.forEach(e => equipments.push(e));
+          }
         }
-        return parsed;
+        for (const e of equipments) {
+          if (e?.id) dict.equipment.set(String(e.id), String(e.name ?? e.id));
+        }
       } catch (e) {
-        setStatus('bad', `Invalid JSON: ${e.message.split('\n')[0]}`);
-        els.saveBtn.disabled = true;
-        return null;
+        console.warn('Equipment dict fetch failed:', e);
       }
     }
 
+    async function fetchMuscleDict() {
+      try {
+        const resp = await fetch(MUSCLE_GROUPS_ENDPOINT, { headers: { 'accept': 'application/json' }});
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        const data = await resp.json();
+        // Expected: MuscleGroupsResponse[]
+        if (Array.isArray(data)) {
+          for (const g of data) {
+            (g.muscles || []).forEach(m => {
+              if (m?.id) dict.muscles.set(String(m.id), String(m.name ?? m.id));
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Muscle dict fetch failed:', e);
+      }
+    }
+
+    function refreshOptionLists() {
+      // equipment options
+      els.equipOptions.innerHTML = '';
+      for (const [id, label] of dict.equipment.entries()) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.label = label;
+        els.equipOptions.appendChild(opt);
+      }
+      // muscle options
+      els.muscleOptions.innerHTML = '';
+      for (const [id, label] of dict.muscles.entries()) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.label = label;
+        els.muscleOptions.appendChild(opt);
+      }
+    }
+
+    // ======= List rendering =======
     function renderList() {
       els.list.innerHTML = '';
       const frag = document.createDocumentFragment();
@@ -247,14 +405,345 @@
       renderList();
     }
 
+    // ======= Builder detection =======
+    function detectEquipmentModeFromEntity(entity) {
+      const eq = entity?.[FIELD.equipment];
+      if (Array.isArray(eq) && eq.length > 0) {
+        equipmentMode = (typeof eq[0] === 'string') ? 'string' : 'object';
+      } else {
+        equipmentMode = 'string';
+      }
+    }
+
+    function detectBundleKeysFromEntity(entity) {
+      const arr = entity?.[FIELD.bundles];
+      if (Array.isArray(arr) && arr.length > 0 && typeof arr[0] === 'object') {
+        const candidateMuscle = ['muscleId','muscle','muscle_id','muscleKey','targetMuscleId','id'].find(k => k in arr[0]);
+        const candidatePercent = ['percent','percentage','ratio','load'].find(k => k in arr[0]);
+        currentBundleKeys.muscle = candidateMuscle || FIELD.defaultBundleMuscleKey;
+        currentBundleKeys.percent = candidatePercent || FIELD.defaultBundlePercentKey;
+      } else {
+        currentBundleKeys.muscle = FIELD.defaultBundleMuscleKey;
+        currentBundleKeys.percent = FIELD.defaultBundlePercentKey;
+      }
+    }
+
+    // ======= JSON helpers =======
+    function getParsedEntityOrEmpty() {
+      try { return JSON.parse(els.editor.value) || {}; }
+      catch { return {}; }
+    }
+    function setEntityToEditor(entity) {
+      els.editor.value = pretty(entity);
+      validateEditorJson();
+    }
+    function ensureArray(obj, key) {
+      if (!Array.isArray(obj[key])) obj[key] = [];
+    }
+
+    // ======= Builder rendering =======
+    function renderEquipmentTokens(entity) {
+      const eq = entity[FIELD.equipment] || [];
+      els.equipTokens.innerHTML = '';
+      const frag = document.createDocumentFragment();
+
+      const pushToken = (id, label, index) => {
+        const t = document.createElement('span');
+        t.className = 'token';
+        const known = dict.equipment.has(id);
+        if (!known) { t.classList.add('invalid'); t.title = 'Unknown equipment id'; }
+        t.innerHTML = `<span>${label || id}</span>`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label','Remove');
+        btn.textContent = '×';
+        btn.addEventListener('click', () => {
+          const e2 = getParsedEntityOrEmpty();
+          const arr = e2[FIELD.equipment] || [];
+          arr.splice(index, 1);
+          e2[FIELD.equipment] = arr;
+          setEntityToEditor(e2);
+          renderEquipmentTokens(e2);
+          validateEditorJson();
+        });
+        t.appendChild(btn);
+        frag.appendChild(t);
+      };
+
+      if (equipmentMode === 'string') {
+        eq.forEach((v, i) => {
+          const id = String(v);
+          pushToken(id, dict.equipment.get(id) || id, i);
+        });
+      } else {
+        eq.forEach((obj, i) => {
+          if (obj && typeof obj === 'object') {
+            const idKey = FIELD.equipmentIdKeyFallbacks.find(k => k in obj);
+            const nameKey = FIELD.equipmentNameKeyFallbacks.find(k => k in obj);
+            const id = idKey ? String(obj[idKey]) : '';
+            const label = nameKey ? String(obj[nameKey]) : id;
+            pushToken(id, label, i);
+          }
+        });
+      }
+
+      els.equipTokens.appendChild(frag);
+    }
+
+    function addEquipmentFromInput() {
+      const raw = els.equipInput.value.trim();
+      if (!raw) return;
+      const entity = getParsedEntityOrEmpty();
+      ensureArray(entity, FIELD.equipment);
+
+      if (equipmentMode === 'string') {
+        if (!entity[FIELD.equipment].includes(raw)) {
+          entity[FIELD.equipment].push(raw);
+        }
+      } else {
+        const label = dict.equipment.get(raw) || raw;
+        const obj = { id: raw, name: label };
+        entity[FIELD.equipment].push(obj);
+      }
+      setEntityToEditor(entity);
+      renderEquipmentTokens(entity);
+      els.equipInput.value = '';
+      validateEditorJson();
+    }
+
+    function renderBundles(entity) {
+      const arr = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
+      els.bundles.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      let sum = 0;
+
+      arr.forEach((b, i) => {
+        const row = document.createElement('div');
+        row.className = 'bundle-row';
+
+        const muscleVal = String(b?.[currentBundleKeys.muscle] ?? '');
+        const percentVal = Number(b?.[currentBundleKeys.percent] ?? 0);
+        sum += isFinite(percentVal) ? percentVal : 0;
+
+        const muscleInput = document.createElement('input');
+        muscleInput.placeholder = 'Muscle id or name…';
+        muscleInput.value = muscleVal;
+        muscleInput.setAttribute('list','muscleOptions');
+        const knownMuscle = dict.muscles.has(muscleVal);
+        if (!knownMuscle) { muscleInput.classList.add('invalid'); muscleInput.title = 'Unknown muscle id'; }
+
+        const percentInput = document.createElement('input');
+        percentInput.type = 'number';
+        percentInput.min = '0';
+        percentInput.max = '100';
+        percentInput.step = '1';
+        percentInput.value = String(percentVal);
+        if (!isFinite(percentVal) || percentVal < 0 || percentVal > 100) {
+          percentInput.classList.add('invalid');
+          percentInput.title = 'Percent must be between 0 and 100';
+        }
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn muted';
+        delBtn.type = 'button';
+        delBtn.textContent = 'Remove';
+
+        // Handlers
+        muscleInput.addEventListener('input', () => {
+          const e2 = getParsedEntityOrEmpty();
+          ensureArray(e2, FIELD.bundles);
+          e2[FIELD.bundles][i] = e2[FIELD.bundles][i] || {};
+          e2[FIELD.bundles][i][currentBundleKeys.muscle] = muscleInput.value.trim();
+          setEntityToEditor(e2);
+          renderBundles(e2);
+          validateEditorJson();
+        });
+        percentInput.addEventListener('change', () => {
+          const e2 = getParsedEntityOrEmpty();
+          ensureArray(e2, FIELD.bundles);
+          e2[FIELD.bundles][i] = e2[FIELD.bundles][i] || {};
+          e2[FIELD.bundles][i][currentBundleKeys.percent] = Number(percentInput.value || 0);
+          setEntityToEditor(e2);
+          renderBundles(e2);
+          validateEditorJson();
+        });
+        delBtn.addEventListener('click', () => {
+          const e2 = getParsedEntityOrEmpty();
+          const arr2 = e2[FIELD.bundles] || [];
+          arr2.splice(i, 1);
+          e2[FIELD.bundles] = arr2;
+          setEntityToEditor(e2);
+          renderBundles(e2);
+          validateEditorJson();
+        });
+
+        row.appendChild(muscleInput);
+        row.appendChild(percentInput);
+        row.appendChild(delBtn);
+        frag.appendChild(row);
+      });
+
+      els.bundles.appendChild(frag);
+      els.bundleSumInfo.innerHTML = `Sum: <strong class="${sum!==100?'warn-text':'ok-text'}">${sum}%</strong>${sum!==100?' — must be exactly 100%':' '}`;
+    }
+
+    function addBundleFromInputs() {
+      const m = els.muscleInput.value.trim();
+      const p = Number(els.percentInput.value || 0);
+      if (!m || !isFinite(p)) return;
+
+      const entity = getParsedEntityOrEmpty();
+      ensureArray(entity, FIELD.bundles);
+      const obj = {};
+      obj[currentBundleKeys.muscle] = m;
+      obj[currentBundleKeys.percent] = p;
+      entity[FIELD.bundles].push(obj);
+
+      setEntityToEditor(entity);
+      renderBundles(entity);
+
+      if (!dict.muscles.has(m)) dict.muscles.set(m, m); // teach new value for next time
+
+      els.muscleInput.value = '';
+      els.percentInput.value = '';
+      validateEditorJson();
+    }
+
+    function syncFormFromJSON() {
+      const entity = getParsedEntityOrEmpty();
+      renderEquipmentTokens(entity);
+      renderBundles(entity);
+    }
+
+    function syncJSONFromForm() {
+      // Builder updates JSON on every input event; no extra work needed here.
+    }
+
+    function setViewForm() {
+      els.viewForm.classList.add('active');
+      els.viewJson.classList.remove('active');
+      els.builder.classList.add('show');
+      els.builder.removeAttribute('hidden');
+      els.editor.style.display = 'none';
+      // Re-render builder based on current JSON
+      detectEquipmentModeFromEntity(getParsedEntityOrEmpty());
+      detectBundleKeysFromEntity(getParsedEntityOrEmpty());
+      syncFormFromJSON();
+    }
+
+    function setViewJson() {
+      els.viewJson.classList.add('active');
+      els.viewForm.classList.remove('active');
+      els.builder.classList.remove('show');
+      els.builder.setAttribute('hidden','');
+      els.editor.style.display = 'block';
+    }
+
+    // ======= Validation =======
+    function validateEditorJson() {
+      const content = els.editor.value;
+      if (!content.trim()) {
+        els.saveBtn.disabled = true;
+        setStatus('warn', 'Empty');
+        return null;
+      }
+
+      try {
+        const parsed = JSON.parse(content);
+
+        // Minimal domain-required keys (kept from original behavior)
+        const required = ['name', 'description', 'weightType', 'category', 'experience', 'forceType', 'imageUrl', 'exerciseExampleBundles', 'equipmentRefs', 'tutorials'];
+        const missing = required.filter(k => !(k in parsed));
+
+        // Aggregate validation signals
+        let messages = [];
+        let hardError = false;
+
+        if (missing.length) {
+          messages.push(`Missing: ${missing.join(', ')}`);
+        }
+
+        // Sum of bundles must be exactly 100%
+        const bundles = Array.isArray(parsed[FIELD.bundles]) ? parsed[FIELD.bundles] : [];
+        let sum = 0;
+        let percentOutOfRange = false;
+        let unknownMuscles = [];
+        for (const b of bundles) {
+          if (!b || typeof b !== 'object') continue;
+          const mKey = currentBundleKeys.muscle;
+          const pKey = currentBundleKeys.percent;
+          const muscleId = String(b?.[mKey] ?? '');
+          const percent = Number(b?.[pKey] ?? 0);
+          if (!isFinite(percent) || percent < 0 || percent > 100) percentOutOfRange = true;
+          sum += isFinite(percent) ? percent : 0;
+          if (muscleId && !dict.muscles.has(muscleId)) unknownMuscles.push(muscleId);
+        }
+        if (bundles.length > 0 && sum !== 100) {
+          messages.push(`Bundles sum ${sum}% (must be 100%)`);
+          hardError = true; // strict block on sum
+        }
+        if (percentOutOfRange) {
+          messages.push(`Bundle percent out of [0..100]`);
+          hardError = true;
+        }
+        if (unknownMuscles.length) {
+          messages.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
+        }
+
+        // Equipment unknown IDs detection
+        const eq = parsed[FIELD.equipment];
+        let unknownEquip = [];
+        if (Array.isArray(eq)) {
+          if (eq.length && typeof eq[0] === 'string') {
+            for (const id of eq) if (!dict.equipment.has(String(id))) unknownEquip.push(String(id));
+          } else {
+            for (const obj of eq) {
+              if (obj && typeof obj === 'object') {
+                const idKey = FIELD.equipmentIdKeyFallbacks.find(k => k in obj);
+                const id = idKey ? String(obj[idKey]) : '';
+                if (id && !dict.equipment.has(id)) unknownEquip.push(id);
+              }
+            }
+          }
+        }
+        if (unknownEquip.length) {
+          messages.push(`Unknown equipment: ${Array.from(new Set(unknownEquip)).join(', ')}`);
+        }
+
+        // Result status
+        if (hardError) {
+          els.saveBtn.disabled = true;
+          setStatus('bad', buildStatusMessage(messages) || 'Invalid');
+        } else {
+          // Allow save even with warnings (unknown IDs or missing optional shapes)
+          els.saveBtn.disabled = false;
+          if (messages.length) setStatus('warn', buildStatusMessage(messages));
+          else setStatus('ok', 'Valid JSON');
+        }
+
+        return parsed;
+      } catch (e) {
+        els.saveBtn.disabled = true;
+        setStatus('bad', `Invalid JSON: ${String(e.message || e).split('\n')[0]}`);
+        return null;
+      }
+    }
+
+    // ======= Item selection =======
     function selectItem(it) {
       current = it;
       els.currentId.textContent = it?.entity?.id ? `Editing ID: ${it.entity.id}` : 'Editing: unknown ID';
       els.editor.value = pretty(it.entity ?? {});
+      // Detect for builder
+      detectEquipmentModeFromEntity(it.entity || {});
+      detectBundleKeysFromEntity(it.entity || {});
+      // Validate + sync builder
       validateEditorJson();
+      syncFormFromJSON();
       renderList();
     }
 
+    // ======= Load list =======
     async function loadList() {
       const headers = { 'accept': 'application/json', ...bearer() };
       if (!headers.Authorization) {
@@ -282,13 +771,23 @@
       }
     }
 
+    // ======= Save with id lock =======
     async function saveCurrent() {
       if (!current || !current.entity?.id) {
         toast({ title: 'Nothing selected', message: 'Pick an item from the list first.', type: 'error' });
         return;
       }
+
+      // Sync JSON from builder before saving, if builder is visible
+      if (!els.builder.hasAttribute('hidden')) {
+        syncJSONFromForm();
+      }
+
       const parsed = validateEditorJson();
       if (!parsed) return;
+
+      // Hard-lock ID for existing entity
+      parsed.id = current.entity.id;
 
       const headers = {
         'accept': 'application/json',
@@ -308,9 +807,7 @@
           const text = await resp.text();
           throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
         }
-        // 204 No Content expected
         toast({ title: 'Saved', message: `ID ${id} updated successfully.` });
-        // Update in-memory entity with edited content
         current.entity = parsed;
         renderList();
       } catch (e) {
@@ -321,26 +818,27 @@
       }
     }
 
-    async function copyToClipboard(text, label = 'Copied') {
-      try {
-        await navigator.clipboard.writeText(text);
-        toast({ title: label });
-      } catch (e) {
-        // Fallback
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
-        toast({ title: label });
-      }
-    }
-
     // ======= Wire up UI =======
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       els.token.value = loadTokenLocal();
+
+      // Dictionaries first (public endpoints, no auth)
+      await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
+      refreshOptionLists();
+
+      // Original wiring
       els.saveToken.addEventListener('click', () => { saveTokenLocal(els.token.value); toast({ title: 'Token saved' }); });
       els.load.addEventListener('click', loadList);
       els.search.addEventListener('input', applySearch);
       els.clearSearch.addEventListener('click', () => { els.search.value = ''; applySearch(); });
-      els.editor.addEventListener('input', () => validateEditorJson());
+      els.editor.addEventListener('input', () => {
+        validateEditorJson();
+        if (!els.builder.hasAttribute('hidden')) {
+          detectEquipmentModeFromEntity(getParsedEntityOrEmpty());
+          detectBundleKeysFromEntity(getParsedEntityOrEmpty());
+          syncFormFromJSON();
+        }
+      });
       els.formatBtn.addEventListener('click', () => {
         try { const obj = JSON.parse(els.editor.value); els.editor.value = pretty(obj); validateEditorJson(); }
         catch (e) { toast({ title: 'Format error', message: String(e.message || e), type: 'error' }); }
@@ -351,9 +849,32 @@
         copyToClipboard(pretty(current), 'Full item JSON copied');
       });
       els.saveBtn.addEventListener('click', saveCurrent);
+
+      // Builder events
+      els.viewForm.addEventListener('click', setViewForm);
+      els.viewJson.addEventListener('click', setViewJson);
+      els.equipAdd.addEventListener('click', addEquipmentFromInput);
+      els.equipInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addEquipmentFromInput(); } });
+      els.bundleAdd.addEventListener('click', addBundleFromInputs);
+      els.percentInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addBundleFromInputs(); } });
+
+      // Default view is JSON
+      setViewJson();
     });
 
-    // ======= Helpful errors for CORS =======
+    // ======= Clipboard helper =======
+    async function copyToClipboard(text, label = 'Copied') {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({ title: label });
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+        toast({ title: label });
+      }
+    }
+
+    // ======= Helpful errors for CORS (keep original behavior) =======
     (function patchFetchForHints(){
       const orig = window.fetch;
       window.fetch = async (...args) => {
