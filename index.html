@@ -9,8 +9,9 @@
       --bg:#0b1220;--panel:#0f1524;--panel-2:#0b1220;--text:#e5e7eb;--muted:#9aa6b2;
       --brand:#60a5fa;--brand-2:#38bdf8;--danger:#ef4444;--ok:#22c55e;--border:#1b2433;
       --warning:#f59e0b;--shadow:0 10px 32px rgba(0,0,0,.45);
-      --field:#0b1326;--field-hover:#0d1730;--field-focus:#0f1c3a;
-      --ring:#1e3a8a;
+      --field:#0a1222;--field-hover:#0c1630;--field-focus:#0e1b3a;
+      --ring:#1e3a8a;--header-bg:#0a1a33;--divider:#0f233e;
+      --section-gap:18px;--block-gap:14px;
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
@@ -18,35 +19,33 @@
       color:var(--text);
       font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"
     }
+
+    /* Header is visually distinct */
     header{
       position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);
-      background:color-mix(in srgb,var(--panel) 92%, transparent);
-      border-bottom:1px solid var(--border);padding:10px 14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;box-shadow:var(--shadow)
+      background:linear-gradient(180deg,var(--header-bg) 75%, rgba(0,0,0,0));
+      border-bottom:1px solid var(--border);padding:12px 14px;
+      display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+      box-shadow:0 8px 26px rgba(0,0,0,.35)
     }
-    nav.tabs{
-      position:sticky;top:58px;z-index:19;background:color-mix(in srgb,var(--panel) 92%,transparent);
-      border-bottom:1px solid var(--border);display:flex;gap:8px;padding:8px 12px
-    }
-    .tab{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:12px;padding:8px 12px;cursor:pointer;transition:background .15s}
-    .tab:hover{background:#0c1730}
-    .tab.active{outline:2px solid var(--brand)}
-    .tab.disabled{opacity:.5;cursor:not-allowed}
+
     .token-input{width:100%}
 
-    /* Inputs — dark, subtle, pleasant */
+    /* Inputs — darker & softer */
     input[type="password"],input[type="text"],input[type="search"],input[type="url"],select,textarea{
       width:100%;background:var(--field);border:1px solid var(--border);color:var(--text);
-      border-radius:12px;padding:10px 12px;outline:none;transition:border .15s, box-shadow .15s, background .15s
+      border-radius:12px;padding:11px 12px;outline:none;
+      transition:border .15s, box-shadow .15s, background .15s, transform .02s
     }
     input::placeholder,textarea::placeholder{color:var(--muted)}
     input:hover,textarea:hover,select:hover{background:var(--field-hover)}
     input:focus,textarea:focus,select:focus{
-      background:var(--field-focus);border-color:#284065;
-      box-shadow:0 0 0 3px rgba(96,165,250,.15), inset 0 0 0 1px rgba(96,165,250,.08)
+      background:var(--field-focus);border-color:#2a436f;
+      box-shadow:0 0 0 3px rgba(96,165,250,.12), inset 0 0 0 1px rgba(96,165,250,.08)
     }
 
     .btn{
-      background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;
+      background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#fff;padding:11px 14px;border-radius:12px;cursor:pointer;
       box-shadow:var(--shadow);transition:transform .05s, filter .15s;font-weight:600
     }
     .btn:hover{filter:brightness(1.05)}
@@ -55,22 +54,22 @@
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .btn:active{transform:translateY(1px)}
 
-    main{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px;height:calc(100% - 104px)}
+    main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px;height:calc(100% - 74px)}
     @media (max-width:1000px){main{grid-template-columns:1fr;height:auto}}
 
     .sidebar{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
-    .side-head{padding:12px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
-    .list{overflow:auto;padding:8px;display:grid;gap:8px}
-    .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;display:grid;gap:4px;transition:border .15s, background .15s}
+    .side-head{padding:14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
+    .list{overflow:auto;padding:10px;display:grid;gap:10px}
+    .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;display:grid;gap:6px;transition:border .15s, background .15s}
     .item:hover{border-color:#2b394f;background:#0c1730}
     .item.active{outline:2px solid var(--brand)}
-    .name{font-weight:600}.meta{color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
+    .name{font-weight:700}.meta{color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
     .pill{background:#09213b;color:#9fd2ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #102e4e}
 
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
-    .ed-head{padding:10px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .ed-head{padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap}
     .spacer{flex:1}
-    .status{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
+    .status{font-size:12px;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
     .status.ok{color:#d1fae5;background:#08351a;border-color:#14532d}
     .status.bad{color:#fee2e2;background:#3a0d0d;border-color:#7f1d1d}
     .status.warn{color:#fff7ed;background:#3a270b;border-color:#92400e}
@@ -80,7 +79,13 @@
     .segment .seg{background:transparent;border:0;color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
     .segment .seg.active{background:var(--panel);border:1px solid var(--border)}
 
-    .builder{padding:12px;display:none}.builder.show{display:block}
+    .builder{padding:16px;display:none}.builder.show{display:block}
+
+    /* Sections + dividers + spacing */
+    .section{display:grid;gap:var(--block-gap);margin-bottom:var(--section-gap)}
+    .section-title{font-weight:800;letter-spacing:.2px}
+    .divider{height:1px;background:linear-gradient(90deg,rgba(255,255,255,.05),var(--divider),rgba(255,255,255,.05));border:0;margin:8px 0 0}
+
     .grid{display:grid;gap:12px}
     .two{grid-template-columns:1fr 1fr}
     .three{grid-template-columns:1fr 1fr 1fr}
@@ -88,8 +93,8 @@
     .field label{font-weight:600}
     .hint{font-size:12px;color:var(--muted)}
     .invalid{border-color:#7f1d1d !important;box-shadow:inset 0 0 0 1px #7f1d1d}
-    .token-list{display:flex;flex-wrap:wrap;gap:6px}
-    .token{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0a1c36;color:#bfe1ff;border:1px solid #12355e;border-radius:999px;font-size:12px}
+    .token-list{display:flex;flex-wrap:wrap;gap:8px}
+    .token{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:#0a1c36;color:#bfe1ff;border:1px solid #12355e;border-radius:999px;font-size:12px}
     .token button{background:transparent;border:0;color:#bfe1ff;cursor:pointer;font-size:14px;line-height:1}
     .token.invalid{border-color:#7f1d1d;color:#fecaca;background:#3a0d0d}
     .bundle-row{display:grid;grid-template-columns:1.6fr 0.6fr auto;gap:8px;align-items:center}
@@ -97,8 +102,9 @@
     .sum.bad{color:#fca5a5}.sum.ok{color:#86efac}
 
     textarea#editor{
-      width:100%;height:100%;flex:1;resize:none;border:0;outline:none;padding:14px;background:#0a1324;color:#dbeafe;
-      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.45;border-bottom-left-radius:14px;border-bottom-right-radius:14px
+      width:100%;height:100%;flex:1;resize:none;border:0;outline:none;padding:16px;background:#0a1324;color:#dbeafe;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.5;
+      border-bottom-left-radius:14px;border-bottom-right-radius:14px
     }
 
     .toast{position:fixed;right:16px;bottom:16px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
@@ -109,6 +115,7 @@
   </style>
 </head>
 <body>
+  <!-- Header (distinct background) -->
   <header>
     <div class="token-input">
       <input id="token" type="password" placeholder="Bearer token (stored locally)" autocomplete="off"/>
@@ -117,15 +124,8 @@
     <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
   </header>
 
-  <!-- Future modules -->
-  <nav class="tabs" role="tablist" aria-label="Admin modules">
-    <button class="tab active" id="tab-examples" role="tab" aria-selected="true">Exercise Examples</button>
-    <button class="tab disabled" role="tab" aria-selected="false" title="Coming soon" disabled>Rewards</button>
-    <button class="tab disabled" role="tab" aria-selected="false" title="Coming soon" disabled>Chores</button>
-    <button class="tab disabled" role="tab" aria-selected="false" title="Coming soon" disabled>Blackouts</button>
-  </nav>
-
   <main>
+    <!-- Single module (no extra tabs) -->
     <section class="sidebar" aria-label="Examples list">
       <div class="side-head">
         <input id="search" type="search" placeholder="Search by name…"/>
@@ -157,65 +157,84 @@
 
       <!-- FORM BUILDER -->
       <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-        <div class="grid two">
-          <div class="field">
-            <label for="fName">Name *</label>
-            <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+
+        <!-- Basics -->
+        <div class="section">
+          <div class="section-title">Basics</div>
+          <div class="grid two">
+            <div class="field">
+              <label for="fName">Name *</label>
+              <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+            </div>
+            <div class="field">
+              <label for="fImage">Image URL (optional)</label>
+              <input id="fImage" type="url" placeholder="https://..."/>
+              <div class="hint">If empty, you can still save; it will show a warning.</div>
+            </div>
           </div>
+
           <div class="field">
-            <label for="fImage">Image URL *</label>
-            <input id="fImage" type="url" placeholder="https://..."/>
+            <label for="fDescription">Description *</label>
+            <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
           </div>
+          <hr class="divider"/>
         </div>
 
-        <div class="field">
-          <label for="fDescription">Description *</label>
-          <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
+        <!-- Attributes -->
+        <div class="section">
+          <div class="section-title">Attributes</div>
+          <div class="grid three">
+            <div class="field">
+              <label for="fWeightType">Weight type *</label>
+              <select id="fWeightType">
+                <option value="">— select —</option>
+                <option value="free">free</option>
+                <option value="fixed">fixed</option>
+                <option value="body_weight">body_weight</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fCategory">Category *</label>
+              <select id="fCategory">
+                <option value="">— select —</option>
+                <option value="compound">compound</option>
+                <option value="isolation">isolation</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fExperience">Experience *</label>
+              <select id="fExperience">
+                <option value="">— select —</option>
+                <option value="beginner">beginner</option>
+                <option value="intermediate">intermediate</option>
+                <option value="advanced">advanced</option>
+                <option value="pro">pro</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top:8px">
+            <div class="field">
+              <label for="fForceType">Force type *</label>
+              <select id="fForceType">
+                <option value="">— select —</option>
+                <option value="push">push</option>
+                <option value="pull">pull</option>
+                <option value="hinge">hinge</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>ID (locked for existing)</label>
+              <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+              <div class="hint">ID cannot be changed for existing items.</div>
+            </div>
+          </div>
+          <hr class="divider"/>
         </div>
 
-        <div class="grid three">
-          <div class="field">
-            <label for="fWeightType">Weight type *</label>
-            <input id="fWeightType" list="listWeight" placeholder="free / fixed / body_weight"/>
-            <datalist id="listWeight">
-              <option value="free"/><option value="fixed"/><option value="body_weight"/>
-            </datalist>
-          </div>
-          <div class="field">
-            <label for="fCategory">Category *</label>
-            <input id="fCategory" list="listCategory" placeholder="compound / isolation"/>
-            <datalist id="listCategory">
-              <option value="compound"/><option value="isolation"/>
-            </datalist>
-          </div>
-          <div class="field">
-            <label for="fExperience">Experience *</label>
-            <input id="fExperience" list="listExperience" placeholder="beginner / intermediate / advanced / pro"/>
-            <datalist id="listExperience">
-              <option value="beginner"/><option value="intermediate"/><option value="advanced"/><option value="pro"/>
-            </datalist>
-          </div>
-        </div>
-
-        <div class="grid two">
-          <div class="field">
-            <label for="fForceType">Force type *</label>
-            <input id="fForceType" list="listForce" placeholder="push / pull / hinge"/>
-            <datalist id="listForce">
-              <option value="push"/><option value="pull"/><option value="hinge"/>
-            </datalist>
-          </div>
-          <div class="field">
-            <label>ID (locked for existing)</label>
-            <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-            <div class="hint">ID cannot be changed for existing items.</div>
-          </div>
-        </div>
-
-        <hr style="border:0;border-top:1px solid var(--border);margin:8px 0"/>
-
-        <div class="field">
-          <label>Equipment *</label>
+        <!-- Equipment -->
+        <div class="section">
+          <div class="section-title">Equipment *</div>
           <div id="equipTokens" class="token-list" aria-live="polite"></div>
           <div class="grid two">
             <div class="field">
@@ -225,11 +244,13 @@
             <button id="equipAdd" class="btn" type="button">Add</button>
           </div>
           <div class="hint">Accepts name or ID. Stored as <code>{ equipmentId }</code>. Unknown items block saving.</div>
+          <hr class="divider"/>
         </div>
 
-        <div class="field">
-          <label>Muscle bundles (sum must be 100%) *</label>
-          <div id="bundles"></div>
+        <!-- Muscles -->
+        <div class="section">
+          <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+          <div id="bundles" style="display:grid;gap:8px"></div>
           <div class="bundle-row">
             <input id="muscleInput" list="muscleOptions" placeholder="Type name to search or paste ID"/>
             <datalist id="muscleOptions"></datalist>
@@ -258,21 +279,19 @@
   <script>
     // ===== Configuration =====
     const API_BASE = 'https://grippo-app.com';
-    const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;        // GET -> ExerciseExampleWithStatsResponse[]
+    const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
     const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;        // POST -> ExerciseExampleCreateResponse
     const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
-    // Public dictionaries (no auth required)
-    const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;     // EquipmentResponse[] OR EquipmentGroupResponse[]
-    const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;        // MuscleGroupsResponse[]
+    const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
+    const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;
 
     // ===== State =====
-    let items = [];      // ExerciseExampleWithStatsResponse[]
+    let items = [];
     let filtered = [];
-    let current = null;  // selected ExerciseExampleWithStatsResponse | null
+    let current = null;
     let isNew = false;
 
-    // Canonical keys EXACTLY as your DTOs
     const FIELD = {
       equipmentRefs: 'equipmentRefs',            // Array<{ equipmentId: string }>
       bundles: 'exerciseExampleBundles',         // Array<{ muscleId: string, percentage: number }>
@@ -280,12 +299,7 @@
       percentage: 'percentage'
     };
 
-    // Dictionaries (id -> name)
-    const dict = {
-      equipment: new Map(), // id -> name
-      muscles: new Map(),   // id -> name
-    };
-    // Name -> ID indexes (case-insensitive)
+    const dict = { equipment: new Map(), muscles: new Map() }; // id -> name
     const dictIndex = { equipmentByName: new Map(), musclesByName: new Map() };
     const normalizeName = (s)=> String(s||'').trim().toLowerCase();
     function rebuildNameIndexes(){
@@ -429,7 +443,7 @@
       renderList();
     }
 
-    // ===== Canonical entity (exact DTO shape) =====
+    // ===== Canonical entity (DTO shape) =====
     function emptyTemplate(){
       return {
         id: uuidv4(),
@@ -442,14 +456,11 @@
         imageUrl: '',
         [FIELD.bundles]: [],                    // [{ muscleId, percentage }]
         [FIELD.equipmentRefs]: [],               // [{ equipmentId }]
-        tutorials: []                            // optional; keep array
+        tutorials: []
       };
     }
-
-    // Normalize incoming entities to your exact DTO shape
     function normalizeEntityShape(src){
       const e = {...src};
-
       // equipmentRefs -> [{ equipmentId }]
       const eq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
       e[FIELD.equipmentRefs] = eq.map(x=>{
@@ -460,8 +471,7 @@
         }
         return null;
       }).filter(Boolean);
-
-      // exerciseExampleBundles -> [{ muscleId, percentage }]
+      // bundles -> [{ muscleId, percentage }]
       const rawB = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
       e[FIELD.bundles] = rawB.map(b=>{
         if (!b || typeof b !== 'object') return null;
@@ -470,12 +480,9 @@
         if (!muscleId || !isFinite(percentage)) return null;
         return { muscleId, percentage };
       }).filter(Boolean);
-
       if (!Array.isArray(e.tutorials)) e.tutorials = [];
       return e;
     }
-
-    // Keep a single source of truth
     let canonical = emptyTemplate();
     function getEntity(){ return {...canonical}; }
     function setEntity(newEnt){
@@ -485,16 +492,16 @@
       validateAll();
     }
 
-    // ===== Form <-> Entity =====
+    // ===== Form sync =====
     function readFormToEntity(entity){
       const e = {...entity};
       e.name = els.fName.value.trim();
       e.imageUrl = els.fImage.value.trim();
       e.description = els.fDescription.value.trim();
-      e.weightType = els.fWeightType.value.trim();
-      e.category = els.fCategory.value.trim();
-      e.experience = els.fExperience.value.trim();
-      e.forceType = els.fForceType.value.trim();
+      e.weightType = els.fWeightType.value;
+      e.category = els.fCategory.value;
+      e.experience = els.fExperience.value;
+      e.forceType = els.fForceType.value;
       if (!Array.isArray(e.tutorials)) e.tutorials = [];
       return e;
     }
@@ -511,7 +518,7 @@
       renderBundles(entity);
     }
 
-    // ===== Equipment UI (store as { equipmentId }) =====
+    // ===== Equipment UI =====
     function renderEquipmentTokens(entity){
       const eq = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
       els.equipTokens.innerHTML = '';
@@ -525,11 +532,8 @@
         t.innerHTML = `<span>${name}</span>`;
         const btn = document.createElement('button'); btn.type='button'; btn.textContent='×'; btn.title='Remove';
         btn.addEventListener('click', ()=>{
-          const ent = getEntity();
-          const arr = ent[FIELD.equipmentRefs] || [];
-          arr.splice(idx,1);
-          ent[FIELD.equipmentRefs] = arr;
-          setEntity(ent);
+          const ent = getEntity(); const arr = ent[FIELD.equipmentRefs] || [];
+          arr.splice(idx,1); ent[FIELD.equipmentRefs] = arr; setEntity(ent);
         });
         t.appendChild(btn); frag.appendChild(t);
       });
@@ -538,8 +542,6 @@
     function addEquipmentFromInput(){
       const raw = els.equipInput.value.trim();
       if (!raw) return;
-
-      // Accept either ID or name; map name -> ID if needed
       let id = raw;
       if (!dict.equipment.has(id)) {
         const byName = dictIndex.equipmentByName.get(normalizeName(raw));
@@ -549,7 +551,6 @@
         toast({ title: 'Unknown equipment', message: 'Pick from suggestions or enter a valid ID', type: 'error' });
         return;
       }
-
       const ent = getEntity();
       if (!Array.isArray(ent[FIELD.equipmentRefs])) ent[FIELD.equipmentRefs] = [];
       if (!ent[FIELD.equipmentRefs].some(x => x.equipmentId === id)) {
@@ -559,7 +560,7 @@
       els.equipInput.value = '';
     }
 
-    // ===== Bundles UI (store as { muscleId, percentage }) =====
+    // ===== Bundles UI =====
     function renderBundles(entity){
       const arr = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
       els.bundles.innerHTML = '';
@@ -598,9 +599,7 @@
           setEntity(ent);
         });
         del.addEventListener('click', ()=>{
-          const ent = getEntity();
-          ent[FIELD.bundles].splice(i,1);
-          setEntity(ent);
+          const ent = getEntity(); ent[FIELD.bundles].splice(i,1); setEntity(ent);
         });
 
         row.appendChild(muscle); row.appendChild(percent); row.appendChild(del);
@@ -616,7 +615,6 @@
       const p = Number(els.percentInput.value || 0);
       if (!raw || !isFinite(p)) return;
 
-      // Accept either ID or name; map name -> ID if needed
       let muscleId = raw;
       if (!dict.muscles.has(muscleId)) {
         const byName = dictIndex.musclesByName.get(normalizeName(raw));
@@ -638,8 +636,7 @@
     function selectItem(it){
       current = it; isNew = false;
       const e = it.entity || emptyTemplate();
-      const normalized = normalizeEntityShape(e);
-      canonical = normalized;
+      canonical = normalizeEntityShape(e);
       els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
       writeEntityToForm(canonical);
       els.editor.value = pretty(canonical);
@@ -687,10 +684,8 @@
       els.saveBtn.disabled = true;
       try{
         if (isNew){
-          // For create, send canonical as-is (id is optional; we include generated one)
           let resp = await fetch(CREATE_ENDPOINT, {method:'POST', headers, body: JSON.stringify(canonical)});
           if (!resp.ok){
-            // Fallback: some APIs accept PUT with ?id=
             resp = await fetch(PUT_ENDPOINT(canonical.id), {method:'PUT', headers, body: JSON.stringify(canonical)});
           }
           if (!resp.ok){
@@ -700,8 +695,7 @@
           isNew = false;
           await loadList();
         }else{
-          // Update — lock ID to original
-          canonical.id = current?.entity?.id || canonical.id;
+          canonical.id = current?.entity?.id || canonical.id; // lock ID
           const id = canonical.id;
           const resp = await fetch(PUT_ENDPOINT(id), {method:'PUT', headers, body: JSON.stringify(canonical)});
           if (!resp.ok){
@@ -716,36 +710,44 @@
       }finally{ els.saveBtn.disabled = false; }
     }
 
-    // ===== Validation (strict to your DTO) =====
+    // ===== Validation (errors vs warnings) =====
     function validateAll(){
       const ent = getEntity();
-      const missing = [];
-      if (!ent.name) missing.push('name');
-      if (!ent.description) missing.push('description');
-      if (!ent.weightType) missing.push('weightType');
-      if (!ent.category) missing.push('category');
-      if (!ent.experience) missing.push('experience');
-      if (!ent.forceType) missing.push('forceType');
-      if (!ent.imageUrl) missing.push('imageUrl');
 
-      // enums check (basic; backend is source of truth)
+      const errors = [];
+      const warnings = [];
+
+      // required fields (except imageUrl)
+      if (!ent.name) errors.push('Missing: name');
+      if (!ent.description) errors.push('Missing: description');
+      if (!ent.weightType) errors.push('Missing: weightType');
+      if (!ent.category) errors.push('Missing: category');
+      if (!ent.experience) errors.push('Missing: experience');
+      if (!ent.forceType) errors.push('Missing: forceType');
+
+      // imageUrl is optional -> warning only
+      if (!ent.imageUrl) warnings.push('imageUrl is empty');
+
+      // enums (basic guard)
       const weightOk = ['free','fixed','body_weight'].includes(ent.weightType);
       const catOk = ['compound','isolation'].includes(ent.category);
       const expOk = ['beginner','intermediate','advanced','pro'].includes(ent.experience);
       const forceOk = ['push','pull','hinge'].includes(ent.forceType);
-      if (!weightOk) missing.push('weightType (enum)');
-      if (!catOk) missing.push('category (enum)');
-      if (!expOk) missing.push('experience (enum)');
-      if (!forceOk) missing.push('forceType (enum)');
+      if (ent.weightType && !weightOk) errors.push('weightType invalid');
+      if (ent.category && !catOk) errors.push('category invalid');
+      if (ent.experience && !expOk) errors.push('experience invalid');
+      if (ent.forceType && !forceOk) errors.push('forceType invalid');
 
-      // equipment known ids
+      // equipment IDs
       const eq = Array.isArray(ent[FIELD.equipmentRefs]) ? ent[FIELD.equipmentRefs] : [];
+      if (eq.length === 0) errors.push('No equipment selected');
       const unknownEq = eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id));
+      if (unknownEq.length) errors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
 
-      // bundles total and known ids
+      // bundles
       const bundles = Array.isArray(ent[FIELD.bundles]) ? ent[FIELD.bundles] : [];
-      let sum = 0, outOfRange = false;
-      const unknownMuscles = [];
+      if (bundles.length === 0) errors.push('No muscle bundles added');
+      let sum = 0, outOfRange = false; const unknownMuscles = [];
       for (const b of bundles){
         const id = String(b?.muscleId ?? '');
         const p  = Number(b?.percentage ?? 0);
@@ -753,22 +755,19 @@
         sum += isFinite(p)? p : 0;
         if (!dict.muscles.has(id)) unknownMuscles.push(id);
       }
+      if (sum !== 100) errors.push(`Bundles sum ${sum}% (must be 100%)`);
+      if (outOfRange) errors.push('Bundle percentage out of [0..100]');
+      if (unknownMuscles.length) errors.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
 
-      const hardErrors = [];
-      if (missing.length) hardErrors.push(`Missing: ${missing.join(', ')}`);
-      if (eq.length === 0) hardErrors.push('No equipment selected');
-      if (bundles.length === 0) hardErrors.push('No muscle bundles added');
-      if (sum !== 100) hardErrors.push(`Bundles sum ${sum}% (must be 100%)`);
-      if (outOfRange) hardErrors.push('Bundle percentage out of [0..100]');
-      if (unknownEq.length) hardErrors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
-      if (unknownMuscles.length) hardErrors.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
-
-      const ok = hardErrors.length === 0;
-      setStatus(ok ? 'ok' : 'bad', ok ? 'Valid' : hardErrors[0]);
+      // status + buttons
+      const ok = errors.length === 0;
+      if (!ok) setStatus('bad', errors[0]);
+      else if (warnings.length) setStatus('warn', warnings[0]);
+      else setStatus('ok', 'Valid');
       els.saveBtn.disabled = !ok;
 
       if (!els.editor.hasAttribute('hidden')) els.editor.value = pretty(ent);
-      return {ok, errors: hardErrors};
+      return {ok, errors, warnings};
     }
 
     // ===== GPT prompt =====
@@ -777,10 +776,9 @@
       lines.push('Task: Improve the following Exercise Example JSON. Return ONLY valid JSON (no markdown, no commentary).');
       lines.push('');
       lines.push('Constraints (STRICT):');
-      lines.push('- Keep the exact schema of ExerciseExampleRequest:');
-      lines.push('  { id?: string, name: string, description: string, weightType: "free"|"fixed"|"body_weight", category: "compound"|"isolation",');
-      lines.push('    experience: "beginner"|"intermediate"|"advanced"|"pro", forceType: "push"|"pull"|"hinge", imageUrl: string,');
-      lines.push(`    ${FIELD.bundles}: [{ muscleId: string, percentage: number }], ${FIELD.equipmentRefs}: [{ equipmentId: string }], tutorials: [] }`);
+      lines.push('Schema: { id?: string, name: string, description: string, weightType: "free"|"fixed"|"body_weight", category: "compound"|"isolation",');
+      lines.push('  experience: "beginner"|"intermediate"|"advanced"|"pro", forceType: "push"|"pull"|"hinge", imageUrl?: string,');
+      lines.push(`  ${FIELD.bundles}: [{ muscleId: string, percentage: number }], ${FIELD.equipmentRefs}: [{ equipmentId: string }], tutorials: [] }`);
       lines.push('- Do not change `id` if present.');
       lines.push(`- "${FIELD.bundles}" total "percentage" MUST be exactly 100.`);
       lines.push(`- "${FIELD.equipmentRefs}" MUST use valid equipment IDs from the dictionary below.`);
@@ -824,18 +822,17 @@
     window.addEventListener('DOMContentLoaded', async ()=>{
       els.token.value = loadTokenLocal();
 
-      // Load dictionaries
       await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
       rebuildNameIndexes();
       refreshOptionLists();
 
-      // Wire sidebar
+      // Sidebar
       els.load.addEventListener('click', loadList);
       els.search.addEventListener('input', applySearch);
       els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
       els.newBtn.addEventListener('click', newItem);
 
-      // Header buttons
+      // Header actions
       els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
       els.saveBtn.addEventListener('click', saveCurrent);
       els.formatBtn.addEventListener('click', ()=>{
@@ -849,19 +846,23 @@
       });
       els.promptBtn.addEventListener('click', copyPrompt);
 
-      // Builder events
+      // View
       els.viewForm.addEventListener('click', setViewForm);
       els.viewJson.addEventListener('click', setViewJson);
-      [els.fName, els.fImage, els.fDescription, els.fWeightType, els.fCategory, els.fExperience, els.fForceType]
-        .forEach(input => input.addEventListener('input', ()=>{ const ent = readFormToEntity(getEntity()); setEntity(ent); }));
 
+      // Form inputs (use change on selects)
+      [els.fName, els.fImage, els.fDescription].forEach(input=> input.addEventListener('input', ()=>{ setEntity(readFormToEntity(getEntity())); }));
+      [els.fWeightType, els.fCategory, els.fExperience, els.fForceType].forEach(sel=> sel.addEventListener('change', ()=>{ setEntity(readFormToEntity(getEntity())); }));
+
+      // Equipment
       els.equipAdd.addEventListener('click', addEquipmentFromInput);
       els.equipInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addEquipmentFromInput(); } });
 
+      // Bundles
       els.bundleAdd.addEventListener('click', addBundleFromInputs);
       els.percentInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addBundleFromInputs(); } });
 
-      // JSON editor live-validate + normalize to DTO shape
+      // JSON normalize
       els.editor.addEventListener('input', ()=>{
         try{
           const obj = JSON.parse(els.editor.value);
