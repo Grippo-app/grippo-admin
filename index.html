@@ -6,38 +6,66 @@
   <title>Grippo Admin — Exercise Examples</title>
   <style>
     :root{
-      --bg:#0b1220;--panel:#111827;--panel-2:#0f172a;--text:#e5e7eb;--muted:#94a3b8;
-      --brand:#60a5fa;--brand-2:#38bdf8;--danger:#ef4444;--ok:#22c55e;--border:#1f2937;
-      --warning:#f59e0b;--shadow:0 8px 30px rgba(0,0,0,.35)
+      --bg:#0b1220;--panel:#0f1524;--panel-2:#0b1220;--text:#e5e7eb;--muted:#9aa6b2;
+      --brand:#60a5fa;--brand-2:#38bdf8;--danger:#ef4444;--ok:#22c55e;--border:#1b2433;
+      --warning:#f59e0b;--shadow:0 10px 32px rgba(0,0,0,.45);
+      --field:#0b1326;--field-hover:#0d1730;--field-focus:#0f1c3a;
+      --ring:#1e3a8a;
     }
     *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;background:linear-gradient(180deg,var(--bg),#0a0f1a);color:var(--text);
-      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
-    header{position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);background:color-mix(in srgb,var(--panel) 92%,transparent);
-      border-bottom:1px solid var(--border);padding:10px 14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;box-shadow:var(--shadow)}
-    nav.tabs{position:sticky;top:58px;z-index:19;background:color-mix(in srgb,var(--panel) 92%,transparent);border-bottom:1px solid var(--border);
-      display:flex;gap:8px;padding:8px 12px}
-    .tab{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:10px;padding:8px 12px;cursor:pointer}
+    body{
+      margin:0;background:linear-gradient(180deg,var(--bg),#0a0f1a);
+      color:var(--text);
+      font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"
+    }
+    header{
+      position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);
+      background:color-mix(in srgb,var(--panel) 92%, transparent);
+      border-bottom:1px solid var(--border);padding:10px 14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;box-shadow:var(--shadow)
+    }
+    nav.tabs{
+      position:sticky;top:58px;z-index:19;background:color-mix(in srgb,var(--panel) 92%,transparent);
+      border-bottom:1px solid var(--border);display:flex;gap:8px;padding:8px 12px
+    }
+    .tab{border:1px solid var(--border);background:var(--panel-2);color:var(--text);border-radius:12px;padding:8px 12px;cursor:pointer;transition:background .15s}
+    .tab:hover{background:#0c1730}
     .tab.active{outline:2px solid var(--brand)}
     .tab.disabled{opacity:.5;cursor:not-allowed}
     .token-input{width:100%}
+
+    /* Inputs — dark, subtle, pleasant */
     input[type="password"],input[type="text"],input[type="search"],input[type="url"],select,textarea{
-      width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:10px 12px;outline:none}
+      width:100%;background:var(--field);border:1px solid var(--border);color:var(--text);
+      border-radius:12px;padding:10px 12px;outline:none;transition:border .15s, box-shadow .15s, background .15s
+    }
     input::placeholder,textarea::placeholder{color:var(--muted)}
-    .btn{background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#fff;padding:10px 14px;border-radius:10px;cursor:pointer;box-shadow:var(--shadow);transition:transform .05s;font-weight:600}
+    input:hover,textarea:hover,select:hover{background:var(--field-hover)}
+    input:focus,textarea:focus,select:focus{
+      background:var(--field-focus);border-color:#284065;
+      box-shadow:0 0 0 3px rgba(96,165,250,.15), inset 0 0 0 1px rgba(96,165,250,.08)
+    }
+
+    .btn{
+      background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;
+      box-shadow:var(--shadow);transition:transform .05s, filter .15s;font-weight:600
+    }
+    .btn:hover{filter:brightness(1.05)}
     .btn.muted{background:var(--panel-2);color:var(--text);border:1px solid var(--border);box-shadow:none}
     .btn.warn{background:var(--warning);color:#111}
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .btn:active{transform:translateY(1px)}
+
     main{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px;height:calc(100% - 104px)}
     @media (max-width:1000px){main{grid-template-columns:1fr;height:auto}}
+
     .sidebar{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
     .side-head{padding:12px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;border-bottom:1px solid var(--border)}
     .list{overflow:auto;padding:8px;display:grid;gap:8px}
-    .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;display:grid;gap:4px}
-    .item:hover{border-color:#2b394f}.item.active{outline:2px solid var(--brand)}
+    .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px;cursor:pointer;display:grid;gap:4px;transition:border .15s, background .15s}
+    .item:hover{border-color:#2b394f;background:#0c1730}
+    .item.active{outline:2px solid var(--brand)}
     .name{font-weight:600}.meta{color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
-    .pill{background:#0b253d;color:#9dd1ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #123756}
+    .pill{background:#09213b;color:#9fd2ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #102e4e}
 
     .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
     .ed-head{padding:10px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -48,8 +76,8 @@
     .status.warn{color:#fff7ed;background:#3a270b;border-color:#92400e}
 
     .view-toggle{display:flex;gap:8px;margin-left:auto}
-    .segment{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:6px;display:inline-flex;gap:6px}
-    .segment .seg{background:transparent;border:0;color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer}
+    .segment{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:6px;display:inline-flex;gap:6px}
+    .segment .seg{background:transparent;border:0;color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
     .segment .seg.active{background:var(--panel);border:1px solid var(--border)}
 
     .builder{padding:12px;display:none}.builder.show{display:block}
@@ -61,15 +89,17 @@
     .hint{font-size:12px;color:var(--muted)}
     .invalid{border-color:#7f1d1d !important;box-shadow:inset 0 0 0 1px #7f1d1d}
     .token-list{display:flex;flex-wrap:wrap;gap:6px}
-    .token{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:#0b253d;color:#9dd1ff;border:1px solid #123756;border-radius:999px;font-size:12px}
-    .token button{background:transparent;border:0;color:#9dd1ff;cursor:pointer;font-size:14px;line-height:1}
+    .token{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;background:#0a1c36;color:#bfe1ff;border:1px solid #12355e;border-radius:999px;font-size:12px}
+    .token button{background:transparent;border:0;color:#bfe1ff;cursor:pointer;font-size:14px;line-height:1}
     .token.invalid{border-color:#7f1d1d;color:#fecaca;background:#3a0d0d}
     .bundle-row{display:grid;grid-template-columns:1.6fr 0.6fr auto;gap:8px;align-items:center}
     .sum{font-size:12px}
     .sum.bad{color:#fca5a5}.sum.ok{color:#86efac}
 
-    textarea#editor{width:100%;height:100%;flex:1;resize:none;border:0;outline:none;padding:14px;background:#0a1324;color:#dbeafe;
-      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.45;border-bottom-left-radius:14px;border-bottom-right-radius:14px}
+    textarea#editor{
+      width:100%;height:100%;flex:1;resize:none;border:0;outline:none;padding:14px;background:#0a1324;color:#dbeafe;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.45;border-bottom-left-radius:14px;border-bottom-right-radius:14px
+    }
 
     .toast{position:fixed;right:16px;bottom:16px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
       padding:12px 14px;border-radius:12px;box-shadow:var(--shadow);min-width:220px;display:grid;gap:6px}
@@ -79,7 +109,6 @@
   </style>
 </head>
 <body>
-  <!-- Top bar with token and actions -->
   <header>
     <div class="token-input">
       <input id="token" type="password" placeholder="Bearer token (stored locally)" autocomplete="off"/>
@@ -88,7 +117,7 @@
     <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
   </header>
 
-  <!-- Admin modules tabs (future-proof) -->
+  <!-- Future modules -->
   <nav class="tabs" role="tablist" aria-label="Admin modules">
     <button class="tab active" id="tab-examples" role="tab" aria-selected="true">Exercise Examples</button>
     <button class="tab disabled" role="tab" aria-selected="false" title="Coming soon" disabled>Rewards</button>
@@ -97,7 +126,6 @@
   </nav>
 
   <main>
-    <!-- Sidebar -->
     <section class="sidebar" aria-label="Examples list">
       <div class="side-head">
         <input id="search" type="search" placeholder="Search by name…"/>
@@ -107,7 +135,6 @@
       <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
     </section>
 
-    <!-- Editor panel -->
     <section class="panel">
       <div class="ed-head">
         <span id="currentId" class="hint">No item selected</span>
@@ -133,10 +160,10 @@
         <div class="grid two">
           <div class="field">
             <label for="fName">Name *</label>
-            <input id="fName" type="text" placeholder="e.g., Front Foot Elevated Smith Machine Split Squat"/>
+            <input id="fName" type="text" placeholder="e.g., Bench Press"/>
           </div>
           <div class="field">
-            <label for="fImage">Image URL</label>
+            <label for="fImage">Image URL *</label>
             <input id="fImage" type="url" placeholder="https://..."/>
           </div>
         </div>
@@ -149,9 +176,9 @@
         <div class="grid three">
           <div class="field">
             <label for="fWeightType">Weight type *</label>
-            <input id="fWeightType" list="listWeight" placeholder="free / machine / bodyweight / cable"/>
+            <input id="fWeightType" list="listWeight" placeholder="free / fixed / body_weight"/>
             <datalist id="listWeight">
-              <option value="free"/><option value="machine"/><option value="bodyweight"/><option value="cable"/><option value="band"/>
+              <option value="free"/><option value="fixed"/><option value="body_weight"/>
             </datalist>
           </div>
           <div class="field">
@@ -163,9 +190,9 @@
           </div>
           <div class="field">
             <label for="fExperience">Experience *</label>
-            <input id="fExperience" list="listExperience" placeholder="beginner / intermediate / advanced"/>
+            <input id="fExperience" list="listExperience" placeholder="beginner / intermediate / advanced / pro"/>
             <datalist id="listExperience">
-              <option value="beginner"/><option value="intermediate"/><option value="advanced"/>
+              <option value="beginner"/><option value="intermediate"/><option value="advanced"/><option value="pro"/>
             </datalist>
           </div>
         </div>
@@ -173,9 +200,9 @@
         <div class="grid two">
           <div class="field">
             <label for="fForceType">Force type *</label>
-            <input id="fForceType" list="listForce" placeholder="push / pull / static"/>
+            <input id="fForceType" list="listForce" placeholder="push / pull / hinge"/>
             <datalist id="listForce">
-              <option value="push"/><option value="pull"/><option value="static"/>
+              <option value="push"/><option value="pull"/><option value="hinge"/>
             </datalist>
           </div>
           <div class="field">
@@ -192,19 +219,19 @@
           <div id="equipTokens" class="token-list" aria-live="polite"></div>
           <div class="grid two">
             <div class="field">
-              <input id="equipInput" list="equipOptions" placeholder="Search equipment by name or paste ID"/>
+              <input id="equipInput" list="equipOptions" placeholder="Type name to search or paste ID"/>
               <datalist id="equipOptions"></datalist>
             </div>
             <button id="equipAdd" class="btn" type="button">Add</button>
           </div>
-          <div class="hint">Using backend dictionary. Unknown IDs are highlighted and block saving.</div>
+          <div class="hint">Accepts name or ID. Stored as <code>{ equipmentId }</code>. Unknown items block saving.</div>
         </div>
 
         <div class="field">
           <label>Muscle bundles (sum must be 100%) *</label>
           <div id="bundles"></div>
           <div class="bundle-row">
-            <input id="muscleInput" list="muscleOptions" placeholder="Search muscle or paste ID"/>
+            <input id="muscleInput" list="muscleOptions" placeholder="Type name to search or paste ID"/>
             <datalist id="muscleOptions"></datalist>
             <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
             <button id="bundleAdd" class="btn" type="button">Add bundle</button>
@@ -231,33 +258,42 @@
   <script>
     // ===== Configuration =====
     const API_BASE = 'https://grippo-app.com';
-    const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
-    const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`; // POST
+    const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;        // GET -> ExerciseExampleWithStatsResponse[]
+    const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;        // POST -> ExerciseExampleCreateResponse
     const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
-    // Public dictionaries (no auth)
-    const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
-    const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;
+    // Public dictionaries (no auth required)
+    const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;     // EquipmentResponse[] OR EquipmentGroupResponse[]
+    const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;        // MuscleGroupsResponse[]
 
     // ===== State =====
-    let items = [];      // Array<ExerciseExampleWithStatsResponse>
-    let filtered = [];   // shown in left list
-    let current = null;  // currently selected item (with .entity)
-    let isNew = false;   // editing brand-new template
+    let items = [];      // ExerciseExampleWithStatsResponse[]
+    let filtered = [];
+    let current = null;  // selected ExerciseExampleWithStatsResponse | null
+    let isNew = false;
 
-    // Canonical keys used by builder (simple and safe)
+    // Canonical keys EXACTLY as your DTOs
     const FIELD = {
-      equipment: 'equipmentRefs',                // string[] of equipment IDs
-      bundles: 'exerciseExampleBundles',         // { muscleId: string, percent: number }[]
-      muscleKey: 'muscleId',
-      percentKey: 'percent'
+      equipmentRefs: 'equipmentRefs',            // Array<{ equipmentId: string }>
+      bundles: 'exerciseExampleBundles',         // Array<{ muscleId: string, percentage: number }>
+      muscleId: 'muscleId',
+      percentage: 'percentage'
     };
 
-    // Dictionaries
+    // Dictionaries (id -> name)
     const dict = {
       equipment: new Map(), // id -> name
       muscles: new Map(),   // id -> name
     };
+    // Name -> ID indexes (case-insensitive)
+    const dictIndex = { equipmentByName: new Map(), musclesByName: new Map() };
+    const normalizeName = (s)=> String(s||'').trim().toLowerCase();
+    function rebuildNameIndexes(){
+      dictIndex.equipmentByName.clear();
+      for (const [id, name] of dict.equipment) dictIndex.equipmentByName.set(normalizeName(name), id);
+      dictIndex.musclesByName.clear();
+      for (const [id, name] of dict.muscles) dictIndex.musclesByName.set(normalizeName(name), id);
+    }
 
     // ===== Elements =====
     const els = {
@@ -265,14 +301,11 @@
       saveToken: document.getElementById('saveToken'),
       load: document.getElementById('loadBtn'),
 
-      tabExamples: document.getElementById('tab-examples'),
-
       list: document.getElementById('list'),
       search: document.getElementById('search'),
       clearSearch: document.getElementById('clearSearch'),
       newBtn: document.getElementById('newBtn'),
 
-      // Status & actions
       currentId: document.getElementById('currentId'),
       jsonStatus: document.getElementById('jsonStatus'),
       saveBtn: document.getElementById('saveBtn'),
@@ -281,13 +314,11 @@
       copyFullBtn: document.getElementById('copyFullBtn'),
       promptBtn: document.getElementById('promptBtn'),
 
-      // Builder vs JSON
       viewForm: document.getElementById('viewForm'),
       viewJson: document.getElementById('viewJson'),
       builder: document.getElementById('builder'),
       editor: document.getElementById('editor'),
 
-      // Basics
       fName: document.getElementById('fName'),
       fImage: document.getElementById('fImage'),
       fDescription: document.getElementById('fDescription'),
@@ -297,13 +328,11 @@
       fForceType: document.getElementById('fForceType'),
       fId: document.getElementById('fId'),
 
-      // Equipment
       equipTokens: document.getElementById('equipTokens'),
       equipInput: document.getElementById('equipInput'),
       equipOptions: document.getElementById('equipOptions'),
       equipAdd: document.getElementById('equipAdd'),
 
-      // Bundles
       bundles: document.getElementById('bundles'),
       muscleInput: document.getElementById('muscleInput'),
       muscleOptions: document.getElementById('muscleOptions'),
@@ -328,13 +357,10 @@
     function pretty(json){ return JSON.stringify(json, null, 2); }
     function formatIso(d){ try{ return new Date(d).toISOString().replace('T',' ').replace('Z','Z'); }catch{ return String(d); } }
     function setStatus(kind, text){ els.jsonStatus.className = `status ${kind}`; els.jsonStatus.textContent = text; }
-
     function uuidv4(){
       if (crypto?.randomUUID) return crypto.randomUUID();
-      // Fallback
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
-        const r = (Math.random()*16)|0, v = c==='x'?r:(r&0x3|0x8);
-        return v.toString(16);
+        const r=(Math.random()*16)|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);
       });
     }
 
@@ -378,7 +404,7 @@
       }
     }
 
-    // ===== List rendering =====
+    // ===== Sidebar =====
     function renderList(){
       els.list.innerHTML = '';
       const frag = document.createDocumentFragment();
@@ -403,7 +429,7 @@
       renderList();
     }
 
-    // ===== Form <-> JSON sync =====
+    // ===== Canonical entity (exact DTO shape) =====
     function emptyTemplate(){
       return {
         id: uuidv4(),
@@ -414,12 +440,52 @@
         experience: '',
         forceType: '',
         imageUrl: '',
-        [FIELD.equipment]: [],         // string[] of equipment IDs
-        [FIELD.bundles]: [],           // { muscleId, percent }[]
-        tutorials: []                  // keep as array; backend can ignore if not used
+        [FIELD.bundles]: [],                    // [{ muscleId, percentage }]
+        [FIELD.equipmentRefs]: [],               // [{ equipmentId }]
+        tutorials: []                            // optional; keep array
       };
     }
 
+    // Normalize incoming entities to your exact DTO shape
+    function normalizeEntityShape(src){
+      const e = {...src};
+
+      // equipmentRefs -> [{ equipmentId }]
+      const eq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
+      e[FIELD.equipmentRefs] = eq.map(x=>{
+        if (typeof x === 'string') return { equipmentId: x };
+        if (x && typeof x === 'object') {
+          const id = x.equipmentId ?? x.id ?? x.key ?? x.code;
+          return id ? { equipmentId: String(id) } : null;
+        }
+        return null;
+      }).filter(Boolean);
+
+      // exerciseExampleBundles -> [{ muscleId, percentage }]
+      const rawB = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
+      e[FIELD.bundles] = rawB.map(b=>{
+        if (!b || typeof b !== 'object') return null;
+        const muscleId = String(b.muscleId ?? b.muscle ?? b.muscle_id ?? b.targetMuscleId ?? '').trim();
+        const percentage = Number(b.percentage ?? b.percent ?? b.ratio ?? b.load ?? 0);
+        if (!muscleId || !isFinite(percentage)) return null;
+        return { muscleId, percentage };
+      }).filter(Boolean);
+
+      if (!Array.isArray(e.tutorials)) e.tutorials = [];
+      return e;
+    }
+
+    // Keep a single source of truth
+    let canonical = emptyTemplate();
+    function getEntity(){ return {...canonical}; }
+    function setEntity(newEnt){
+      canonical = {...newEnt};
+      writeEntityToForm(canonical);
+      els.editor.value = pretty(canonical);
+      validateAll();
+    }
+
+    // ===== Form <-> Entity =====
     function readFormToEntity(entity){
       const e = {...entity};
       e.name = els.fName.value.trim();
@@ -429,11 +495,9 @@
       e.category = els.fCategory.value.trim();
       e.experience = els.fExperience.value.trim();
       e.forceType = els.fForceType.value.trim();
-      // equipment and bundles already kept in e via token/bundle handlers
       if (!Array.isArray(e.tutorials)) e.tutorials = [];
       return e;
     }
-
     function writeEntityToForm(entity){
       els.fId.value = entity?.id || '';
       els.fName.value = entity?.name || '';
@@ -443,36 +507,28 @@
       els.fCategory.value = entity?.category || '';
       els.fExperience.value = entity?.experience || '';
       els.fForceType.value = entity?.forceType || '';
-
       renderEquipmentTokens(entity);
       renderBundles(entity);
     }
 
-    function getParsedEditorEntity(){
-      try{ return JSON.parse(els.editor.value) || {}; }catch{ return {}; }
-    }
-    function setEditorFromEntity(e){
-      els.editor.value = pretty(e);
-      validateAll();
-    }
-
-    // ===== Equipment (string[] of IDs) =====
+    // ===== Equipment UI (store as { equipmentId }) =====
     function renderEquipmentTokens(entity){
-      const eq = Array.isArray(entity[FIELD.equipment]) ? entity[FIELD.equipment] : [];
+      const eq = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
       els.equipTokens.innerHTML = '';
       const frag = document.createDocumentFragment();
-      eq.forEach((id, idx)=>{
-        const name = dict.equipment.get(String(id)) || String(id);
+      eq.forEach((obj, idx)=>{
+        const id = String(obj?.equipmentId || '');
+        const name = dict.equipment.get(id) || id;
         const t = document.createElement('span');
         t.className = 'token';
-        if (!dict.equipment.has(String(id))) t.classList.add('invalid');
+        if (!dict.equipment.has(id)) t.classList.add('invalid');
         t.innerHTML = `<span>${name}</span>`;
         const btn = document.createElement('button'); btn.type='button'; btn.textContent='×'; btn.title='Remove';
         btn.addEventListener('click', ()=>{
-          const ent = getEntity(); // current canonical entity
-          const arr = ent[FIELD.equipment] || [];
+          const ent = getEntity();
+          const arr = ent[FIELD.equipmentRefs] || [];
           arr.splice(idx,1);
-          ent[FIELD.equipment] = arr;
+          ent[FIELD.equipmentRefs] = arr;
           setEntity(ent);
         });
         t.appendChild(btn); frag.appendChild(t);
@@ -482,16 +538,28 @@
     function addEquipmentFromInput(){
       const raw = els.equipInput.value.trim();
       if (!raw) return;
+
+      // Accept either ID or name; map name -> ID if needed
+      let id = raw;
+      if (!dict.equipment.has(id)) {
+        const byName = dictIndex.equipmentByName.get(normalizeName(raw));
+        if (byName) id = byName;
+      }
+      if (!dict.equipment.has(id)) {
+        toast({ title: 'Unknown equipment', message: 'Pick from suggestions or enter a valid ID', type: 'error' });
+        return;
+      }
+
       const ent = getEntity();
-      if (!Array.isArray(ent[FIELD.equipment])) ent[FIELD.equipment] = [];
-      if (!ent[FIELD.equipment].includes(raw)){
-        ent[FIELD.equipment].push(raw);
+      if (!Array.isArray(ent[FIELD.equipmentRefs])) ent[FIELD.equipmentRefs] = [];
+      if (!ent[FIELD.equipmentRefs].some(x => x.equipmentId === id)) {
+        ent[FIELD.equipmentRefs].push({ equipmentId: id });
         setEntity(ent);
       }
       els.equipInput.value = '';
     }
 
-    // ===== Bundles (array of { muscleId, percent }) =====
+    // ===== Bundles UI (store as { muscleId, percentage }) =====
     function renderBundles(entity){
       const arr = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
       els.bundles.innerHTML = '';
@@ -502,26 +570,31 @@
         const row = document.createElement('div'); row.className='bundle-row';
 
         const muscle = document.createElement('input');
-        muscle.placeholder = 'Muscle ID or name…'; muscle.setAttribute('list','muscleOptions');
-        muscle.value = String(b?.[FIELD.muscleKey] || '');
+        muscle.placeholder = 'Muscle name or ID…'; muscle.setAttribute('list','muscleOptions');
+        muscle.value = String(b?.muscleId || '');
         if (!dict.muscles.has(String(muscle.value))) muscle.classList.add('invalid');
 
         const percent = document.createElement('input');
         percent.type='number'; percent.min='0'; percent.max='100'; percent.step='1';
-        const p = Number(b?.[FIELD.percentKey] ?? 0); percent.value = String(p);
+        const p = Number(b?.percentage ?? 0); percent.value = String(p);
         if (!isFinite(p) || p<0 || p>100) percent.classList.add('invalid');
         sum += isFinite(p) ? p : 0;
 
         const del = document.createElement('button'); del.className='btn muted'; del.type='button'; del.textContent='Remove';
 
-        muscle.addEventListener('input', ()=>{
+        muscle.addEventListener('change', ()=>{
           const ent = getEntity();
-          ent[FIELD.bundles][i][FIELD.muscleKey] = muscle.value.trim();
+          let v = muscle.value.trim();
+          if (!dict.muscles.has(v)) {
+            const byName = dictIndex.musclesByName.get(normalizeName(v));
+            if (byName) v = byName;
+          }
+          ent[FIELD.bundles][i].muscleId = v;
           setEntity(ent);
         });
         percent.addEventListener('change', ()=>{
           const ent = getEntity();
-          ent[FIELD.bundles][i][FIELD.percentKey] = Number(percent.value || 0);
+          ent[FIELD.bundles][i].percentage = Number(percent.value || 0);
           setEntity(ent);
         });
         del.addEventListener('click', ()=>{
@@ -539,35 +612,35 @@
       els.bundleSumInfo.className = 'sum ' + (sum===100?'ok':'bad');
     }
     function addBundleFromInputs(){
-      const m = els.muscleInput.value.trim();
+      const raw = els.muscleInput.value.trim();
       const p = Number(els.percentInput.value || 0);
-      if (!m || !isFinite(p)) return;
+      if (!raw || !isFinite(p)) return;
+
+      // Accept either ID or name; map name -> ID if needed
+      let muscleId = raw;
+      if (!dict.muscles.has(muscleId)) {
+        const byName = dictIndex.musclesByName.get(normalizeName(raw));
+        if (byName) muscleId = byName;
+      }
+      if (!dict.muscles.has(muscleId)) {
+        toast({ title: 'Unknown muscle', message: 'Pick from suggestions or enter a valid ID', type: 'error' });
+        return;
+      }
+
       const ent = getEntity();
       if (!Array.isArray(ent[FIELD.bundles])) ent[FIELD.bundles] = [];
-      ent[FIELD.bundles].push({[FIELD.muscleKey]: m, [FIELD.percentKey]: p});
+      ent[FIELD.bundles].push({ muscleId, percentage: p });
       setEntity(ent);
       els.muscleInput.value=''; els.percentInput.value='';
-    }
-
-    // ===== Entity source of truth =====
-    // We keep one canonical entity object mirrored in both Form and JSON views.
-    let canonical = emptyTemplate();
-
-    function getEntity(){ return {...canonical}; }
-    function setEntity(newEnt){
-      canonical = {...newEnt};
-      // Push to form and JSON view
-      writeEntityToForm(canonical);
-      els.editor.value = pretty(canonical);
-      validateAll();
     }
 
     // ===== Selection & CRUD =====
     function selectItem(it){
       current = it; isNew = false;
       const e = it.entity || emptyTemplate();
-      canonical = {...e};
-      els.currentId.textContent = e?.id ? `Editing ID: ${e.id}` : 'Editing: unknown ID';
+      const normalized = normalizeEntityShape(e);
+      canonical = normalized;
+      els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
       writeEntityToForm(canonical);
       els.editor.value = pretty(canonical);
       validateAll();
@@ -606,19 +679,18 @@
       const headers = {'accept':'application/json','content-type':'application/json', ...bearer()};
       if (!headers.Authorization){ toast({title:'Token required', message:'Set a valid Bearer token first.', type:'error'}); return; }
 
-      // Read form to canonical and validate
       const ent = readFormToEntity(getEntity());
-      setEntity(ent); // sync & revalidate
+      setEntity(ent);
       const {ok} = validateAll();
       if (!ok){ toast({title:'Fix validation errors', type:'error'}); return; }
 
       els.saveBtn.disabled = true;
       try{
         if (isNew){
-          // Create
+          // For create, send canonical as-is (id is optional; we include generated one)
           let resp = await fetch(CREATE_ENDPOINT, {method:'POST', headers, body: JSON.stringify(canonical)});
           if (!resp.ok){
-            // Fallback: some APIs accept PUT to specific id for create
+            // Fallback: some APIs accept PUT with ?id=
             resp = await fetch(PUT_ENDPOINT(canonical.id), {method:'PUT', headers, body: JSON.stringify(canonical)});
           }
           if (!resp.ok){
@@ -626,7 +698,6 @@
           }
           toast({title:'Created', message:`ID ${canonical.id}`});
           isNew = false;
-          // Reload list to include the new item
           await loadList();
         }else{
           // Update — lock ID to original
@@ -637,7 +708,6 @@
             const text = await resp.text(); throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
           }
           toast({title:'Saved', message:`ID ${id} updated.`});
-          // Update in-memory
           if (current) current.entity = {...canonical};
           renderList();
         }
@@ -646,9 +716,8 @@
       }finally{ els.saveBtn.disabled = false; }
     }
 
-    // ===== Validation =====
+    // ===== Validation (strict to your DTO) =====
     function validateAll(){
-      // Hard requirements
       const ent = getEntity();
       const missing = [];
       if (!ent.name) missing.push('name');
@@ -657,30 +726,40 @@
       if (!ent.category) missing.push('category');
       if (!ent.experience) missing.push('experience');
       if (!ent.forceType) missing.push('forceType');
+      if (!ent.imageUrl) missing.push('imageUrl');
+
+      // enums check (basic; backend is source of truth)
+      const weightOk = ['free','fixed','body_weight'].includes(ent.weightType);
+      const catOk = ['compound','isolation'].includes(ent.category);
+      const expOk = ['beginner','intermediate','advanced','pro'].includes(ent.experience);
+      const forceOk = ['push','pull','hinge'].includes(ent.forceType);
+      if (!weightOk) missing.push('weightType (enum)');
+      if (!catOk) missing.push('category (enum)');
+      if (!expOk) missing.push('experience (enum)');
+      if (!forceOk) missing.push('forceType (enum)');
 
       // equipment known ids
-      const eq = Array.isArray(ent[FIELD.equipment]) ? ent[FIELD.equipment] : [];
-      const unknownEq = eq.filter(id => !dict.equipment.has(String(id)));
+      const eq = Array.isArray(ent[FIELD.equipmentRefs]) ? ent[FIELD.equipmentRefs] : [];
+      const unknownEq = eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id));
 
       // bundles total and known ids
       const bundles = Array.isArray(ent[FIELD.bundles]) ? ent[FIELD.bundles] : [];
       let sum = 0, outOfRange = false;
       const unknownMuscles = [];
       for (const b of bundles){
-        const id = String(b?.[FIELD.muscleKey] ?? '');
-        const p  = Number(b?.[FIELD.percentKey] ?? 0);
+        const id = String(b?.muscleId ?? '');
+        const p  = Number(b?.percentage ?? 0);
         if (!isFinite(p) || p<0 || p>100) outOfRange = true;
         sum += isFinite(p)? p : 0;
         if (!dict.muscles.has(id)) unknownMuscles.push(id);
       }
 
-      // status + save availability
       const hardErrors = [];
       if (missing.length) hardErrors.push(`Missing: ${missing.join(', ')}`);
       if (eq.length === 0) hardErrors.push('No equipment selected');
       if (bundles.length === 0) hardErrors.push('No muscle bundles added');
       if (sum !== 100) hardErrors.push(`Bundles sum ${sum}% (must be 100%)`);
-      if (outOfRange) hardErrors.push('Bundle percent out of [0..100]');
+      if (outOfRange) hardErrors.push('Bundle percentage out of [0..100]');
       if (unknownEq.length) hardErrors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
       if (unknownMuscles.length) hardErrors.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
 
@@ -688,57 +767,45 @@
       setStatus(ok ? 'ok' : 'bad', ok ? 'Valid' : hardErrors[0]);
       els.saveBtn.disabled = !ok;
 
-      // also mirror entity into JSON textarea when JSON view opened
       if (!els.editor.hasAttribute('hidden')) els.editor.value = pretty(ent);
-
       return {ok, errors: hardErrors};
     }
 
-    // ===== Prompt builder for GPT =====
+    // ===== GPT prompt =====
     function buildGptPrompt(){
       const lines = [];
-
       lines.push('Task: Improve the following Exercise Example JSON. Return ONLY valid JSON (no markdown, no commentary).');
       lines.push('');
-      lines.push('Requirements:');
-      lines.push('- Keep the exact JSON structure and field names. Do not add or remove top-level fields unless empty arrays are allowed.');
-      lines.push('- Do not change `id`.');
-      lines.push(`- \`${FIELD.equipment}\` must contain valid equipment IDs from the dictionary below.`);
-      lines.push(`- \`${FIELD.bundles}\` must be an array of { "${FIELD.muscleKey}": string, "${FIELD.percentKey}": number } with the total percent = 100.`);
-      lines.push('- Adjust percentages or selections to improve quality if needed, but keep the exercise logically consistent.');
-      lines.push('- Do not break database constraints or existing relations.');
+      lines.push('Constraints (STRICT):');
+      lines.push('- Keep the exact schema of ExerciseExampleRequest:');
+      lines.push('  { id?: string, name: string, description: string, weightType: "free"|"fixed"|"body_weight", category: "compound"|"isolation",');
+      lines.push('    experience: "beginner"|"intermediate"|"advanced"|"pro", forceType: "push"|"pull"|"hinge", imageUrl: string,');
+      lines.push(`    ${FIELD.bundles}: [{ muscleId: string, percentage: number }], ${FIELD.equipmentRefs}: [{ equipmentId: string }], tutorials: [] }`);
+      lines.push('- Do not change `id` if present.');
+      lines.push(`- "${FIELD.bundles}" total "percentage" MUST be exactly 100.`);
+      lines.push(`- "${FIELD.equipmentRefs}" MUST use valid equipment IDs from the dictionary below.`);
+      lines.push('- Improve quality if needed (e.g., muscle ratios), but keep logical consistency and existing relations. Do NOT break database constraints.');
       lines.push('');
 
-      // Dictionaries
       lines.push('Muscles dictionary (name — id):');
-      for (const [id,name] of dict.muscles.entries()){
-        lines.push(`- ${name} — ${id}`);
-      }
+      for (const [id,name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
       lines.push('');
       lines.push('Equipment dictionary (name — id):');
-      for (const [id,name] of dict.equipment.entries()){
-        lines.push(`- ${name} — ${id}`);
-      }
+      for (const [id,name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
       lines.push('');
 
-      // Current JSON
       lines.push('Current JSON:');
       lines.push(pretty(getEntity()));
       lines.push('');
       lines.push('Return: ONLY the final JSON (no code fences).');
-
       return lines.join('\n');
     }
-
     async function copyPrompt(){
       const prompt = buildGptPrompt();
-      try{
-        await navigator.clipboard.writeText(prompt);
-        toast({title:'Prompt copied'});
-      }catch(e){
-        const ta = document.createElement('textarea');
-        ta.value = prompt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
-        toast({title:'Prompt copied'});
+      try{ await navigator.clipboard.writeText(prompt); toast({title:'Prompt copied'}); }
+      catch(e){
+        const ta=document.createElement('textarea'); ta.value=prompt; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); ta.remove(); toast({title:'Prompt copied'});
       }
     }
 
@@ -757,8 +824,9 @@
     window.addEventListener('DOMContentLoaded', async ()=>{
       els.token.value = loadTokenLocal();
 
-      // Load public dictionaries first
+      // Load dictionaries
       await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
+      rebuildNameIndexes();
       refreshOptionLists();
 
       // Wire sidebar
@@ -767,7 +835,7 @@
       els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
       els.newBtn.addEventListener('click', newItem);
 
-      // Wire header buttons
+      // Header buttons
       els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
       els.saveBtn.addEventListener('click', saveCurrent);
       els.formatBtn.addEventListener('click', ()=>{
@@ -784,35 +852,28 @@
       // Builder events
       els.viewForm.addEventListener('click', setViewForm);
       els.viewJson.addEventListener('click', setViewJson);
-
-      // Basics change handlers -> keep canonical in sync
       [els.fName, els.fImage, els.fDescription, els.fWeightType, els.fCategory, els.fExperience, els.fForceType]
-        .forEach(input => input.addEventListener('input', ()=>{
-          const ent = readFormToEntity(getEntity()); setEntity(ent);
-        }));
+        .forEach(input => input.addEventListener('input', ()=>{ const ent = readFormToEntity(getEntity()); setEntity(ent); }));
 
-      // Equipment
       els.equipAdd.addEventListener('click', addEquipmentFromInput);
       els.equipInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addEquipmentFromInput(); } });
 
-      // Bundles
       els.bundleAdd.addEventListener('click', addBundleFromInputs);
       els.percentInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addBundleFromInputs(); } });
 
-      // JSON editor live-validate
+      // JSON editor live-validate + normalize to DTO shape
       els.editor.addEventListener('input', ()=>{
         try{
           const obj = JSON.parse(els.editor.value);
-          // Enforce canonical keys when user edits JSON
-          if (!Array.isArray(obj[FIELD.equipment])) obj[FIELD.equipment] = [];
-          if (!Array.isArray(obj[FIELD.bundles])) obj[FIELD.bundles] = [];
-          canonical = obj; writeEntityToForm(canonical); validateAll();
+          canonical = normalizeEntityShape(obj);
+          writeEntityToForm(canonical);
+          validateAll();
         }catch{
           setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
         }
       });
 
-      // Default: create new (clear state) or wait for Load
+      // Start empty
       setEntity(emptyTemplate());
       setViewForm();
     });
