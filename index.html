@@ -12,6 +12,7 @@
       --field:#0a1222;--field-hover:#0c1630;--field-focus:#0e1b3a;
       --header-bg:#0a1a33;--divider:#0f233e;
       --section-gap:18px;--block-gap:14px;
+      --select-arrow:#e5e7eb;
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{
@@ -30,13 +31,22 @@
     }
     .token-input{width:100%}
 
-    /* Inputs — dark only, no white backgrounds */
-    input[type="password"],input[type="text"],input[type="search"],input[type="url"],select,textarea{
+    /* Inputs — dark only */
+    input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
       width:100%;background:var(--field)!important;border:1px solid var(--border);color:var(--text)!important;
       border-radius:12px;padding:11px 12px;outline:none;
       transition:border .15s, box-shadow .15s, background .15s, transform .02s;
       -webkit-text-fill-color: var(--text);
     }
+    /* Custom select arrow + right padding so arrow isn't glued to edge */
+    select{
+      appearance:none;-webkit-appearance:none; -moz-appearance:none;
+      padding-right:38px;
+      background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="%23e5e7eb"><path d="M5.5 7l4.5 6 4.5-6H5.5z"/></svg>');
+      background-repeat:no-repeat;background-position:right 12px center;background-size:12px 12px;
+    }
+    select::-ms-expand{display:none}
+
     input::placeholder,textarea::placeholder{color:var(--muted)}
     input:hover,textarea:hover,select:hover{background:var(--field-hover)!important}
     input:focus,textarea:focus,select:focus{
@@ -72,8 +82,8 @@
     .btn:disabled{opacity:.5;cursor:not-allowed}
     .btn:active{transform:translateY(1px)}
 
-    main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px;height:calc(100% - 74px)}
-    @media (max-width:1000px){main{grid-template-columns:1fr;height:auto}}
+    main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px;min-height:calc(100% - 74px)}
+    @media (max-width:1000px){main{grid-template-columns:1fr}}
 
     .sidebar{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
     .side-head{padding:14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
@@ -84,8 +94,9 @@
     .name{font-weight:700}.meta{color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
     .pill{background:#09213b;color:#9fd2ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #102e4e}
 
-    .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
-    .ed-head{padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    /* Editor container: no card bg/radius per request */
+    .panel{background:transparent;border:0;border-radius:0;display:flex;flex-direction:column;min-height:0}
+    .ed-head{padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;background:var(--panel)}
     .spacer{flex:1}
     .status{font-size:12px;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
     .status.ok{color:#d1fae5;background:#08351a;border-color:#14532d}
@@ -106,23 +117,23 @@
 
     .grid{display:grid;gap:12px}
     .two{grid-template-columns:1fr 1fr}
-    .three{grid-template-columns:1fr 1fr 1fr}
     .field{display:grid;gap:6px}
     .field label{font-weight:600}
     .hint{font-size:12px;color:var(--muted)}
     .invalid{border-color:#7f1d1d !important;box-shadow:inset 0 0 0 1px #7f1d1d}
+
     .token-list{display:flex;flex-wrap:wrap;gap:8px}
     .token{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;background:#0a1c36;color:#bfe1ff;border:1px solid #12355e;border-radius:999px;font-size:12px}
     .token button{background:transparent;border:0;color:#bfe1ff;cursor:pointer;font-size:14px;line-height:1}
     .token.invalid{border-color:#7f1d1d;color:#fecaca;background:#3a0d0d}
+
     .bundle-row{display:grid;grid-template-columns:1.6fr 0.6fr auto;gap:8px;align-items:center}
     .sum{font-size:12px}
     .sum.bad{color:#fca5a5}.sum.ok{color:#86efac}
 
     textarea#editor{
-      width:100%;height:100%;flex:1;resize:none;border:0;outline:none;padding:16px;background:#0a1324;color:#dbeafe;
-      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.5;
-      border-bottom-left-radius:14px;border-bottom-right-radius:14px
+      width:100%;min-height:320px;resize:vertical;border:1px solid var(--border);outline:none;margin:16px;padding:16px;background:#0a1324;color:#dbeafe;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.5;border-radius:12px
     }
 
     .toast{position:fixed;right:16px;bottom:16px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
@@ -167,7 +178,7 @@
         </div>
 
         <button id="formatBtn" class="btn muted" title="Prettify JSON">Format</button>
-        <button id="copyEntityBtn" className="btn muted" title="Copy editor JSON">Copy editor JSON</button>
+        <button id="copyEntityBtn" class="btn muted" title="Copy editor JSON">Copy editor JSON</button>
         <button id="copyFullBtn" class="btn muted" title="Copy full item (entity + stats)">Copy full JSON</button>
         <button id="promptBtn" class="btn" title="Build GPT prompt from dictionaries + current JSON">Build GPT prompt</button>
         <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
@@ -175,6 +186,17 @@
 
       <!-- FORM BUILDER -->
       <div id="builder" class="builder show" aria-label="Exercise Example Builder">
+
+        <!-- Identifier at the very top -->
+        <div class="section">
+          <div class="section-title">Identifier</div>
+          <div class="field">
+            <label for="fId">ID (locked for existing)</label>
+            <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+            <div class="hint">ID cannot be changed for existing items.</div>
+          </div>
+          <hr class="divider"/>
+        </div>
 
         <!-- Basics -->
         <div class="section">
@@ -190,7 +212,6 @@
               <div class="hint">If empty, you can still save; it will show a warning.</div>
             </div>
           </div>
-
           <div class="field">
             <label for="fDescription">Description *</label>
             <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
@@ -198,10 +219,11 @@
           <hr class="divider"/>
         </div>
 
-        <!-- Attributes -->
+        <!-- Attributes: 2 fields per row -->
         <div class="section">
           <div class="section-title">Attributes</div>
-          <div class="grid three">
+
+          <div class="grid two">
             <div class="field">
               <label for="fWeightType">Weight type *</label>
               <select id="fWeightType">
@@ -219,6 +241,9 @@
                 <option value="isolation">isolation</option>
               </select>
             </div>
+          </div>
+
+          <div class="grid two">
             <div class="field">
               <label for="fExperience">Experience *</label>
               <select id="fExperience">
@@ -229,9 +254,6 @@
                 <option value="pro">pro</option>
               </select>
             </div>
-          </div>
-
-          <div class="grid two" style="margin-top:8px">
             <div class="field">
               <label for="fForceType">Force type *</label>
               <select id="fForceType">
@@ -241,11 +263,6 @@
                 <option value="hinge">hinge</option>
               </select>
             </div>
-            <div class="field">
-              <label>ID (locked for existing)</label>
-              <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-              <div class="hint">ID cannot be changed for existing items.</div>
-            </div>
           </div>
           <hr class="divider"/>
         </div>
@@ -253,13 +270,12 @@
         <!-- Equipment -->
         <div class="section">
           <div class="section-title">Equipment *</div>
-
           <div id="equipTokens" class="token-list" aria-live="polite"></div>
 
           <div class="grid two">
             <div class="field">
               <label for="equipSelect">Select equipment</label>
-              <select id="equipSelect" size="6"></select>
+              <select id="equipSelect" size="6" multiple></select>
               <div class="hint">Use Ctrl/Cmd or Shift to multi-select. Stored as <code>{ equipmentId }</code>.</div>
             </div>
             <div class="field" style="align-content:start;gap:8px">
@@ -317,10 +333,10 @@
     let current = null;
     let isNew = false;
 
-    // Canonical keys for your DTO
+    // DTO fields
     const FIELD = {
-      equipmentRefs: 'equipmentRefs',            // Array<{ equipmentId: string }>
-      bundles: 'exerciseExampleBundles',         // Array<{ muscleId: string, percentage: number }>
+      equipmentRefs: 'equipmentRefs',
+      bundles: 'exerciseExampleBundles',
       muscleId: 'muscleId',
       percentage: 'percentage'
     };
@@ -434,14 +450,12 @@
       }catch(e){ console.warn('Muscle dict fetch failed:', e); }
     }
     function refreshOptionLists(){
-      // Equipment select
       els.equipSelect.innerHTML = '';
       for (const [id,name] of dict.equipment.entries()){
         const opt = document.createElement('option');
         opt.value = id; opt.textContent = `${name} — ${id}`;
         els.equipSelect.appendChild(opt);
       }
-      // Muscle select (single)
       els.muscleSelect.innerHTML = '';
       for (const [id,name] of dict.muscles.entries()){
         const opt = document.createElement('option');
@@ -548,7 +562,7 @@
       renderBundles(entity);
     }
 
-    // ===== Equipment UI (select-based) =====
+    // ===== Equipment UI =====
     function renderEquipmentTokens(entity){
       const eq = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
       els.equipTokens.innerHTML = '';
@@ -584,7 +598,7 @@
       els.equipSelect.selectedIndex = -1;
     }
 
-    // ===== Bundles UI (select-based) =====
+    // ===== Bundles UI =====
     function renderBundles(entity){
       const arr = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
       els.bundles.innerHTML = '';
@@ -594,7 +608,6 @@
       arr.forEach((b, i)=>{
         const row = document.createElement('div'); row.className='bundle-row';
 
-        // Muscle select
         const muscle = document.createElement('select');
         for (const [id,name] of dict.muscles.entries()){
           const opt = document.createElement('option');
@@ -604,9 +617,8 @@
         }
         if (!dict.muscles.has(String(b?.muscleId||''))) muscle.classList.add('invalid');
 
-        // Percentage input
         const percent = document.createElement('input');
-        percent.type='number'; percent.min='0'; percent.max='100'; percent.step='1';
+        percent.type='number'; percent.min='0'; percent.max='100'; percent.step='1'; percent.placeholder='%';
         const p = Number(b?.percentage ?? 0); percent.value = String(p);
         if (!isFinite(p) || p<0 || p>100) percent.classList.add('invalid');
         sum += isFinite(p) ? p : 0;
@@ -635,7 +647,6 @@
       els.bundleSumInfo.textContent = `Sum: ${sum}%`;
       els.bundleSumInfo.className = 'sum ' + (sum===100?'ok':'bad');
 
-      // Refill the "add" select with current dict (once on first render)
       if (!els.muscleSelect.options.length){
         for (const [id,name] of dict.muscles.entries()){
           const opt = document.createElement('option'); opt.value=id; opt.textContent=`${name} — ${id}`;
