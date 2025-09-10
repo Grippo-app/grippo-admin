@@ -34,6 +34,7 @@ body{
   margin:0;background:linear-gradient(180deg,var(--bg),#0e1626);color:var(--text);
   font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
   color-scheme: dark;
+  overflow: hidden;
 }
 
 /* Header */
@@ -161,8 +162,16 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 .pill{background:#0d213a;color:#c7e2ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #15365d}
 
 /* Editor container */
-.panel{background:transparent;border:0;border-radius:0;display:flex;flex-direction:column;min-height:0}
-.spacer{flex:1}
+.panel{
+  background:transparent;
+  border:0;
+  border-radius:0;
+  display:flex;
+  flex-direction:column;
+  height:100%;
+  overflow:auto;
+  min-height:0;
+}.spacer{flex:1}
 .status{font-size:12px;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
 .status.ok{color:#d1fae5;background:#0c3520;border-color:#1c5f37}
 .status.bad{color:#fee2e2;background:#3a0d0d;border-color:#7f1d1d}
