@@ -25,6 +25,7 @@
   --section-gap:18px;
   --block-gap:14px;
   --header-h: 64px; /* fallback */
+  --commandbar-h: 56px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -47,17 +48,28 @@ header{
   position: sticky;
   top: var(--header-h);
   z-index: 19;
-  display: grid;
-  grid-template-columns: auto 1fr auto auto auto; /* id | search | status | view toggle | actions */
-  gap: 12px;
+  display: flex;                  /* flex вместо grid */
   align-items: center;
+  gap: 10px;
   padding: 10px 14px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 6px 18px rgba(0,0,0,.22);
+  white-space: nowrap;            /* всё в одну строку */
+  overflow-x: auto;               /* при нехватке места — горизонтальный скролл */
+  scrollbar-width: thin;
 }
-.command-bar input[type="search"]{ width: 100%; }
-.cmd-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+.command-bar #currentId{
+  max-width: 28ch;                /* обрезаем длинные ID/тексты */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.command-bar input[type="search"]{
+  flex: 1 1 360px;                /* поиск занимает оставшееся место */
+  min-width: 200px;
+}
+.command-bar .view-toggle{ flex-shrink: 0; }
+.command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
 
 /* Inputs — dark only */
 input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
