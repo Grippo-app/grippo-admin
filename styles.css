@@ -146,8 +146,21 @@ main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px;min-heig
 .sum.bad{color:#fca5a5}.sum.ok{color:#86efac}
 
 textarea#editor{
-  width:100%;min-height:320px;resize:vertical;border:1px solid var(--border);outline:none;margin:16px;padding:16px;background:#0f1d33;color:#dbeafe;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:13px;line-height:1.5;border-radius:12px
+  width:100%;
+  min-height:320px;
+  height:auto;              /* auto height so JS can grow to content */
+  overflow:hidden;          /* no inner scrollbars while autosizing */
+  resize:none;              /* disable manual resize (JS handles it) */
+  border:1px solid var(--border);
+  outline:none;
+  margin:16px;
+  padding:16px;
+  background:#0f1d33;
+  color:#dbeafe;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size:13px;
+  line-height:1.5;
+  border-radius:12px;
 }
 
 .toast{position:fixed;right:16px;bottom:16px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
