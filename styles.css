@@ -26,7 +26,7 @@
   --block-gap:14px;
   --header-h: 64px; /* fallback */
   --commandbar-h: 56px;
-  --sidebar-w: 340px;
+  --sidebar-w: 240px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
