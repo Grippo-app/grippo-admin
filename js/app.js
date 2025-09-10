@@ -20,6 +20,27 @@ let filtered = [];
 let current = null;
 let isNew = false;
 
+// Edited-in-session tracking
+let editedIds = new Set();
+function loadEdited(){
+  try{
+    const raw = sessionStorage.getItem('grippo_edited_ids') || '[]';
+    const arr = JSON.parse(raw);
+    editedIds = new Set(Array.isArray(arr) ? arr : []);
+  }catch{ editedIds = new Set(); }
+}
+function persistEdited(){
+  try{ sessionStorage.setItem('grippo_edited_ids', JSON.stringify([...editedIds])); }catch{}
+}
+function markEdited(id){
+  if(!id) return;
+  editedIds.add(String(id));
+  persistEdited();
+}
+function isEdited(id){
+  return id ? editedIds.has(String(id)) : false;
+}
+
 // Dictionaries (id -> name)
 const dict = { equipment: new Map(), muscles: new Map() };
 
@@ -206,6 +227,19 @@ function renderList(){
     node.querySelector('.name').textContent = entity?.name || '(no name)';
     node.querySelector('.usage').textContent = `used ${it.usageCount ?? 0}`;
     node.querySelector('.lastUsed').textContent = it.lastUsed ? `last: ${formatIso(it.lastUsed)}` : 'last: —';
+
+    // Mark "edited in this session"
+    if (isEdited(entity?.id)) {
+      node.classList.add('edited');
+      const meta = node.querySelector('.meta');
+      if (meta) {
+        const badge = document.createElement('span');
+        badge.className = 'pill edited';
+        badge.textContent = 'edited';
+        meta.appendChild(badge);
+      }
+    }
+
     node.addEventListener('click', ()=>selectItem(it));
     node.addEventListener('keydown', e=>{
       if(e.key==='Enter'||e.key===' '){ e.preventDefault(); selectItem(it); }
@@ -397,7 +431,7 @@ async function saveCurrent(){
   els.saveBtn.disabled = true;
   try{
     if (isNew){
-      // Создание: НЕ передаём id
+      // Create: DO NOT send id
       const payload = {...canonical};
       delete payload.id;
 
@@ -409,24 +443,25 @@ async function saveCurrent(){
         throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
       }
 
-      // Ожидаем { id: "..." }
+      // Expect { id: "..." } (some backends may return no body)
       let createdId = null;
       try{
         const data = await resp.json();
         if (data && data.id) createdId = String(data.id);
-      }catch(_) {/* некоторых бэков нет тела */ }
+      }catch(_) {}
 
       if (createdId){
         canonical.id = createdId;
         writeEntityToForm(canonical);
         els.currentId.textContent = `Editing ID: ${createdId}`;
+        markEdited(createdId);   // mark new item as edited in this session
       }
 
       toast({title:'Created', message: createdId ? `ID ${createdId}` : 'Created'});
       isNew = false;
       await loadList();
     } else {
-      // Обновление: id в PATH, НО НЕ в body
+      // Update: id via query, NOT in body
       const id = current?.entity?.id || canonical.id;
       if (!id){ toast({title:'Missing ID', type:'error'}); return; }
 
@@ -442,6 +477,7 @@ async function saveCurrent(){
       }
 
       toast({title:'Saved', message:`ID ${id} updated.`});
+      markEdited(id);           // mark as edited in this session
       if (current) current.entity = {...canonical, id};
       renderList();
     }
@@ -598,6 +634,7 @@ function setViewJson(){
 // ===== Bootstrap =====
 window.addEventListener('DOMContentLoaded', async ()=>{
   els.token.value = loadTokenLocal();
+  loadEdited(); // restore edited IDs for this tab session
 
   await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
   refreshOptionLists();
@@ -605,24 +642,24 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // Sidebar
   els.load.addEventListener('click', loadList);
   els.search.addEventListener('input', applySearch);
- if (els.clearSearch) {
-  els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
-}
+  if (els.clearSearch) {
+    els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
+  }
   els.newBtn.addEventListener('click', newItem);
 
   // Header actions
   els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
   els.saveBtn.addEventListener('click', saveCurrent);
   els.formatBtn.addEventListener('click', ()=>{
-  try{
-    const obj = JSON.parse(els.editor.value);
-    els.editor.value = pretty(obj);
-    validateAll();
-    autosizeEditor();
-  }catch(e){
-    toast({title:'Format error', message:String(e.message||e), type:'error'});
-  }
-});
+    try{
+      const obj = JSON.parse(els.editor.value);
+      els.editor.value = pretty(obj);
+      validateAll();
+      autosizeEditor();
+    }catch(e){
+      toast({title:'Format error', message:String(e.message||e), type:'error'});
+    }
+  });
   els.copyEntityBtn.addEventListener('click', ()=> copyToClipboard(els.editor.value, 'Editor JSON copied'));
   els.copyFullBtn.addEventListener('click', ()=>{
     if (!current){ toast({title:'Nothing selected', type:'error'}); return; }
@@ -649,27 +686,26 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   els.percentInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addBundleFromInputs(); } });
 
   // JSON normalize
-els.editor.addEventListener('input', ()=>{
-  try{
-    const obj = JSON.parse(els.editor.value);
-    canonical = normalizeEntityShape(obj);
-    writeEntityToForm(canonical);
-    validateAll();
-  }catch{
-    setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
-  }
-  autosizeEditor();
-});
+  els.editor.addEventListener('input', ()=>{
+    try{
+      const obj = JSON.parse(els.editor.value);
+      canonical = normalizeEntityShape(obj);
+      writeEntityToForm(canonical);
+      validateAll();
+    }catch{
+      setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+    }
+    autosizeEditor();
+  });
 
   // Start
-setEntity(emptyTemplate());
-setViewForm(); // default to Form mode and hide JSON-only buttons
-updateStickyOffsets();
-window.addEventListener('resize', updateStickyOffsets);
+  setEntity(emptyTemplate());
+  setViewForm(); // default to Form mode and hide JSON-only buttons
+  updateStickyOffsets();
+  window.addEventListener('resize', updateStickyOffsets);
 
-
-// Recalculate editor height when window resizes
-window.addEventListener('resize', autosizeEditor);
+  // Recalculate editor height when window resizes
+  window.addEventListener('resize', autosizeEditor);
 });
 
 // ===== Helpers =====
