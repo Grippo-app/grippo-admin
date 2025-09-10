@@ -2,7 +2,7 @@
 const API_BASE = 'https://grippo-app.com';
 const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
 const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;
-const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
+const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples/${encodeURIComponent(id)}`;
 
 const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
 const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;
