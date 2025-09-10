@@ -120,11 +120,7 @@ function updateStickyOffsets(){
   document.documentElement.style.setProperty('--commandbar-h', b + 'px');
 }
 function autosizeEditor(){
- const ta = els.editor;
-  if (!ta) return;
-  if (ta.hasAttribute('hidden')) return;
-  ta.style.height = 'auto';
-  ta.style.height = (ta.scrollHeight + 8) + 'px';
+  /* no-op: editor uses internal scrolling */
 }
 
 // ===== Dictionaries =====
@@ -628,7 +624,6 @@ function setViewJson(){
   els.builder.classList.remove('show'); els.editor.hidden = false;
   els.editor.value = pretty(getEntity());
   document.body.classList.remove('hide-json-controls');
-  autosizeEditor();
 }
 
 // ===== Bootstrap =====
@@ -687,16 +682,15 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // JSON normalize
   els.editor.addEventListener('input', ()=>{
-    try{
-      const obj = JSON.parse(els.editor.value);
-      canonical = normalizeEntityShape(obj);
-      writeEntityToForm(canonical);
-      validateAll();
-    }catch{
-      setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
-    }
-    autosizeEditor();
-  });
+  try{
+    const obj = JSON.parse(els.editor.value);
+    canonical = normalizeEntityShape(obj);
+    writeEntityToForm(canonical);
+    validateAll();
+  }catch{
+    setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+  }
+});
 
   // Start
   setEntity(emptyTemplate());
@@ -704,8 +698,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   updateStickyOffsets();
   window.addEventListener('resize', updateStickyOffsets);
 
-  // Recalculate editor height when window resizes
-  window.addEventListener('resize', autosizeEditor);
 });
 
 // ===== Helpers =====
