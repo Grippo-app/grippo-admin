@@ -222,9 +222,8 @@ main{
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0;                   /* critical for nested scroll */
-  overflow: auto !important;       /* scroll editor column */
-  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+  overflow: hidden;        /* content (builder or textarea) handles its own scroll */
 }
 .spacer{flex:1}
 .status{font-size:12px; padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel-2)}
@@ -278,21 +277,21 @@ main{
 
 /* JSON editor */
 textarea#editor{
-  width:100%;
-  min-height:320px;
-  height:auto;              /* JS can autosize */
-  overflow:hidden;          /* no inner scrollbars while autosizing */
-  resize:none;
-  border:1px solid var(--border);
-  outline:none;
-  margin:16px;
-  padding:16px;
-  background:#0f1d33;
-  color:#dbeafe;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
-  font-size:13px;
-  line-height:1.5;
-  border-radius:12px;
+  flex: 1 1 auto;          /* fill the editor column */
+  min-height: 0;
+  height: 100%;            /* occupy available height */
+  overflow: auto;          /* inner scrolling */
+  resize: none;
+  border: 1px solid var(--border);
+  outline: none;
+  margin: 0;               /* no outer margins -> no clipping */
+  padding: 16px;
+  background: #0f1d33;
+  color: #dbeafe;
+  font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 12px;
 }
 
 /* Toast */
