@@ -167,10 +167,11 @@ main{
   min-height: 0;                   /* allow children to shrink */
 }
 .side-head{
-  padding:8px 14px;
-  display:grid; grid-template-columns:1fr;
-  gap:8px; align-items:center;
-  border-bottom:0;
+  display:none !important;
+  padding:0 !important;
+  height:0 !important;
+  min-height:0 !important;
+  border:0 !important;
   background:transparent !important;
 }
 .list{
@@ -178,7 +179,7 @@ main{
   min-height: 0;                   /* enable overflow inside flex parent */
   overflow: auto;
   -webkit-overflow-scrolling: touch; /* smooth on iOS/mac */
-  padding: 10px;
+  padding: 0 10px 10px;
   display: grid;
   gap: 10px;
 }
