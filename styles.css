@@ -125,8 +125,20 @@ input[type=number]{ -moz-appearance:textfield }
 main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px;min-height:calc(100% - 74px)}
 @media (max-width:1000px){main{grid-template-columns:1fr}}
 
-.sidebar{background:var(--panel);border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;min-height:0}
-.side-head{padding:14px;display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
+.sidebar{
+  position: sticky;
+  top: calc(var(--header-h) + var(--commandbar-h));       /* под шапкой и командной панелью */
+  height: calc(100vh - var(--header-h) - var(--commandbar-h)); /* высота во всё окно */
+  overflow: hidden;                                       /* внутренний скролл будет в .list */
+}
+.side-head{
+  padding: 8px 14px;     /* меньше отступы сверху/снизу */
+  display: grid;
+  grid-template-columns: 1fr; 
+  gap: 8px;
+  align-items: center;
+  border-bottom: 0;      /* ← убираем divider */
+}
 .list{overflow:auto;padding:10px;display:grid;gap:10px}
 .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;display:grid;gap:6px;transition:border .15s, background .15s}
 .item:hover{border-color:#2b394f;background:#13233a}
