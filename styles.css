@@ -24,9 +24,9 @@
 
   --section-gap:18px;
   --block-gap:14px;
-  --header-h: 64px; /* fallback */
-  --commandbar-h: 56px;
-  --sidebar-w: 340px;
+  --header-h:64px;      /* fallback */
+  --commandbar-h:56px;  /* fallback, JS updates it */
+  --sidebar-w:340px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -36,7 +36,7 @@ body{
   color-scheme: dark;
 }
 
-/* Header visually distinct */
+/* Header */
 header{
   position:sticky;top:0;z-index:20;backdrop-filter:blur(6px);
   background:linear-gradient(180deg,var(--header-bg) 75%, rgba(0,0,0,0));
@@ -45,6 +45,8 @@ header{
   box-shadow:0 8px 26px rgba(0,0,0,.35)
 }
 .token-input{width:100%}
+
+/* Command bar (one line) */
 .command-bar{
   position: sticky;
   top: var(--header-h);
@@ -74,7 +76,7 @@ header{
 .command-bar .view-toggle{ flex-shrink: 0; }
 .command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
 
-/* Inputs — dark only */
+/* Inputs — dark */
 input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
   width:100%;background:var(--field)!important;border:1px solid var(--border);color:var(--text)!important;
   border-radius:12px;padding:11px 12px;outline:none;
@@ -88,7 +90,7 @@ input:focus,textarea:focus,select:focus{
   box-shadow:0 0 0 3px rgba(119,182,255,.14), inset 0 0 0 1px rgba(119,182,255,.08)
 }
 
-/* Custom select arrow with padding from right edge */
+/* Select arrow spacing */
 select{
   appearance:none;-webkit-appearance:none;-moz-appearance:none;
   padding-right:38px;
@@ -114,6 +116,7 @@ input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
 input[type=number]{ -moz-appearance:textfield }
 
+/* Buttons */
 .btn{
   background:linear-gradient(90deg,var(--brand),var(--brand-2));border:0;color:#0a0e16;padding:11px 14px;border-radius:12px;cursor:pointer;
   box-shadow:var(--shadow);transition:transform .05s, filter .15s;font-weight:700
@@ -125,29 +128,28 @@ input[type=number]{ -moz-appearance:textfield }
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn:active{transform:translateY(1px)}
 
+/* Layout */
 main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14px;min-height:calc(100% - 74px)}
 @media (max-width:1000px){main{grid-template-columns:1fr}}
 
+/* Sidebar (list column) — no fixed background sheet */
 .sidebar{
   position: sticky;
   top: calc(var(--header-h) + var(--commandbar-h));
   height: calc(100vh - var(--header-h) - var(--commandbar-h));
   overflow: hidden;
-
-  /* remove fixed-height panel background under the content */
   background: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 .side-head{
-  padding: 8px 14px;     /* меньше отступы сверху/снизу */
+  padding: 8px 14px;
   display: grid;
-  grid-template-columns: 1fr; 
+  grid-template-columns: 1fr;
   gap: 8px;
   align-items: center;
-  border-bottom: 0;      /* ← убираем divider */
-}.side-head{
+  border-bottom: 0;
   background: transparent !important;
 }
 .list{overflow:auto;padding:10px;display:grid;gap:10px}
@@ -158,7 +160,7 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 .meta{color:var(--muted);font-size:12px;display:flex;gap:10px;align-items:center}
 .pill{background:#0d213a;color:#c7e2ff;padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #15365d}
 
-/* Editor container: no card bg/radius */
+/* Editor container */
 .panel{background:transparent;border:0;border-radius:0;display:flex;flex-direction:column;min-height:0}
 .spacer{flex:1}
 .status{font-size:12px;padding:7px 10px;border-radius:999px;border:1px solid var(--border);background:var(--panel-2)}
@@ -166,11 +168,13 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 .status.bad{color:#fee2e2;background:#3a0d0d;border-color:#7f1d1d}
 .status.warn{color:#fff7ed;background:#3a270b;border-color:#92400e}
 
+/* View toggle */
 .view-toggle{display:flex;gap:8px;margin-left:auto}
 .segment{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:6px;display:inline-flex;gap:6px}
 .segment .seg{background:transparent;border:0;color:var(--text);padding:6px 10px;border-radius:10px;cursor:pointer}
 .segment .seg.active{background:var(--panel);border:1px solid var(--border)}
 
+/* Builder */
 .builder{padding:16px;display:none}.builder.show{display:block}
 
 /* Sections + dividers + spacing */
@@ -178,12 +182,14 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 .section-title{font-weight:900;letter-spacing:.2px}
 .divider{height:1px;background:linear-gradient(90deg,rgba(255,255,255,.05),var(--divider),rgba(255,255,255,.05));border:0;margin:8px 0 0}
 
+/* Grid helpers */
 .grid{display:grid;gap:12px}
 .two{
   grid-template-columns:1fr 1fr;
-  align-items:start;         /* keep items top-aligned, no stretch */
-}.two > .field{
-  align-self:start;          /* each column sticks to the top */
+  align-items:start;
+}
+.two > .field{
+  align-self:start;
 }
 .field{display:grid;gap:6px}
 .field label{font-weight:700}
@@ -207,12 +213,13 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 .sum{font-size:12px}
 .sum.bad{color:#fca5a5}.sum.ok{color:#86efac}
 
+/* JSON editor */
 textarea#editor{
   width:100%;
   min-height:320px;
-  height:auto;              /* auto height so JS can grow to content */
-  overflow:hidden;          /* no inner scrollbars while autosizing */
-  resize:none;              /* disable manual resize (JS handles it) */
+  height:auto;
+  overflow:hidden;
+  resize:none;
   border:1px solid var(--border);
   outline:none;
   margin:16px;
@@ -225,11 +232,21 @@ textarea#editor{
   border-radius:12px;
 }
 
+/* Toast */
 .toast{position:fixed;right:16px;bottom:16px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);
   padding:12px 14px;border-radius:12px;box-shadow:var(--shadow);min-width:220px;display:grid;gap:6px}
 .toast.success{border-color:#155e31;background:#0a2a18}
 .toast.error{border-color:#7f1d1d;background:#3a0d0d}
 .toast .title{font-weight:900}
 
-/* Hide JSON-only buttons in Form mode via a class toggle from JS */
+/* Hide JSON-only buttons in Form mode */
 .hide-json-controls .json-only{display:none}
+
+/* Hard overrides to ensure no full-height sheet background on the left column */
+main > .sidebar,
+main > .sidebar .side-head,
+main > .sidebar .list{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
