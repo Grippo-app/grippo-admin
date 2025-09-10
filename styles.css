@@ -191,6 +191,22 @@ main{
   cursor:pointer;
   display:grid; gap:6px;
   transition:border .15s, background .15s;
+}.item.edited{
+  border-color: var(--brand);
+  box-shadow: inset 4px 0 0 rgba(119,182,255,.55);
+  background: #13233a; /* slightly lifted */
+}
+.item.edited .name::after{
+  content: " • edited";
+  margin-left: 6px;
+  color: #9ac7ff;
+  font-weight: 700;
+  font-size: 12px;
+}
+.pill.edited{
+  background:#0d213a;
+  color:#c7e2ff;
+  border:1px solid #2b4f7f;
 }
 .item:hover{border-color:#2b394f; background:#13233a}
 .item.active{outline:2px solid rgba(119,182,255,.8)}
