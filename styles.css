@@ -223,8 +223,7 @@ main{
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: auto !important;    /* колонка редактора снова скроллится сама */
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;                 /* the child (builder or editor) scrolls */
 }
 .spacer{flex:1}
 .status{font-size:12px; padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel-2)}
@@ -239,7 +238,15 @@ main{
 .segment .seg.active{background:var(--panel); border:1px solid var(--border)}
 
 /* Builder */
-.builder{padding:16px; display:none}
+.builder{
+  padding:16px;
+  display:none;
+  flex:1 1 auto;                    /* fill column */
+  min-height:0;                     
+  overflow:auto;                    /* internal scroll in FORM mode */
+  -webkit-overflow-scrolling:touch;
+}
+.builder.show{ display:block; }
 .builder.show{display:block}
 
 /* Sections + dividers + spacing */
@@ -278,14 +285,14 @@ main{
 
 /* JSON editor */
 textarea#editor{
-  width:100%;
-  min-height:320px;
-  height:auto;                /* авто-рост по содержимому */
-  overflow:hidden;            /* без внутреннего скролла */
-  resize:none;                /* user-resize отключён */
+  flex:1 1 auto;                    /* fill available height */
+  min-height:0;
+  height:100%;
+  overflow:auto;                    /* internal scroll in JSON mode */
+  resize:none;
   border:1px solid var(--border);
   outline:none;
-  margin:16px;                /* как было, с внешними отступами */
+  margin:16px;                      /* keeps the "card" look */
   padding:16px;
   background:#0f1d33;
   color:#dbeafe;
