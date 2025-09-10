@@ -602,7 +602,9 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // Sidebar
   els.load.addEventListener('click', loadList);
   els.search.addEventListener('input', applySearch);
+ if (els.clearSearch) {
   els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
+}
   els.newBtn.addEventListener('click', newItem);
 
   // Header actions
