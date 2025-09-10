@@ -24,6 +24,7 @@
 
   --section-gap:18px;
   --block-gap:14px;
+  --header-h: 64px; /* fallback */
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -42,6 +43,26 @@ header{
   box-shadow:0 8px 26px rgba(0,0,0,.35)
 }
 .token-input{width:100%}
+.command-bar{
+  position: sticky;
+  top: var(--header-h);
+  z-index: 19;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.command-bar input[type="search"]{
+  width: 100%;
+}
+.cmd-actions{
+  display: flex;
+  gap: 8px;
+}
 
 /* Inputs — dark only */
 input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
