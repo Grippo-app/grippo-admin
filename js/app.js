@@ -473,36 +473,67 @@ function validateAll(){
 function buildGptPrompt(){
   const e = getEntity();
   const lines = [];
-  lines.push('Task: Review and improve the Exercise Example JSON. Return ONLY valid JSON (no markdown, no commentary).');
+
+  lines.push('You are an expert strength & conditioning editor and a strict JSON validator.');
   lines.push('');
-  lines.push('Focus:');
-  lines.push('- Critically review MUSCLE RATIOS using the exercise NAME and DESCRIPTION as guidance for primary/secondary muscles.');
-  lines.push('- If muscle distribution is unrealistic, adjust percentages.');
+  lines.push('When you answer, follow this EXACT output format:');
+  lines.push('1) ```json');
+  lines.push('{ ...final JSON... }');
+  lines.push('```');
+  lines.push('2) Пояснение (на русском): кратко и по пунктам объясни, что улучшил(а) и почему (с опорой на НАЗВАНИЕ/ОПИСАНИЕ и общие знания/практику).');
   lines.push('');
-  lines.push('Constraints (STRICT):');
-  lines.push('Schema: { id?: string, name: string, description: string, weightType: "free"|"fixed"|"body_weight", category: "compound"|"isolation",');
-  lines.push('  experience: "beginner"|"intermediate"|"advanced"|"pro", forceType: "push"|"pull"|"hinge", imageUrl?: string,');
-  lines.push(`  ${FIELD.bundles}: [{ muscleId: string, percentage: number }], ${FIELD.equipmentRefs}: [{ equipmentId: string }], tutorials: [] }`);
-  lines.push('- Do not change `id` if present.');
-  lines.push(`- "${FIELD.bundles}" total "percentage" MUST be exactly 100.`);
-  lines.push(`- "${FIELD.equipmentRefs}" MUST use valid equipment IDs from the dictionary below.`);
-  lines.push('- Improve quality without breaking database constraints or field types.');
+  lines.push('Hard requirements:');
+  lines.push('- The JSON in the code block MUST strictly match this schema:');
+  lines.push('  {');
+  lines.push('    "id"?: string,');
+  lines.push('    "name": string,');
+  lines.push('    "description": string,');
+  lines.push('    "weightType": "free"|"fixed"|"body_weight",');
+  lines.push('    "category": "compound"|"isolation",');
+  lines.push('    "experience": "beginner"|"intermediate"|"advanced"|"pro",');
+  lines.push('    "forceType": "push"|"pull"|"hinge",');
+  lines.push('    "imageUrl"?: string,');
+  lines.push(`    "${FIELD.bundles}": [{ "muscleId": string, "percentage": number }],`);
+  lines.push(`    "${FIELD.equipmentRefs}": [{ "equipmentId": string }],`);
+  lines.push('    "tutorials": []');
+  lines.push('  }');
+  lines.push('- Do NOT change "id" if it is present.');
+  lines.push(`- Sum of "${FIELD.bundles}[].percentage" MUST be exactly 100 (integers only).`);
+  lines.push(`- "${FIELD.equipmentRefs}" MUST use VALID equipment IDs from the dictionary below (no unknown IDs).`);
+  lines.push('- If there are duplicates of the same muscle/equipment, merge them (for muscles: sum, then re-normalize to 100).');
+  lines.push('- Keep field names and types; do not add extra fields; do not remove required fields; respect enums.');
+  lines.push('- Improve QUALITY of muscle distribution using NAME and DESCRIPTION AND your general domain knowledge (outside the provided data).');
+  lines.push('- You MAY add/remove muscles if that leads to a more realistic split, but use only IDs from the provided dictionary.');
+  lines.push('- You MAY refine "description" for clarity and utility; keep the same language as the input where possible and you MAY use "\\n" for new lines.');
+  lines.push('- Ensure equipment list is relevant to the exercise; only use IDs from the equipment dictionary.');
+  lines.push('');
+  lines.push('Review focus:');
+  lines.push('- Critically evaluate MUSCLE RATIOS based on exercise NAME and DESCRIPTION, and on general biomechanical knowledge (prime movers, synergists, stabilizers).');
+  lines.push('- If distribution is unrealistic, adjust to plausible primary/secondary splits (still sum to 100).');
+  lines.push('- Validate that chosen equipment matches typical execution for this exercise.');
   lines.push('');
   lines.push(`Name: ${e.name || '(empty)'}`);
   lines.push(`Description: ${e.description || '(empty)'}`);
   lines.push('');
   lines.push('Muscles dictionary (name — id):');
-  for (const [id,name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
+  for (const [id, name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
   lines.push('');
   lines.push('Equipment dictionary (name — id):');
-  for (const [id,name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
+  for (const [id, name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
   lines.push('');
   lines.push('Current JSON:');
   lines.push(pretty(e));
   lines.push('');
-  lines.push('Return: ONLY the final JSON (no code fences).');
+  lines.push('OUTPUT FORMAT (repeat for clarity):');
+  lines.push('```json');
+  lines.push('{ ...final JSON... }');
+  lines.push('```');
+  lines.push('Пояснение: ... (на русском, перечисли ключевые изменения и логику на основе общих знаний и описания).');
+  lines.push('Return NOTHING else beyond these two parts.');
+
   return lines.join('\n');
 }
+
 async function copyPrompt(){
   const prompt = buildGptPrompt();
   try{ await navigator.clipboard.writeText(prompt); toast({title:'Prompt copied'}); }
