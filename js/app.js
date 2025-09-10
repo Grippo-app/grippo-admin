@@ -347,11 +347,11 @@ function selectItem(it){
 function newItem(){
   current = null; isNew = true;
   canonical = emptyTemplate();
-  els.currentId.textContent = `Creating new ID: ${canonical.id}`;
+  els.currentId.textContent = 'Creating new item (ID will be assigned on save)';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
   validateAll();
-  autosizeEditor();
+  autosizeEditor && autosizeEditor();
 }
 
 async function loadList(){
@@ -376,7 +376,10 @@ async function loadList(){
 
 async function saveCurrent(){
   const headers = {'accept':'application/json','content-type':'application/json', ...bearer()};
-  if (!headers.Authorization){ toast({title:'Token required', message:'Set a valid Bearer token first.', type:'error'}); return; }
+  if (!headers.Authorization){
+    toast({title:'Token required', message:'Set a valid Bearer token first.', type:'error'}); 
+    return; 
+  }
 
   const ent = readFormToEntity(getEntity());
   setEntity(ent);
@@ -386,30 +389,60 @@ async function saveCurrent(){
   els.saveBtn.disabled = true;
   try{
     if (isNew){
-      let resp = await fetch(CREATE_ENDPOINT, {method:'POST', headers, body: JSON.stringify(canonical)});
+      // Создание: НЕ передаём id
+      const payload = {...canonical};
+      delete payload.id;
+
+      const resp = await fetch(CREATE_ENDPOINT, {
+        method:'POST', headers, body: JSON.stringify(payload)
+      });
       if (!resp.ok){
-        resp = await fetch(PUT_ENDPOINT(canonical.id), {method:'PUT', headers, body: JSON.stringify(canonical)});
+        const text = await resp.text(); 
+        throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
       }
-      if (!resp.ok){
-        const text = await resp.text(); throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
+
+      // Ожидаем { id: "..." }
+      let createdId = null;
+      try{
+        const data = await resp.json();
+        if (data && data.id) createdId = String(data.id);
+      }catch(_) {/* некоторых бэков нет тела */ }
+
+      if (createdId){
+        canonical.id = createdId;
+        writeEntityToForm(canonical);
+        els.currentId.textContent = `Editing ID: ${createdId}`;
       }
-      toast({title:'Created', message:`ID ${canonical.id}`});
+
+      toast({title:'Created', message: createdId ? `ID ${createdId}` : 'Created'});
       isNew = false;
       await loadList();
-    }else{
-      canonical.id = current?.entity?.id || canonical.id; // lock ID
-      const id = canonical.id;
-      const resp = await fetch(PUT_ENDPOINT(id), {method:'PUT', headers, body: JSON.stringify(canonical)});
+    } else {
+      // Обновление: id в PATH, НО НЕ в body
+      const id = current?.entity?.id || canonical.id;
+      if (!id){ toast({title:'Missing ID', type:'error'}); return; }
+
+      const payload = {...canonical};
+      delete payload.id;
+
+      const resp = await fetch(PUT_ENDPOINT(id), {
+        method:'PUT', headers, body: JSON.stringify(payload)
+      });
       if (!resp.ok){
-        const text = await resp.text(); throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
+        const text = await resp.text(); 
+        throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
       }
+
       toast({title:'Saved', message:`ID ${id} updated.`});
-      if (current) current.entity = {...canonical};
+      if (current) current.entity = {...canonical, id};
       renderList();
     }
   }catch(e){
-    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000}); console.error(e);
-  }finally{ els.saveBtn.disabled = false; }
+    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000}); 
+    console.error(e);
+  }finally{
+    els.saveBtn.disabled = false;
+  }
 }
 
 // ===== Validation (imageUrl -> warning only) =====
