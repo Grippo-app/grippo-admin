@@ -175,10 +175,10 @@ main{
   background:transparent !important;
 }
 .list{
-  flex: 1 1 auto;                  /* take remaining height */
-  min-height: 0;                   /* enable overflow inside flex parent */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
-  -webkit-overflow-scrolling: touch; /* smooth on iOS/mac */
+  -webkit-overflow-scrolling: touch;
   padding: 8px 10px 10px;
   display: grid;
   gap: 10px;
