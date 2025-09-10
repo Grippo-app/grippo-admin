@@ -120,11 +120,7 @@ function updateStickyOffsets(){
   document.documentElement.style.setProperty('--commandbar-h', b + 'px');
 }
 function autosizeEditor(){
-  const ta = els.editor;
-  if (!ta) return;
-  if (ta.hasAttribute('hidden')) return;
-  ta.style.height = 'auto';
-  ta.style.height = (ta.scrollHeight + 8) + 'px';
+ 
 }
 
 // ===== Dictionaries =====
