@@ -147,6 +147,8 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
   gap: 8px;
   align-items: center;
   border-bottom: 0;      /* ← убираем divider */
+}.side-head{
+  background: transparent !important;
 }
 .list{overflow:auto;padding:10px;display:grid;gap:10px}
 .item{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;display:grid;gap:6px;transition:border .15s, background .15s}
