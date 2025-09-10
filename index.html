@@ -15,43 +15,45 @@
     <button id="saveToken" class="btn muted" title="Save token to localStorage">Save token</button>
     <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
   </header>
-<!-- Command bar: sticky below header -->
-<div id="commandBar" class="command-bar">
-  <input id="search" type="search" placeholder="Search by name…"/>
-  <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
 
-  <span class="spacer"></span>
+  <!-- Command bar: sticky below header -->
+  <div id="commandBar" class="command-bar">
+    <input id="search" type="search" placeholder="Search by name…"/>
+    <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
 
-  <span id="currentId" class="hint">No item selected</span>
-  <span id="jsonStatus" class="status warn">Waiting…</span>
+    <span class="spacer"></span>
 
-  <div class="view-toggle">
-    <div class="segment" role="tablist" aria-label="Editor mode">
-      <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form</button>
-      <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
+    <span id="currentId" class="hint">No item selected</span>
+    <span id="jsonStatus" class="status warn">Waiting…</span>
+
+    <div class="view-toggle">
+      <div class="segment" role="tablist" aria-label="Editor mode">
+        <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form</button>
+        <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
+      </div>
+    </div>
+
+    <div class="cmd-actions">
+      <button id="formatBtn" class="btn muted json-only" title="Prettify JSON">Format</button>
+      <button id="copyEntityBtn" class="btn muted json-only" title="Copy editor JSON">Copy editor JSON</button>
+      <button id="copyFullBtn" class="btn muted json-only" title="Copy full item (entity + stats)">Copy full JSON</button>
+      <button id="promptBtn" class="btn" title="Build GPT prompt">Build GPT</button>
+      <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
     </div>
   </div>
 
-  <div class="cmd-actions">
-    <button id="formatBtn" class="btn muted json-only" title="Prettify JSON">Format</button>
-    <button id="copyEntityBtn" class="btn muted json-only" title="Copy editor JSON">Copy editor JSON</button>
-    <button id="copyFullBtn" class="btn muted json-only" title="Copy full item (entity + stats)">Copy full JSON</button>
-    <button id="promptBtn" class="btn" title="Build GPT prompt">Build GPT</button>
-    <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
-  </div>
-</div>
   <main>
     <!-- Sidebar -->
     <section class="sidebar" aria-label="Examples list">
-<div class="side-head">
-  <div class="spacer"></div>
-</div>
+      <div class="side-head">
+        <div class="spacer"></div>
+      </div>
       <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
     </section>
 
     <!-- Editor -->
     <section class="panel">
-     <div class="ed-head"></div>
+      <div class="ed-head"></div>
 
       <!-- FORM BUILDER -->
       <div id="builder" class="builder show" aria-label="Exercise Example Builder">
