@@ -90,10 +90,13 @@ function uuidv4(){
     const r=(Math.random()*16)|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);
   });
 }
-function updateHeaderHeightVar(){
+function updateStickyOffsets(){
   const header = document.querySelector('header');
+  const bar = document.getElementById('commandBar');
   const h = header ? header.offsetHeight : 64;
+  const b = bar ? bar.offsetHeight : 56;
   document.documentElement.style.setProperty('--header-h', h + 'px');
+  document.documentElement.style.setProperty('--commandbar-h', b + 'px');
 }
 function autosizeEditor(){
   const ta = els.editor;
@@ -661,8 +664,8 @@ els.editor.addEventListener('input', ()=>{
   // Start
 setEntity(emptyTemplate());
 setViewForm(); // default to Form mode and hide JSON-only buttons
-  updateHeaderHeightVar();
-window.addEventListener('resize', updateHeaderHeightVar);
+updateStickyOffsets();
+window.addEventListener('resize', updateStickyOffsets);
 
 
 // Recalculate editor height when window resizes
