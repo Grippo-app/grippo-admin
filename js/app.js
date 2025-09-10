@@ -90,6 +90,11 @@ function uuidv4(){
     const r=(Math.random()*16)|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);
   });
 }
+function updateHeaderHeightVar(){
+  const header = document.querySelector('header');
+  const h = header ? header.offsetHeight : 64;
+  document.documentElement.style.setProperty('--header-h', h + 'px');
+}
 function autosizeEditor(){
   const ta = els.editor;
   if (!ta) return;
@@ -654,6 +659,9 @@ els.editor.addEventListener('input', ()=>{
   // Start
 setEntity(emptyTemplate());
 setViewForm(); // default to Form mode and hide JSON-only buttons
+  updateHeaderHeightVar();
+window.addEventListener('resize', updateHeaderHeightVar);
+
 
 // Recalculate editor height when window resizes
 window.addEventListener('resize', autosizeEditor);
