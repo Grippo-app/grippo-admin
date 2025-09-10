@@ -26,7 +26,7 @@
   --block-gap:14px;
   --header-h: 64px; /* fallback */
   --commandbar-h: 56px;
-  --sidebar-w: 240px;
+  --sidebar-w: 340px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -66,9 +66,9 @@ header{
   text-overflow: ellipsis;
 }
 .command-bar input[type="search"]{
-  flex: 0 0 var(--sidebar-w);
-  width: var(--sidebar-w);
-  min-width: var(--sidebar-w);
+  flex: 0 0 calc(var(--sidebar-w) / 2);
+  width: calc(var(--sidebar-w) / 2);
+  min-width: calc(var(--sidebar-w) / 2);
 }
 .command-bar .spacer{ flex: 1 1 auto; }
 .command-bar .view-toggle{ flex-shrink: 0; }
