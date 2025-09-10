@@ -48,7 +48,7 @@ header{
   top: var(--header-h);
   z-index: 19;
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto auto auto; /* id | search | status | view toggle | actions */
   gap: 12px;
   align-items: center;
   padding: 10px 14px;
@@ -56,13 +56,8 @@ header{
   border-bottom: 1px solid var(--border);
   box-shadow: 0 6px 18px rgba(0,0,0,.22);
 }
-.command-bar input[type="search"]{
-  width: 100%;
-}
-.cmd-actions{
-  display: flex;
-  gap: 8px;
-}
+.command-bar input[type="search"]{ width: 100%; }
+.cmd-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
 /* Inputs — dark only */
 input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
