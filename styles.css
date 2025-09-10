@@ -223,7 +223,8 @@ main{
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  overflow: hidden;        /* content (builder or textarea) handles its own scroll */
+  overflow: auto !important;    /* колонка редактора снова скроллится сама */
+  -webkit-overflow-scrolling: touch;
 }
 .spacer{flex:1}
 .status{font-size:12px; padding:7px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel-2)}
@@ -277,21 +278,21 @@ main{
 
 /* JSON editor */
 textarea#editor{
-  flex: 1 1 auto;          /* fill the editor column */
-  min-height: 0;
-  height: 100%;            /* occupy available height */
-  overflow: auto;          /* inner scrolling */
-  resize: none;
-  border: 1px solid var(--border);
-  outline: none;
-  margin: 0;               /* no outer margins -> no clipping */
-  padding: 16px;
-  background: #0f1d33;
-  color: #dbeafe;
-  font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  border-radius: 12px;
+  width:100%;
+  min-height:320px;
+  height:auto;                /* авто-рост по содержимому */
+  overflow:hidden;            /* без внутреннего скролла */
+  resize:none;                /* user-resize отключён */
+  border:1px solid var(--border);
+  outline:none;
+  margin:16px;                /* как было, с внешними отступами */
+  padding:16px;
+  background:#0f1d33;
+  color:#dbeafe;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+  font-size:13px;
+  line-height:1.5;
+  border-radius:12px;
 }
 
 /* Toast */
