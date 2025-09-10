@@ -90,6 +90,13 @@ function uuidv4(){
     const r=(Math.random()*16)|0, v=c==='x'?r:(r&0x3|0x8); return v.toString(16);
   });
 }
+function autosizeEditor(){
+  const ta = els.editor;
+  if (!ta) return;
+  if (ta.hasAttribute('hidden')) return;
+  ta.style.height = 'auto';
+  ta.style.height = (ta.scrollHeight + 8) + 'px';
+}
 
 // ===== Dictionaries =====
 async function fetchEquipmentDict(){
