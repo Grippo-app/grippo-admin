@@ -187,6 +187,7 @@ function setEntity(newEnt){
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
   validateAll();
+  autosizeEditor();
 }
 
 // ===== Sidebar =====
@@ -343,6 +344,7 @@ function selectItem(it){
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
   validateAll();
+  autosizeEditor();
   renderList();
 }
 function newItem(){
@@ -352,6 +354,7 @@ function newItem(){
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
   validateAll();
+  autosizeEditor();
 }
 
 async function loadList(){
@@ -520,6 +523,7 @@ function setViewJson(){
   els.builder.classList.remove('show'); els.editor.hidden = false;
   els.editor.value = pretty(getEntity());
   document.body.classList.remove('hide-json-controls');
+  autosizeEditor();
 }
 
 // ===== Bootstrap =====
@@ -539,9 +543,15 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
   els.saveBtn.addEventListener('click', saveCurrent);
   els.formatBtn.addEventListener('click', ()=>{
-    try{ const obj = JSON.parse(els.editor.value); els.editor.value = pretty(obj); validateAll(); }
-    catch(e){ toast({title:'Format error', message:String(e.message||e), type:'error'}); }
-  });
+  try{
+    const obj = JSON.parse(els.editor.value);
+    els.editor.value = pretty(obj);
+    validateAll();
+    autosizeEditor();
+  }catch(e){
+    toast({title:'Format error', message:String(e.message||e), type:'error'});
+  }
+});
   els.copyEntityBtn.addEventListener('click', ()=> copyToClipboard(els.editor.value, 'Editor JSON copied'));
   els.copyFullBtn.addEventListener('click', ()=>{
     if (!current){ toast({title:'Nothing selected', type:'error'}); return; }
@@ -568,20 +578,24 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   els.percentInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addBundleFromInputs(); } });
 
   // JSON normalize
-  els.editor.addEventListener('input', ()=>{
-    try{
-      const obj = JSON.parse(els.editor.value);
-      canonical = normalizeEntityShape(obj);
-      writeEntityToForm(canonical);
-      validateAll();
-    }catch{
-      setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
-    }
-  });
+els.editor.addEventListener('input', ()=>{
+  try{
+    const obj = JSON.parse(els.editor.value);
+    canonical = normalizeEntityShape(obj);
+    writeEntityToForm(canonical);
+    validateAll();
+  }catch{
+    setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+  }
+  autosizeEditor();
+});
 
   // Start
-  setEntity(emptyTemplate());
-  setViewForm(); // default to Form mode and hide JSON-only buttons
+setEntity(emptyTemplate());
+setViewForm(); // default to Form mode and hide JSON-only buttons
+
+// Recalculate editor height when window resizes
+window.addEventListener('resize', autosizeEditor);
 });
 
 // ===== Helpers =====
