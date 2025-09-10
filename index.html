@@ -17,10 +17,12 @@
   </header>
 <!-- Command bar: sticky below header -->
 <div id="commandBar" class="command-bar">
-  <span id="currentId" class="hint">No item selected</span>
-
   <input id="search" type="search" placeholder="Search by name…"/>
+  <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
 
+  <span class="spacer"></span>
+
+  <span id="currentId" class="hint">No item selected</span>
   <span id="jsonStatus" class="status warn">Waiting…</span>
 
   <div class="view-toggle">
@@ -35,7 +37,6 @@
     <button id="copyEntityBtn" class="btn muted json-only" title="Copy editor JSON">Copy editor JSON</button>
     <button id="copyFullBtn" class="btn muted json-only" title="Copy full item (entity + stats)">Copy full JSON</button>
     <button id="promptBtn" class="btn" title="Build GPT prompt">Build GPT</button>
-    <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
     <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
   </div>
 </div>
