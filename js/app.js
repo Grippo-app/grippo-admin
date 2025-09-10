@@ -154,8 +154,7 @@ function emptyTemplate(){
     forceType: '',
     imageUrl: '',
     [FIELD.bundles]: [],
-    [FIELD.equipmentRefs]: [],
-    tutorials: []
+    [FIELD.equipmentRefs]: []
   };
 }
 function normalizeEntityShape(src){
@@ -177,7 +176,6 @@ function normalizeEntityShape(src){
     if (!muscleId || !isFinite(percentage)) return null;
     return { muscleId, percentage };
   }).filter(Boolean);
-  if (!Array.isArray(e.tutorials)) e.tutorials = [];
   return e;
 }
 let canonical = emptyTemplate();
@@ -225,7 +223,6 @@ function readFormToEntity(entity){
   e.category = els.fCategory.value;
   e.experience = els.fExperience.value;
   e.forceType = els.fForceType.value;
-  if (!Array.isArray(e.tutorials)) e.tutorials = [];
   return e;
 }
 function writeEntityToForm(entity){
@@ -494,9 +491,9 @@ function buildGptPrompt(){
   lines.push('    "forceType": "push"|"pull"|"hinge",');
   lines.push('    "imageUrl"?: string,');
   lines.push(`    "${FIELD.bundles}": [{ "muscleId": string, "percentage": number }],`);
-  lines.push(`    "${FIELD.equipmentRefs}": [{ "equipmentId": string }],`);
-  lines.push('    "tutorials": []');
+  lines.push(`    "${FIELD.equipmentRefs}": [{ "equipmentId": string }]`);
   lines.push('  }');
+  lines.push('- Do NOT include a field named "tutorials".');
   lines.push('- Do NOT change "id" if it is present.');
   lines.push(`- Sum of "${FIELD.bundles}[].percentage" MUST be exactly 100 (integers only).`);
   lines.push(`- "${FIELD.equipmentRefs}" MUST use VALID equipment IDs from the dictionary below (no unknown IDs).`);
