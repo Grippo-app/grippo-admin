@@ -130,9 +130,15 @@ main{display:grid;grid-template-columns:var(--sidebar-w) 1fr;gap:14px;padding:14
 
 .sidebar{
   position: sticky;
-  top: calc(var(--header-h) + var(--commandbar-h));       /* под шапкой и командной панелью */
-  height: calc(100vh - var(--header-h) - var(--commandbar-h)); /* высота во всё окно */
-  overflow: hidden;                                       /* внутренний скролл будет в .list */
+  top: calc(var(--header-h) + var(--commandbar-h));
+  height: calc(100vh - var(--header-h) - var(--commandbar-h));
+  overflow: hidden;
+
+  /* remove fixed-height panel background under the content */
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 .side-head{
   padding: 8px 14px;     /* меньше отступы сверху/снизу */
