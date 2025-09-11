@@ -28,6 +28,53 @@
   --header-h:64px;      /* fallback, JS may update */
   --commandbar-h:56px;  /* fallback, JS may update */
   --sidebar-w:340px;
+  --gpt-a:#00FFA3;  /* neon mint */
+  --gpt-b:#7CFF00;  /* acid lime */
+  --gpt-glow: rgba(0,255,163,.38);
+  --gpt-glow-strong: rgba(0,255,163,.60);
+}
+.btn.gpt{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:linear-gradient(90deg,var(--gpt-a),var(--gpt-b)) !important;
+  color:#06150f !important;
+  border:0 !important;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.25),
+    0 6px 24px var(--gpt-glow) !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.25);
+}
+
+.btn.gpt:hover{
+  filter:brightness(1.06) contrast(1.02);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.28),
+    0 8px 28px var(--gpt-glow-strong) !important;
+}
+
+.btn.gpt:active{
+  transform: translateY(1px);
+}
+
+/* Icons via emoji pseudo-elements for crisp cross-platform rendering */
+#promptBtn.btn.gpt::before{
+  content:"🪄";               /* magic wand */
+  font-size:16px;
+  line-height:1;
+}
+#promptImgBtn.btn.gpt::before{
+  content:"✨";               /* sparkles for image build */
+  font-size:16px;
+  line-height:1;
+}
+
+/* Respect dark UI: focus ring */
+.btn.gpt:focus{
+  outline:none;
+  box-shadow:
+    0 0 0 2px rgba(10,20,15,.6),
+    0 0 0 4px var(--gpt-glow) !important;
 }
 
 *{box-sizing:border-box}
