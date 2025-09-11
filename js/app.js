@@ -62,6 +62,7 @@ const els = {
   copyEntityBtn: document.getElementById('copyEntityBtn'),
   copyFullBtn: document.getElementById('copyFullBtn'),
   promptBtn: document.getElementById('promptBtn'),
+  promptImgBtn: document.getElementById('promptImgBtn'),
 
   viewForm: document.getElementById('viewForm'),
   viewJson: document.getElementById('viewJson'),
@@ -604,6 +605,109 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
+// Builds an image-generation prompt using the same context (entity + dicts)
+function buildGptImagePrompt(){
+  const e = getEntity();
+
+  // Selected equipment names (fallback to ID if name is unknown)
+  const selectedEq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
+  const selectedEqLines = selectedEq.map(x => {
+    const id = String(x?.equipmentId || '');
+    const name = dict.equipment.get(id) || id;
+    return `- ${name} — ${id}`;
+  });
+
+  // Bundles pretty print
+  const bundles = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
+  const bundleLines = bundles.map(b => {
+    const id = String(b?.muscleId || '');
+    const name = dict.muscles.get(id) || id;
+    const p = Number(b?.percentage ?? 0);
+    return `- ${name} — ${p}% (${id})`;
+  });
+
+  const lines = [];
+  lines.push('ИНСТРУКЦИЯ ДЛЯ ИЗОБРАЖЕНИЯ (универсальная для серии)');
+  lines.push(`Цель: создать одно превью упражнения «${e.name || '(empty)'}» из описания, один кадр, один персонаж, только необходимое оборудование. Всё полностью влезает в кадр.`);
+  lines.push('');
+  lines.push('Стиль серии (фиксированный для всех картинок)');
+  lines.push('Визуал: чистый полу-реалистичный clay/3D-иллюстрация с мягкими градиентами, без брендинга и текста. Материалы матовые.');
+  lines.push('');
+  lines.push('Персонаж: нейтральный андрогинный манекен без лица/волос, однотонная форма (топ/шорты).');
+  lines.push('');
+  lines.push('Окружение: минималистичная студия, нейтральный фон, без окон/зеркал/логотипов.');
+  lines.push('');
+  lines.push('Освещение: мягкий студийный, верхне-боковой рассеянный источник, мягкие тени.');
+  lines.push('');
+  lines.push('Параметры кадра (фиксированные)');
+  lines.push('Соотношение сторон: 4:3 (рекоменд. 800×600; итог не меньше 2048×1536).');
+  lines.push('Камера: 3/4 вид, лёгкая изометрия, угол сверху ~10–15°, фокусное экв. 35–50мм.');
+  lines.push('Безопасные поля: по 5–10% со всех сторон; не обрезать голову, ступни, снаряд.');
+  lines.push('');
+  lines.push('Состав кадра');
+  lines.push('Один персонаж + один основной снаряд (или один набор тренажёра) из «Equipment dictionary».');
+  lines.push('Выбор оборудования делай из описания: включай только то, что указано в equipment. Если требуется платформа/скамья — размести её целиком.');
+  lines.push('Угол и дистанцию подстрой так, чтобы и атлет, и оборудование полностью видны в 4:3.');
+  lines.push('');
+  lines.push('Поза и техника (из Description)');
+  lines.push('Покажи узнаваемый момент середины амплитуды или позицию, лучше всего демонстрирующую механику (хват, постановка ног, наклон корпуса, траектория).');
+  lines.push('Следуй указаниям по хвату (pronated/neutral/supinated), ширине, углам в тазобедренных/коленных/плечевых суставах.');
+  lines.push('Спина нейтральная, шея в продолжение позвоночника; линии движения и векторы усилия читаемы.');
+  lines.push('');
+  lines.push('ПАЛИТРА (единый стиль, подходит для light/dark):');
+  lines.push('Основной акцент: #3366FF');
+  lines.push('Доп. тёплый акцент (иногда для рима/свечения): #FFA726');
+  lines.push('Светлый нейтральный фон (light): #EDEFF1');
+  lines.push('Тёмный нейтральный фон (dark): #262A31');
+  lines.push('Универсальный фон-градиент (оба режима): центр #CBD0D8 → края #2E333B (радиальный). Фолбэк: #EDEFF1 (light) / #262A31 (dark).');
+  lines.push('Контуры для читаемости: двойной штрих — внутренний #FAFAFA @35% (2px), внешний #15181F @60% (3px).');
+  lines.push('Правила: не более двух акцентных цветов одновременно; избегать больших заливок чистым #FFFFFF/#000000; держать контраст ≥ 4.5:1.');
+  lines.push('');
+  lines.push('Запреты (negative)');
+  lines.push('Нет текста, логотипов, UI, водяных знаков.');
+  lines.push('Нет лишних людей, зеркал, окон, зрителей, декоративного инвентаря.');
+  lines.push('Без экстремальной перспективы, сильного блеска/глянца, motion blur, шума.');
+  lines.push('');
+  lines.push('Контроль перед выводом');
+  lines.push('Формат строго 4:3, разрешение не меньше 2048×1536.');
+  lines.push('В кадре только один персонаж и только необходимое оборудование.');
+  lines.push('Ключевые детали техники из описания соблюдены; ничего не обрезано.');
+  lines.push('');
+  lines.push('---');
+  lines.push(`Name: ${e.name || '(empty)'}`);
+  lines.push(`Description: ${e.description || '(empty)'}`);
+  lines.push('');
+  lines.push('Selected equipment (use only what is listed):');
+  if (selectedEqLines.length){ lines.push(...selectedEqLines); } else { lines.push('- (none)'); }
+  lines.push('');
+  lines.push('Muscle bundles (for context; do not render text):');
+  if (bundleLines.length){ lines.push(...bundleLines); } else { lines.push('- (none)'); }
+  lines.push('');
+  lines.push('Muscles dictionary (name — id):');
+  for (const [id, name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
+  lines.push('');
+  lines.push('Equipment dictionary (name — id):');
+  for (const [id, name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
+
+  return lines.join('\n');
+}
+
+async function copyImagePrompt(){
+  const prompt = buildGptImagePrompt();
+  try{
+    await navigator.clipboard.writeText(prompt);
+    toast({title:'Image prompt copied'});
+  }catch{
+    const ta = document.createElement('textarea');
+    ta.value = prompt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    toast({title:'Image prompt copied'});
+  }
+}
+
 async function copyPrompt(){
   const prompt = buildGptPrompt();
   try{ await navigator.clipboard.writeText(prompt); toast({title:'Prompt copied'}); }
@@ -661,6 +765,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     copyToClipboard(JSON.stringify(current,null,2), 'Full item JSON copied');
   });
   els.promptBtn.addEventListener('click', copyPrompt);
+  els.promptImgBtn.addEventListener('click', copyImagePrompt);
 
   // View
   els.viewForm.addEventListener('click', setViewForm);
