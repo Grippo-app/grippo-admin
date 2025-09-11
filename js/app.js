@@ -647,8 +647,6 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
-Вот точечная замена `buildGptImagePrompt` с добавлением имени файла в виде `snake_case` и предпочтения JPEG. Комментарии в коде — на английском.
-
 // Builds an image-generation prompt using the same context (entity + dicts)
 // Enforces 4:3 strictly, fixes unified mannequin tint, and specifies snake_case JPEG filename.
 function buildGptImagePrompt(){
