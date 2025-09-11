@@ -647,12 +647,29 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
+Вот точечная замена `buildGptImagePrompt` с добавлением имени файла в виде `snake_case` и предпочтения JPEG. Комментарии в коде — на английском.
+
 // Builds an image-generation prompt using the same context (entity + dicts)
-// — now enforces 4:3 strictly and fixes a unified mannequin tint across the series.
+// Enforces 4:3 strictly, fixes unified mannequin tint, and specifies snake_case JPEG filename.
 function buildGptImagePrompt(){
   const e = getEntity();
 
-  // Selected equipment names (fallback to ID if name is unknown)
+  // --- helpers (English-only comments) ---
+  const translit = (str) => {
+    const map = {
+      А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'E', Ж:'Zh', З:'Z', И:'I', Й:'I', К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F', Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya',
+      а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh', з:'z', и:'i', й:'i', к:'k', л:'l', м:'m', н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'kh', ц:'ts', ч:'ch', ш:'sh', щ:'shch', ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya'
+    };
+    return String(str).split('').map(ch => map[ch] ?? ch).join('');
+  };
+  const toSnake = (str) => {
+    const base = translit(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return base || 'preview';
+  };
+  const fileBase = toSnake(e.name || 'preview');
+  const fileName = `${fileBase}.jpeg`;
+
+  // Selected equipment lines (fallback to ID)
   const selectedEq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
   const selectedEqLines = selectedEq.map(x => {
     const id = String(x?.equipmentId || '');
@@ -674,10 +691,12 @@ function buildGptImagePrompt(){
   lines.push(`Цель: создать одно превью упражнения «${e.name || '(empty)'}» из описания, один кадр, один персонаж, только необходимое оборудование. Всё полностью влезает в кадр.`);
   lines.push('');
 
-  lines.push('ВАЖНО (формат кадра):');
-  lines.push('- Соотношение сторон ТОЛЬКО 4:3. Никаких квадратов (1:1), 16:9 и др.');
-  lines.push('- Если генератор требует параметр соотношения — укажи AR=4:3 / aspect_ratio=4:3.');
-  lines.push('- Если задаются размеры — используй ширина:высота=4:3, например 2048×1536, 3072×2304 и т.п.');
+  lines.push('ВАЖНО (формат и файл):');
+  lines.push('- Соотношение сторон ТОЛЬКО 4:3. Никаких 1:1, 16:9 и др.');
+  lines.push('- Если генератор требует параметр соотношения: AR=4:3 / aspect_ratio=4:3.');
+  lines.push('- Если задаются размеры: 2048×1536 или иное 4:3 не ниже по площади.');
+  lines.push(`- Имя выходного файла: ${fileName} (lowercase snake_case от Name).`);
+  lines.push('- Формат: JPEG (.jpeg) предпочтительнее PNG; без альфа-канала/прозрачности; sRGB.');
   lines.push('');
 
   lines.push('Стиль серии (фиксированный для всех картинок)');
@@ -730,6 +749,7 @@ function buildGptImagePrompt(){
   lines.push('Контроль перед выводом');
   lines.push('- Формат строго 4:3. Если итог не 4:3 — перегенерировать.');
   lines.push('- Разрешение не меньше 2048×1536 (или иное 4:3 не ниже по площади).');
+  lines.push(`- Имя файла: ${fileName}; формат: JPEG (.jpeg); без прозрачности.`);
   lines.push('- В кадре только один персонаж и только необходимое оборудование.');
   lines.push('- Тон манекена соответствует базовым значениям (#C9D1DB / #9BA8B5 / #7E8D9B / #EEF2F6) и не меняется от изображения к изображению.');
   lines.push('- Ключевые детали техники из описания соблюдены; ничего не обрезано.');
