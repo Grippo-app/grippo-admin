@@ -124,6 +124,44 @@ function autosizeEditor(){
   /* no-op: editor uses internal scrolling */
 }
 
+// ---- Visibility helpers (hide controls when nothing selected/new) ----
+function hasActiveItem(){
+  return isNew || !!(current && current.entity && current.entity.id);
+}
+function toggle(el, show){
+  if (!el) return;
+  el.style.display = show ? '' : 'none';
+}
+function updateCommandBarVisibility(){
+  const active = hasActiveItem();
+
+  // Top controls
+  const viewToggle = document.querySelector('.view-toggle');
+  toggle(els.promptBtn, active);
+  toggle(els.promptImgBtn, active);
+  toggle(els.saveBtn, active);
+  toggle(viewToggle, active);
+  toggle(els.jsonStatus, active);
+
+  // Right column content
+  if (!active){
+    els.builder.classList.remove('show');
+    els.editor.hidden = true;
+    document.body.classList.add('hide-json-controls');
+  } else {
+    const formActive = els.viewForm.classList.contains('active');
+    if (formActive){
+      els.builder.classList.add('show');
+      els.editor.hidden = true;
+      document.body.classList.add('hide-json-controls');
+    } else {
+      els.builder.classList.remove('show');
+      els.editor.hidden = false;
+      document.body.classList.remove('hide-json-controls');
+    }
+  }
+}
+
 // ===== Dictionaries =====
 async function fetchEquipmentDict(){
   try{
@@ -382,6 +420,7 @@ function selectItem(it){
   validateAll();
   autosizeEditor();
   renderList();
+  updateCommandBarVisibility(); // reflect active state
 }
 function newItem(){
   current = null; isNew = true;
@@ -389,8 +428,10 @@ function newItem(){
   els.currentId.textContent = 'Creating new item (ID will be assigned on save)';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
+  setViewForm();            // default to Form for new
   validateAll();
   autosizeEditor && autosizeEditor();
+  updateCommandBarVisibility(); // reflect active state
 }
 
 async function loadList(){
@@ -457,6 +498,7 @@ async function saveCurrent(){
       toast({title:'Created', message: createdId ? `ID ${createdId}` : 'Created'});
       isNew = false;
       await loadList();
+      updateCommandBarVisibility();
     } else {
       // Update: id via query, NOT in body
       const id = current?.entity?.id || canonical.id;
@@ -722,12 +764,14 @@ function setViewForm(){
   els.viewForm.classList.add('active'); els.viewJson.classList.remove('active');
   els.builder.classList.add('show'); els.editor.hidden = true;
   document.body.classList.add('hide-json-controls'); // hides Format/Copy buttons
+  updateCommandBarVisibility();
 }
 function setViewJson(){
   els.viewJson.classList.add('active'); els.viewForm.classList.remove('active');
   els.builder.classList.remove('show'); els.editor.hidden = false;
   els.editor.value = pretty(getEntity());
   document.body.classList.remove('hide-json-controls');
+  updateCommandBarVisibility();
 }
 
 // ===== Bootstrap =====
@@ -787,22 +831,26 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   // JSON normalize
   els.editor.addEventListener('input', ()=>{
-  try{
-    const obj = JSON.parse(els.editor.value);
-    canonical = normalizeEntityShape(obj);
-    writeEntityToForm(canonical);
-    validateAll();
-  }catch{
-    setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
-  }
-});
+    try{
+      const obj = JSON.parse(els.editor.value);
+      canonical = normalizeEntityShape(obj);
+      writeEntityToForm(canonical);
+      validateAll();
+    }catch{
+      setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+    }
+  });
 
-  // Start
-  setEntity(emptyTemplate());
-  setViewForm(); // default to Form mode and hide JSON-only buttons
+  // Start — nothing selected yet, no "New" pressed
+  current = null; isNew = false;
+  canonical = emptyTemplate();
+  els.builder.classList.remove('show');
+  els.editor.hidden = true;
+  document.body.classList.add('hide-json-controls');
+
+  updateCommandBarVisibility(); // hide GPT/Save/toggle/status
   updateStickyOffsets();
   window.addEventListener('resize', updateStickyOffsets);
-
 });
 
 // ===== Helpers =====
