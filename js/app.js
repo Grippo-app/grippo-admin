@@ -553,8 +553,9 @@ function validateAll(){
   if (ent.experience && !expOk) errors.push('experience invalid');
   if (ent.forceType && !forceOk) errors.push('forceType invalid');
 
+  // Equipment can be empty now (bodyweight). Only validate unknown IDs if any provided.
   const eq = Array.isArray(ent[FIELD.equipmentRefs]) ? ent[FIELD.equipmentRefs] : [];
-  const unknownEq = eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id));
+  const unknownEq = eq.length ? eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id)) : [];
   if (unknownEq.length) errors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
 
   const bundles = Array.isArray(ent[FIELD.bundles]) ? ent[FIELD.bundles] : [];
