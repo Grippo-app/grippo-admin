@@ -647,46 +647,57 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
-// ===== Image prompt (structured 1–10 + exercise data) =====
+// Builds an image-generation prompt using structured spec (bodyweight allowed), PNG 4:3, snake_case filename
 function buildGptImagePrompt(){
   const e = getEntity();
 
-  // helpers
+  // helpers: transliteration (ru->lat) + snake_case
   const translit = (str) => {
     const map = {
       А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'E', Ж:'Zh', З:'Z', И:'I', Й:'I', К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F', Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya',
       а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh', з:'z', и:'i', й:'i', к:'k', л:'l', м:'m', н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'kh', ц:'ts', ч:'ch', ш:'sh', щ:'shch', ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya'
     };
-    return String(str).split('').map(ch => map[ch] ?? ch).join('');
+    return String(str||'').split('').map(ch => map[ch] ?? ch).join('');
   };
   const toSnake = (str) => {
-    const base = translit(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const base = translit(str).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return base || 'preview';
   };
-  const fileName = `${toSnake(e.name || 'preview')}.jpeg`;
 
-  // equipment names (no IDs)
-  const equipmentNames = (Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [])
-    .map(x => dict.equipment.get(String(x?.equipmentId || '')) || String(x?.equipmentId || ''))
+  const fileBase = toSnake(e.name || 'preview');
+  const fileName = `${fileBase}.png`;
+
+  // equipment names (no IDs in prompt)
+  const eqArr = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
+  const eqNames = eqArr
+    .map(x => String(dict.equipment.get(String(x?.equipmentId || '')) || '').trim())
     .filter(Boolean);
-  const eqUniq = [...new Set(equipmentNames)];
-  const eqListHuman = eqUniq.length ? eqUniq.join('; ') : 'без дополнительного оборудования';
+
+  // Section 7 whitelist text
+  const whitelist =
+    eqNames.length
+      ? `Разрешено только: ${eqNames.join(', ')}.\nЛюбой другой инвентарь запрещён.`
+      : 'Разрешено только: — без дополнительного оборудования.\nЛюбой другой инвентарь запрещён.';
+
+  // "Данные упражнения" equipment line
+  const allowedEqForData =
+    eqNames.length ? eqNames.join(', ') : 'без дополнительного оборудования';
 
   const lines = [];
 
   // 1) Цель
-  lines.push('1) Цель');
+  lines.push(`Сделай изображение для превью упражнения “${e.name || '(empty)'}”.`);
   lines.push('');
-  lines.push(`Сделать одно превью упражнения “${e.name || '(empty)'}”: один манекен, ${eqUniq.length ? `только: ${eqListHuman}` : 'без дополнительного инвентаря'}, всё целиком в кадре.`);
-  lines.push('');
-
   // 2) Вывод
   lines.push('2) Вывод');
   lines.push('');
-  lines.push('Формат: 4:3, минимум 2048×1536, JPEG (.jpeg), sRGB, без альфы.');
-  lines.push(`Имя файла: ${fileName}.`);
+  lines.push(`• Формат: 4:3, минимум 1200×900, PNG (.png), sRGB, без альфы.`);
+  lines.push(`• Желаемое имя файла (contract): ${fileName}`);
+  lines.push('• Если система не может задать имя файла на выходе:');
+  lines.push(`  – не добавляй текст на изображение;`);
+  lines.push(`  – верни в текстовом ответе единственную строку: FILENAME: ${fileName}`);
+  lines.push(`• (Опционально) Запиши метаданные: EXIF/XMP DocumentName = "${fileName}"`);
   lines.push('');
-
   // 3) Фикс-стиль серии
   lines.push('3) Фикс-стиль серии');
   lines.push('');
@@ -694,8 +705,7 @@ function buildGptImagePrompt(){
   lines.push('Манекен: андрогинный, без лица/волос/пор/вен.');
   lines.push('Окружение: минималистичная студия, нейтральный фон, без текста/логотипов/UI.');
   lines.push('');
-
-  // 4) Цветовые пресеты (жёстко)
+  // 4) Цветовые пресеты
   lines.push('4) Цветовые пресеты (жёстко)');
   lines.push('');
   lines.push('Фон');
@@ -721,38 +731,34 @@ function buildGptImagePrompt(){
   lines.push('Контраст акцента к базе одежды ≥ 4.5:1.');
   lines.push('Избегать сплошных #FFFFFF/#000000.');
   lines.push('');
-
   // 5) Камера и кадр
   lines.push('5) Камера и кадр');
   lines.push('');
-  lines.push('Ракурс: 3/4, лёгкая изометрия; наклон сверху ~12°.');
-  lines.push('Экв. фокус: ≈40 мм; высота камеры ≈ уровень груди манекена.');
-  lines.push('Крупность: 88–90% высоты кадра; safe-margin 7% по краям.');
-  lines.push('Видна опорная плоскость; мягкая контактная тень под стопами/снарядом.');
+  lines.push('Ракурс: 3/4, лёгкая изометрия; наклон сверху ≈ 12°.');
+  lines.push('Оптика/высота: экв. фокус ≈ 40 мм; высота камеры ≈ уровень груди манекена.');
+  lines.push('Крупность: манекен + оборудование занимают 70–80% высоты кадра.');
+  lines.push('Safe-margin: не менее 7% от края кадра со всех сторон (контент-безопасная зона).');
+  lines.push('Фон-буфер для пост-кадрирования: вокруг объединённого bounding box (манекен + оборудование) оставить минимум 15% свободного фона по каждой оси (ориентир: ≈ 7.5% на сторону) поверх safe-margin. Если условие не выполняется — уменьшить крупность до нижней границы диапазона.');
+  lines.push('Плоскость опоры: видима; мягкая контактная тень под стопами и снарядом.');
   lines.push('');
-
   // 6) Свет
   lines.push('6) Свет');
   lines.push('');
   lines.push('Key:Fill:Rim ≈ 1 : 0.5 : 0.2; key сверху-сбоку 35–45°.');
   lines.push('Тени мягкие; rim-light деликатный для отделения от фона.');
   lines.push('');
-
   // 7) Оборудование (whitelist)
   lines.push('7) Оборудование (whitelist)');
   lines.push('');
-  lines.push(`Разрешено только: ${eqUniq.length ? eqListHuman : '— без дополнительного оборудования'}.`);
-  lines.push('Любой другой инвентарь запрещён.');
+  lines.push(whitelist);
   lines.push('');
-
-  // 8) Поза и техника (числа)
+  // 8) Поза и техника
   lines.push('8) Поза и техника (числа)');
   lines.push('');
   lines.push('Показать середину амплитуды или позицию, лучше всего демонстрирующую механику движения.');
-  lines.push('Хват/постановка ног/углы в суставах — строго по описанию ниже (Description): если указаны pronated/neutral/supinated, ширина хвата, углы — соблюсти их.');
+  lines.push('Хват/постановка ног/углы в суставах — по описанию ниже (Description) а так же дополнительно по знаниям из интернета: если указаны pronated/neutral/supinated, ширина хвата, углы — соблюсти их.');
   lines.push('Спина нейтральная; шея — продолжение позвоночника; траектории и векторы усилия читаемы.');
   lines.push('');
-
   // 9) Запреты
   lines.push('9) Запреты');
   lines.push('');
@@ -760,25 +766,24 @@ function buildGptImagePrompt(){
   lines.push('Нет motion blur/шума/глянца/экстремальной перспективы.');
   lines.push('Нет стрелок/оверлеев/водяных знаков/текста/логотипов.');
   lines.push('');
-
-  // 10) QC перед экспортом
+  // 10) QC
   lines.push('10) QC перед экспортом');
   lines.push('');
-  lines.push('4:3, ≥2048×1536, JPEG sRGB, без альфы, имя файла верно.');
-  lines.push(`Ровно 1 манекен и только разрешённый инвентарь (${eqUniq.length ? eqListHuman : 'ничего доп.'}).`);
+  lines.push('4:3, ≥1200x900, PNG sRGB, без альфы, имя файла верно.');
+  lines.push('Ровно 1 манекен и только разрешённый инвентарь (ничего доп.).');
   lines.push('Цвета соответствуют пресетам; акцент на одежде 1 шт., ≤12%, контраст ок.');
   lines.push('Углы/стойка/хват совпадают с Description; ничего не обрезано; контактная тень есть.');
   lines.push('');
-
   // Данные упражнения
   lines.push('Данные упражнения');
   lines.push('');
   lines.push(`Name: ${e.name || '(empty)'}`);
   lines.push(`Description: ${e.description || '(empty)'}`);
-  lines.push(`Allowed equipment: ${eqUniq.length ? eqListHuman : 'без дополнительного оборудования'}`);
+  lines.push(`Allowed equipment: ${allowedEqForData}`);
 
   return lines.join('\n');
 }
+
 
 async function copyImagePrompt(){
   const prompt = buildGptImagePrompt();
