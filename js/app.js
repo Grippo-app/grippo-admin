@@ -590,10 +590,10 @@ function buildGptPrompt(){
   lines.push('You are an expert strength & conditioning editor and a strict JSON validator.');
   lines.push('');
   lines.push('When you answer, follow this EXACT output format:');
-  lines.push('1) ```json');
+  lines.push('```json');
   lines.push('{ ...final JSON... }');
   lines.push('```');
-  lines.push('2) Пояснение (на русском): кратко и по пунктам объясни, что улучшил(а) и почему (с опорой на НАЗВАНИЕ/ОПИСАНИЕ и общие знания/практику).');
+  lines.push('Пояснение (на русском): кратко и по пунктам объясни, что улучшил(а) и почему (с опорой на НАЗВАНИЕ/ОПИСАНИЕ и общие знания/практику).');
   lines.push('');
   lines.push('Hard requirements:');
   lines.push('- The JSON in the code block MUST strictly match this schema:');
@@ -651,50 +651,24 @@ function buildGptPrompt(){
 function buildGptImagePrompt(){
   const e = getEntity();
 
-  // helpers: transliteration (ru->lat) + snake_case
-  const translit = (str) => {
-    const map = {
-      А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'E', Ж:'Zh', З:'Z', И:'I', Й:'I', К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F', Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya',
-      а:'a', б:'b', в:'v', г:'g', д:'d', е:'e', ё:'e', ж:'zh', з:'z', и:'i', й:'i', к:'k', л:'l', м:'m', н:'n', о:'o', п:'p', р:'r', с:'s', т:'t', у:'u', ф:'f', х:'kh', ц:'ts', ч:'ch', ш:'sh', щ:'shch', ъ:'', ы:'y', ь:'', э:'e', ю:'yu', я:'ya'
-    };
-    return String(str||'').split('').map(ch => map[ch] ?? ch).join('');
-  };
-  const toSnake = (str) => {
-    const base = translit(str).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    return base || 'preview';
-  };
-
-  const fileBase = toSnake(e.name || 'preview');
-  const fileName = `${fileBase}.png`;
-
   // equipment names (no IDs in prompt)
   const eqArr = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
   const eqNames = eqArr
     .map(x => String(dict.equipment.get(String(x?.equipmentId || '')) || '').trim())
     .filter(Boolean);
 
-  // Section 7 whitelist text
-  const whitelist =
-    eqNames.length
-      ? `Разрешено только: ${eqNames.join(', ')}.\nЛюбой другой инвентарь запрещён.`
-      : 'Разрешено только: — без дополнительного оборудования.\nЛюбой другой инвентарь запрещён.';
-
   // "Данные упражнения" equipment line
   const allowedEqForData =
     eqNames.length ? eqNames.join(', ') : 'без дополнительного оборудования';
 
   const lines = [];
-  lines.push(`${e.name || '(empty)'} — V2 (строгий ввод для генератора)`);
+  lines.push('Задача:');
+  lines.push(`Сгенерируй превью упражнения "${e.name || '(empty)'}".`);
   lines.push('');
-  lines.push(`Сделай изображение для превью упражнения "${e.name || '(empty)'}".`);
-  lines.push('');
-  // Output/Format
-  lines.push('Output/Format (hard):');
-  lines.push(`\t• aspect_ratio: 4:3 обязательно`);
-  lines.push(`\t• size: 2048×1536 (не ниже 1200×900), PNG, sRGB, no alpha`);
-  lines.push(`\t• Filename contract: ${fileName}`);
-  lines.push(`\t• If filename cannot be set → return plain text: FILENAME: ${fileName}`);
-  lines.push(`\t• (Optional) EXIF/XMP DocumentName = "${fileName}"`);
+  lines.push('Изображение (строгие требования):');
+  lines.push('\t• ответ только картинка, без текста;');
+  lines.push('\t• aspect_ratio: 4:3 строго;');
+  lines.push('\t• size: 2048×1536 (не ниже 1200×900), PNG, sRGB, без alpha;');
   lines.push('');
   // Color
   lines.push('Color (hard, only these HEX):');
@@ -748,7 +722,7 @@ function buildGptImagePrompt(){
   lines.push('');
   // QC checklist
   lines.push('QC checklist (reject if fail):');
-  lines.push('\t• 4:3, ≥1200×900, PNG sRGB, no alpha; filename contract ok (или строка FILENAME: ...).');
+  lines.push('\t• 4:3 строго, ≥1200×900, PNG sRGB, no alpha.');
   lines.push('\t• 1 mannequin only, equipment whitelist only.');
   lines.push('\t• Все цвета из списка; 1 accent ≤12%, контраст с #2E333B ≥ 4.5:1.');
   lines.push('\t• Ни одна часть тела/снаряда не пересекает safe-margin.');
