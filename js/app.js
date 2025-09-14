@@ -667,8 +667,8 @@ function buildGptImagePrompt(){
   lines.push('');
   lines.push('Изображение (строгие требования):');
   lines.push('\t• ответ только картинка, без текста;');
-  lines.push('\t• aspect_ratio: 4:3 строго;');
-  lines.push('\t• size: 2048×1536 (не ниже 1200×900), PNG, sRGB, без alpha;');
+  lines.push('\t• aspect_ratio: 1:1 строго;');
+  lines.push('\t• size: 900×900, PNG, sRGB, без alpha;');
   lines.push('');
   // Color
   lines.push('Color (hard, only these HEX):');
@@ -686,15 +686,16 @@ function buildGptImagePrompt(){
   // Style
   lines.push('Style (fixed): clay/3D, matte, без бликов/шума/текста/логотипов.');
   lines.push('Манекен: андрогинный, без лица/волос/пор/вен.');
+  lines.push('Пропорции: реалистичные — корректные плечи, торс, руки и ноги без деформаций.');
   lines.push('Окружение: минималистичная студия, нейтральный фон, без текста/логотипов/UI.');
   lines.push('');
   // Camera & Framing
   lines.push('Camera & Framing (hard):');
   lines.push('\t• View: 3/4 isometric, tilt from above ≈ 12°; eq. focal ≈ 40 mm; camera height ≈ chest level of mannequin.');
-  lines.push('\t• Subject scale: mannequin + equipment occupy 70–80% of frame height.');
+  lines.push('\t• Subject centered; mannequin + equipment occupy 70–80% of frame height.');
   lines.push('\t• Safe-margin: ≥ 7% от кадра по всем сторонам.');
-  lines.push('\t• Для 2048×1536: ≥ 144 px слева/справа, ≥ 108 px сверху/снизу.');
-  lines.push('\t• Extra buffer поверх safe-margin вокруг объединённого bbox(man + gear): ≥ 7.5% по каждой оси (ориентир ~ 154 px по ширине, 115 px по высоте при 2048×1536).');
+  lines.push('\t• Для 900×900: ≥ 63 px со всех сторон.');
+  lines.push('\t• Extra buffer поверх safe-margin вокруг объединённого bbox(man + gear): ≥ 11% по каждой оси (ориентир ~ 100 px при 900×900).');
   lines.push('\t• Hard rule: Entire silhouette and equipment must fit inside safe-margin. If violated → auto zoom-out until both safe-margin и buffer выполняются.');
   lines.push('\t• Ground plane visible; soft contact shadow under feet and rack/bench.');
   lines.push('');
@@ -722,7 +723,7 @@ function buildGptImagePrompt(){
   lines.push('');
   // QC checklist
   lines.push('QC checklist (reject if fail):');
-  lines.push('\t• 4:3 строго, ≥1200×900, PNG sRGB, no alpha.');
+  lines.push('\t• 1:1 строго, 900×900, PNG sRGB, no alpha.');
   lines.push('\t• 1 mannequin only, equipment whitelist only.');
   lines.push('\t• Все цвета из списка; 1 accent ≤12%, контраст с #2E333B ≥ 4.5:1.');
   lines.push('\t• Ни одна часть тела/снаряда не пересекает safe-margin.');
