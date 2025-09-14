@@ -554,7 +554,6 @@ function validateAll(){
   if (ent.forceType && !forceOk) errors.push('forceType invalid');
 
   const eq = Array.isArray(ent[FIELD.equipmentRefs]) ? ent[FIELD.equipmentRefs] : [];
-  if (eq.length === 0) errors.push('No equipment selected');
   const unknownEq = eq.map(x=>String(x?.equipmentId||'')).filter(id => !dict.equipment.has(id));
   if (unknownEq.length) errors.push(`Unknown equipment: ${Array.from(new Set(unknownEq)).join(', ')}`);
 
@@ -647,12 +646,11 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
-// Builds an image-generation prompt using the same context (entity + dicts)
-// Enforces 4:3 strictly, fixes unified mannequin tint, and specifies snake_case JPEG filename.
+// ===== Image prompt (structured 1–10 + exercise data) =====
 function buildGptImagePrompt(){
   const e = getEntity();
 
-  // --- helpers (English-only comments) ---
+  // helpers
   const translit = (str) => {
     const map = {
       А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'E', Ж:'Zh', З:'Z', И:'I', Й:'I', К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F', Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya',
@@ -664,109 +662,119 @@ function buildGptImagePrompt(){
     const base = translit(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return base || 'preview';
   };
-  const fileBase = toSnake(e.name || 'preview');
-  const fileName = `${fileBase}.jpeg`;
+  const fileName = `${toSnake(e.name || 'preview')}.jpeg`;
 
-  // Selected equipment lines (fallback to ID)
-  const selectedEq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
-  const selectedEqLines = selectedEq.map(x => {
-    const id = String(x?.equipmentId || '');
-    const name = dict.equipment.get(id) || id;
-    return `- ${name} — ${id}`;
-  });
-
-  // Bundles pretty print
-  const bundles = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
-  const bundleLines = bundles.map(b => {
-    const id = String(b?.muscleId || '');
-    const name = dict.muscles.get(id) || id;
-    const p = Number(b?.percentage ?? 0);
-    return `- ${name} — ${p}% (${id})`;
-  });
+  // equipment names (no IDs)
+  const equipmentNames = (Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [])
+    .map(x => dict.equipment.get(String(x?.equipmentId || '')) || String(x?.equipmentId || ''))
+    .filter(Boolean);
+  const eqUniq = [...new Set(equipmentNames)];
+  const eqListHuman = eqUniq.length ? eqUniq.join('; ') : 'без дополнительного оборудования';
 
   const lines = [];
-  lines.push('ИНСТРУКЦИЯ ДЛЯ ИЗОБРАЖЕНИЯ (универсальная для серии)');
-  lines.push(`Цель: создать одно превью упражнения «${e.name || '(empty)'}» из описания, один кадр, один персонаж, только необходимое оборудование. Всё полностью влезает в кадр.`);
+
+  // 1) Цель
+  lines.push('1) Цель');
+  lines.push('');
+  lines.push(`Сделать одно превью упражнения “${e.name || '(empty)'}”: один манекен, ${eqUniq.length ? `только: ${eqListHuman}` : 'без дополнительного инвентаря'}, всё целиком в кадре.`);
   lines.push('');
 
-  lines.push('ВАЖНО (формат и файл):');
-  lines.push('- Соотношение сторон ТОЛЬКО 4:3. Никаких 1:1, 16:9 и др.');
-  lines.push('- Если генератор требует параметр соотношения: AR=4:3 / aspect_ratio=4:3.');
-  lines.push('- Если задаются размеры: 2048×1536 или иное 4:3 не ниже по площади.');
-  lines.push(`- Имя выходного файла: ${fileName} (lowercase snake_case от Name).`);
-  lines.push('- Формат: JPEG (.jpeg) предпочтительнее PNG; без альфа-канала/прозрачности; sRGB.');
+  // 2) Вывод
+  lines.push('2) Вывод');
+  lines.push('');
+  lines.push('Формат: 4:3, минимум 2048×1536, JPEG (.jpeg), sRGB, без альфы.');
+  lines.push(`Имя файла: ${fileName}.`);
   lines.push('');
 
-  lines.push('Стиль серии (фиксированный для всех картинок)');
-  lines.push('Визуал: чистый полу-реалистичный clay/3D-иллюстрация с мягкими градиентами, без брендинга и текста. Материалы матовые.');
+  // 3) Фикс-стиль серии
+  lines.push('3) Фикс-стиль серии');
+  lines.push('');
+  lines.push('Clay/3D, матовые материалы, без бликов.');
+  lines.push('Манекен: андрогинный, без лица/волос/пор/вен.');
+  lines.push('Окружение: минималистичная студия, нейтральный фон, без текста/логотипов/UI.');
   lines.push('');
 
-  lines.push('Единый оттенок манекена (фикс для всей серии):');
-  lines.push('- Тело: матовый светло-серый с холодным подтоном.');
-  lines.push('- База: #C9D1DB; тени: #9BA8B5; глубокие тени: #7E8D9B; хайлайты: #EEF2F6.');
-  lines.push('- Без кожи/волос/пор/вены/текстур; без глянца и блеска.');
-  lines.push('- Одежда (топ/шорты): однотонная тёмно-графитовая #2E333B; допускается малый акцент #3366FF или #FFA726 в деталях.');
-  lines.push('- Эти значения не менять от изображения к изображению.');
+  // 4) Цветовые пресеты (жёстко)
+  lines.push('4) Цветовые пресеты (жёстко)');
+  lines.push('');
+  lines.push('Фон');
+  lines.push('Радиальный градиент: центр #CBD0D8 → края #2E333B.');
+  lines.push('Допустимые solid: светлый #EDEFF1, тёмный #262A31.');
+  lines.push('');
+  lines.push('Тренажёры/гантели');
+  lines.push('Сталь: base #AEB6C2, тени #8993A1 / #6B7684, хайлайт #D7DEE6.');
+  lines.push('Резина: base #2B3036, хайлайт #3A4048.');
+  lines.push('Пластик: base #3A4048, хайлайт #4A515B.');
+  lines.push('');
+  lines.push('Человек (кожа/манекен)');
+  lines.push('Base #ECE6E0, mid #D6CDC5, deep #BFB4A9, highlight #F7F3EF.');
+  lines.push('Вид: дружелюбный, тёплый neutral; никакого глянца/полупрозрачности. Эти значения фиксированы для всей серии — не менять.');
+  lines.push('');
+  lines.push('Человек (форма/одежда)');
+  lines.push('Ткань (база): #2E333B.');
+  lines.push('Акцент (ровно один на кадр): #3366FF (обычно) или #FFA726 (редко), площадь ≤12%.');
+  lines.push('Акцент — тонкий кант/пояс/шнурок; не делать большие заливки.');
+  lines.push('');
+  lines.push('Правила цвета');
+  lines.push('Использовать только перечисленные HEX; другие цвета запрещены.');
+  lines.push('Контраст акцента к базе одежды ≥ 4.5:1.');
+  lines.push('Избегать сплошных #FFFFFF/#000000.');
   lines.push('');
 
-  lines.push('Персонаж: нейтральный андрогинный манекен без лица/волос, однотонная форма (топ/шорты).');
+  // 5) Камера и кадр
+  lines.push('5) Камера и кадр');
   lines.push('');
-  lines.push('Окружение: минималистичная студия, нейтральный фон, без окон/зеркал/логотипов.');
+  lines.push('Ракурс: 3/4, лёгкая изометрия; наклон сверху ~12°.');
+  lines.push('Экв. фокус: ≈40 мм; высота камеры ≈ уровень груди манекена.');
+  lines.push('Крупность: 88–90% высоты кадра; safe-margin 7% по краям.');
+  lines.push('Видна опорная плоскость; мягкая контактная тень под стопами/снарядом.');
   lines.push('');
-  lines.push('Освещение: мягкий студийный, верхне-боковой рассеянный источник, мягкие тени.');
+
+  // 6) Свет
+  lines.push('6) Свет');
   lines.push('');
-  lines.push('Параметры кадра (фиксированные)');
-  lines.push('Соотношение сторон: 4:3 (рекоменд. 800×600; итог не меньше 2048×1536).');
-  lines.push('Камера: 3/4 вид, лёгкая изометрия, угол сверху ~10–15°, фокусное экв. 35–50мм.');
-  lines.push('Безопасные поля: по 5–10% со всех сторон; не обрезать голову, ступни, снаряд.');
+  lines.push('Key:Fill:Rim ≈ 1 : 0.5 : 0.2; key сверху-сбоку 35–45°.');
+  lines.push('Тени мягкие; rim-light деликатный для отделения от фона.');
   lines.push('');
-  lines.push('Состав кадра');
-  lines.push('Один персонаж + один основной снаряд (или один набор тренажёра) из «Equipment dictionary».');
-  lines.push('Выбор оборудования делай из описания: включай только то, что указано в equipment. Если требуется платформа/скамья — размести её целиком.');
-  lines.push('Угол и дистанцию подстрой так, чтобы и атлет, и оборудование полностью видны в 4:3.');
+
+  // 7) Оборудование (whitelist)
+  lines.push('7) Оборудование (whitelist)');
   lines.push('');
-  lines.push('Поза и техника (из Description)');
-  lines.push('Покажи узнаваемый момент середины амплитуды или позицию, лучше всего демонстрирующую механику (хват, постановка ног, наклон корпуса, траектория).');
-  lines.push('Следуй указаниям по хвату (pronated/neutral/supinated), ширине, углам в тазобедренных/коленных/плечевых суставах.');
-  lines.push('Спина нейтральная, шея в продолжение позвоночника; линии движения и векторы усилия читаемы.');
+  lines.push(`Разрешено только: ${eqUniq.length ? eqListHuman : '— без дополнительного оборудования'}.`);
+  lines.push('Любой другой инвентарь запрещён.');
   lines.push('');
-  lines.push('ПАЛИТРА (единый стиль, подходит для light/dark):');
-  lines.push('Основной акцент: #3366FF');
-  lines.push('Доп. тёплый акцент (иногда для рима/свечения): #FFA726');
-  lines.push('Светлый нейтральный фон (light): #EDEFF1');
-  lines.push('Тёмный нейтральный фон (dark): #262A31');
-  lines.push('Универсальный фон-градиент (оба режима): центр #CBD0D8 → края #2E333B (радиальный). Фолбэк: #EDEFF1 (light) / #262A31 (dark).');
-  lines.push('Контуры для читаемости: двойной штрих — внутренний #FAFAFA @35% (2px), внешний #15181F @60% (3px).');
-  lines.push('Правила: не более двух акцентных цветов одновременно; избегать больших заливок чистым #FFFFFF/#000000; держать контраст ≥ 4.5:1.');
+
+  // 8) Поза и техника (числа)
+  lines.push('8) Поза и техника (числа)');
   lines.push('');
-  lines.push('Запреты (negative)');
-  lines.push('Нет текста, логотипов, UI, водяных знаков.');
-  lines.push('Нет лишних людей, зеркал, окон, зрителей, декоративного инвентаря.');
-  lines.push('Без экстремальной перспективы, сильного блеска/глянца, motion blur, шума.');
+  lines.push('Показать середину амплитуды или позицию, лучше всего демонстрирующую механику движения.');
+  lines.push('Хват/постановка ног/углы в суставах — строго по описанию ниже (Description): если указаны pronated/neutral/supinated, ширина хвата, углы — соблюсти их.');
+  lines.push('Спина нейтральная; шея — продолжение позвоночника; траектории и векторы усилия читаемы.');
   lines.push('');
-  lines.push('Контроль перед выводом');
-  lines.push('- Формат строго 4:3. Если итог не 4:3 — перегенерировать.');
-  lines.push('- Разрешение не меньше 2048×1536 (или иное 4:3 не ниже по площади).');
-  lines.push(`- Имя файла: ${fileName}; формат: JPEG (.jpeg); без прозрачности.`);
-  lines.push('- В кадре только один персонаж и только необходимое оборудование.');
-  lines.push('- Тон манекена соответствует базовым значениям (#C9D1DB / #9BA8B5 / #7E8D9B / #EEF2F6) и не меняется от изображения к изображению.');
-  lines.push('- Ключевые детали техники из описания соблюдены; ничего не обрезано.');
+
+  // 9) Запреты
+  lines.push('9) Запреты');
   lines.push('');
-  lines.push('---');
+  lines.push('Нет лишних людей/зеркал/окон/декора.');
+  lines.push('Нет motion blur/шума/глянца/экстремальной перспективы.');
+  lines.push('Нет стрелок/оверлеев/водяных знаков/текста/логотипов.');
+  lines.push('');
+
+  // 10) QC перед экспортом
+  lines.push('10) QC перед экспортом');
+  lines.push('');
+  lines.push('4:3, ≥2048×1536, JPEG sRGB, без альфы, имя файла верно.');
+  lines.push(`Ровно 1 манекен и только разрешённый инвентарь (${eqUniq.length ? eqListHuman : 'ничего доп.'}).`);
+  lines.push('Цвета соответствуют пресетам; акцент на одежде 1 шт., ≤12%, контраст ок.');
+  lines.push('Углы/стойка/хват совпадают с Description; ничего не обрезано; контактная тень есть.');
+  lines.push('');
+
+  // Данные упражнения
+  lines.push('Данные упражнения');
+  lines.push('');
   lines.push(`Name: ${e.name || '(empty)'}`);
   lines.push(`Description: ${e.description || '(empty)'}`);
-  lines.push('');
-  lines.push('Selected equipment (use only what is listed):');
-  if (selectedEqLines.length){ lines.push(...selectedEqLines); } else { lines.push('- (none)'); }
-  lines.push('');
-  lines.push('Muscle bundles (for context; do not render text):');
-  if (bundleLines.length){ lines.push(...bundleLines); } else { lines.push('- (none)'); }
-  lines.push('');
-  lines.push('Muscles dictionary (name — id):');
-  for (const [id, name] of dict.muscles.entries()) lines.push(`- ${name} — ${id}`);
-  lines.push('');
-  lines.push('Equipment dictionary (name — id):');
-  for (const [id, name] of dict.equipment.entries()) lines.push(`- ${name} — ${id}`);
+  lines.push(`Allowed equipment: ${eqUniq.length ? eqListHuman : 'без дополнительного оборудования'}`);
 
   return lines.join('\n');
 }
