@@ -647,11 +647,11 @@ function buildGptPrompt(){
   return lines.join('\n');
 }
 
-// Builds an image-generation prompt using structured spec (bodyweight allowed), PNG 4:3, snake_case filename
+// Builds an image-generation prompt following the strict V2 bench-press format while retaining legacy guidance
 function buildGptImagePrompt(){
   const e = getEntity();
 
-  // helpers: transliteration (ru->lat) + snake_case
+  // helpers to derive deterministic file name
   const translit = (str) => {
     const map = {
       А:'A', Б:'B', В:'V', Г:'G', Д:'D', Е:'E', Ё:'E', Ж:'Zh', З:'Z', И:'I', Й:'I', К:'K', Л:'L', М:'M', Н:'N', О:'O', П:'P', Р:'R', С:'S', Т:'T', У:'U', Ф:'F', Х:'Kh', Ц:'Ts', Ч:'Ch', Ш:'Sh', Щ:'Shch', Ъ:'', Ы:'Y', Ь:'', Э:'E', Ю:'Yu', Я:'Ya',
@@ -663,7 +663,6 @@ function buildGptImagePrompt(){
     const base = translit(str).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return base || 'preview';
   };
-
   const fileBase = toSnake(e.name || 'preview');
   const fileName = `${fileBase}.png`;
 
@@ -673,106 +672,66 @@ function buildGptImagePrompt(){
     .map(x => String(dict.equipment.get(String(x?.equipmentId || '')) || '').trim())
     .filter(Boolean);
 
-  // Section 7 whitelist text
-  const whitelist =
-    eqNames.length
-      ? `Разрешено только: ${eqNames.join(', ')}.\nЛюбой другой инвентарь запрещён.`
-      : 'Разрешено только: — без дополнительного оборудования.\nЛюбой другой инвентарь запрещён.';
-
   // "Данные упражнения" equipment line
   const allowedEqForData =
     eqNames.length ? eqNames.join(', ') : 'без дополнительного оборудования';
 
   const lines = [];
-
-  // 1) Цель
-  lines.push(`Сделай изображение для превью упражнения “${e.name || '(empty)'}”.`);
+  lines.push(`${e.name || '(empty)'} — V2 (строгий ввод для генератора)`);
   lines.push('');
-  // 2) Вывод
-  lines.push('2) Вывод');
+  // Output/Format
+  lines.push('Output/Format (hard):');
+  lines.push(`\t• aspect_ratio: 4:3 обязательно`);
+  lines.push(`\t• size: 2048×1536 (не ниже 1200×900), PNG, sRGB, no alpha`);
+  lines.push(`\t• Filename contract: ${fileName}`);
+  lines.push(`\t• If filename cannot be set → return plain text: FILENAME: ${fileName}`);
+  lines.push(`\t• (Optional) EXIF/XMP DocumentName = "${fileName}"`);
   lines.push('');
-  lines.push(`• Формат: 4:3, минимум 1200×900, PNG (.png), sRGB, без альфы.`);
-  lines.push(`• Желаемое имя файла (contract): ${fileName}`);
-  lines.push('• Если система не может задать имя файла на выходе:');
-  lines.push(`  – не добавляй текст на изображение;`);
-  lines.push(`  – верни в текстовом ответе единственную строку: FILENAME: ${fileName}`);
-  lines.push(`• (Опционально) Запиши метаданные: EXIF/XMP DocumentName = "${fileName}"`);
+  // Color
+  lines.push('Color (hard, only these HEX):');
+  lines.push('\t• Background radial: center #CBD0D8 → edges #2E333B (allowed solids: #EDEFF1, #262A31)');
+  lines.push('\t• Metal: base #AEB6C2, shadows #8993A1 / #6B7684, highlight #D7DEE6');
+  lines.push('\t• Rubber: base #2B3036, highlight #3A4048');
+  lines.push('\t• Plastic: base #3A4048, highlight #4A515B');
+  lines.push('\t• Skin/mannequin: base #ECE6E0, mid #D6CDC5, deep #BFB4A9, highlight #F7F3EF (матовые, без глянца)');
+  lines.push('\t• Outfit: base #2E333B; one accent ≤12%: #3366FF (обычно) или #FFA726 (редко).');
+  lines.push('\t• No pure #FFFFFF/#000000.');
   lines.push('');
-  // 3) Фикс-стиль серии
-  lines.push('3) Фикс-стиль серии');
+  // Style
+  lines.push('Style (fixed): clay/3D, matte, без бликов/шума/текста/логотипов.');
   lines.push('');
-  lines.push('Clay/3D, матовые материалы, без бликов.');
-  lines.push('Манекен: андрогинный, без лица/волос/пор/вен.');
-  lines.push('Окружение: минималистичная студия, нейтральный фон, без текста/логотипов/UI.');
+  // Camera & Framing
+  lines.push('Camera & Framing (hard):');
+  lines.push('\t• View: 3/4 isometric, tilt from above ≈ 12°; eq. focal ≈ 40 mm; camera height ≈ chest level of mannequin.');
+  lines.push('\t• Subject scale: mannequin + equipment occupy 70–80% of frame height.');
+  lines.push('\t• Safe-margin: ≥ 7% от кадра по всем сторонам.');
+  lines.push('\t• Для 2048×1536: ≥ 144 px слева/справа, ≥ 108 px сверху/снизу.');
+  lines.push('\t• Extra buffer поверх safe-margin вокруг объединённого bbox(man + gear): ≥ 7.5% по каждой оси (ориентир ~ 154 px по ширине, 115 px по высоте при 2048×1536).');
+  lines.push('\t• Hard rule: Entire silhouette and equipment must fit inside safe-margin. If violated → auto zoom-out until both safe-margin и buffer выполняются.');
+  lines.push('\t• Ground plane visible; soft contact shadow under feet and rack/bench.');
   lines.push('');
-  // 4) Цветовые пресеты
-  lines.push('4) Цветовые пресеты (жёстко)');
+  // Lighting
+  lines.push('Lighting (soft-matte): Key:Fill:Rim ≈ 1 : 0.5 : 0.2, key 35–45° сверху-сбоку; тени мягкие, лёгкий rim для отделения от фона.');
   lines.push('');
-  lines.push('Фон');
-  lines.push('Радиальный градиент: центр #CBD0D8 → края #2E333B.');
-  lines.push('Допустимые solid: светлый #EDEFF1, тёмный #262A31.');
+  // Equipment whitelist
+  lines.push(`Allowed equipment only: ${eqNames.length ? eqNames.join(', ') : '— без дополнительного оборудования'}. Никакого другого инвентаря.`);
   lines.push('');
-  lines.push('Тренажёры/гантели');
-  lines.push('Сталь: base #AEB6C2, тени #8993A1 / #6B7684, хайлайт #D7DEE6.');
-  lines.push('Резина: base #2B3036, хайлайт #3A4048.');
-  lines.push('Пластик: base #3A4048, хайлайт #4A515B.');
+  // Pose/Technique
+  lines.push('Pose/Technique (mid-range rep):');
+  lines.push('\t• 5-point setup: feet flat, glutes, upper back, head; лёгкий арч.');
+  lines.push('\t• Scapulae retracted/depressed; wrist neutral stacked over elbows.');
+  lines.push('\t• Elbows ≈45–70°; grip чуть шире плеч.');
+  lines.push('\t• Bar path читаемо «J-curve»: кадр — середина амплитуды (бар ~ над нижней/серединной частью груди).');
+  lines.push('\t• Neck нейтральная, взгляд вверх.');
   lines.push('');
-  lines.push('Человек (кожа/манекен)');
-  lines.push('Base #ECE6E0, mid #D6CDC5, deep #BFB4A9, highlight #F7F3EF.');
-  lines.push('Вид: дружелюбный, тёплый neutral; никакого глянца/полупрозрачности. Эти значения фиксированы для всей серии — не менять.');
-  lines.push('');
-  lines.push('Человек (форма/одежда)');
-  lines.push('Ткань (база): #2E333B.');
-  lines.push('Акцент (ровно один на кадр): #3366FF (обычно) или #FFA726 (редко), площадь ≤12%.');
-  lines.push('Акцент — тонкий кант/пояс/шнурок; не делать большие заливки.');
-  lines.push('');
-  lines.push('Правила цвета');
-  lines.push('Использовать только перечисленные HEX; другие цвета запрещены.');
-  lines.push('Контраст акцента к базе одежды ≥ 4.5:1.');
-  lines.push('Избегать сплошных #FFFFFF/#000000.');
-  lines.push('');
-  // 5) Камера и кадр
-  lines.push('5) Камера и кадр');
-  lines.push('');
-  lines.push('Ракурс: 3/4, лёгкая изометрия; наклон сверху ≈ 12°.');
-  lines.push('Оптика/высота: экв. фокус ≈ 40 мм; высота камеры ≈ уровень груди манекена.');
-  lines.push('Крупность: манекен + оборудование занимают 70–80% высоты кадра.');
-  lines.push('Safe-margin: не менее 7% от края кадра со всех сторон (контент-безопасная зона).');
-  lines.push('Фон-буфер для пост-кадрирования: вокруг объединённого bounding box (манекен + оборудование) оставить минимум 15% свободного фона по каждой оси (ориентир: ≈ 7.5% на сторону) поверх safe-margin. Если условие не выполняется — уменьшить крупность до нижней границы диапазона.');
-  lines.push('Плоскость опоры: видима; мягкая контактная тень под стопами и снарядом.');
-  lines.push('');
-  // 6) Свет
-  lines.push('6) Свет');
-  lines.push('');
-  lines.push('Key:Fill:Rim ≈ 1 : 0.5 : 0.2; key сверху-сбоку 35–45°.');
-  lines.push('Тени мягкие; rim-light деликатный для отделения от фона.');
-  lines.push('');
-  // 7) Оборудование (whitelist)
-  lines.push('7) Оборудование (whitelist)');
-  lines.push('');
-  lines.push(whitelist);
-  lines.push('');
-  // 8) Поза и техника
-  lines.push('8) Поза и техника (числа)');
-  lines.push('');
-  lines.push('Показать середину амплитуды или позицию, лучше всего демонстрирующую механику движения.');
-  lines.push('Хват/постановка ног/углы в суставах — по описанию ниже (Description) а так же дополнительно по знаниям из интернета: если указаны pronated/neutral/supinated, ширина хвата, углы — соблюсти их.');
-  lines.push('Спина нейтральная; шея — продолжение позвоночника; траектории и векторы усилия читаемы.');
-  lines.push('');
-  // 9) Запреты
-  lines.push('9) Запреты');
-  lines.push('');
-  lines.push('Нет лишних людей/зеркал/окон/декора.');
-  lines.push('Нет motion blur/шума/глянца/экстремальной перспективы.');
-  lines.push('Нет стрелок/оверлеев/водяных знаков/текста/логотипов.');
-  lines.push('');
-  // 10) QC
-  lines.push('10) QC перед экспортом');
-  lines.push('');
-  lines.push('4:3, ≥1200x900, PNG sRGB, без альфы, имя файла верно.');
-  lines.push('Ровно 1 манекен и только разрешённый инвентарь (ничего доп.).');
-  lines.push('Цвета соответствуют пресетам; акцент на одежде 1 шт., ≤12%, контраст ок.');
-  lines.push('Углы/стойка/хват совпадают с Description; ничего не обрезано; контактная тень есть.');
+  // QC checklist
+  lines.push('QC checklist (reject if fail):');
+  lines.push(`\t• 4:3, ≥1200×900, PNG sRGB, no alpha; filename contract ok (или строка FILENAME: ${fileName}).`);
+  lines.push('\t• 1 mannequin only, equipment whitelist only.');
+  lines.push('\t• Все цвета из списка; 1 accent ≤12%, контраст с #2E333B ≥ 4.5:1.');
+  lines.push('\t• Ни одна часть тела/снаряда не пересекает safe-margin.');
+  lines.push('\t• Запас buffer вокруг bbox(man+gear) соблюдён по всем сторонам.');
+  lines.push('\t• Мягкие контактные тени присутствуют; ничего не обрезано.');
   lines.push('');
   // Данные упражнения
   lines.push('Данные упражнения');
