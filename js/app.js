@@ -955,13 +955,21 @@ if (els.loginForm){
 
   // JSON normalize
   els.editor.addEventListener('input', ()=>{
+    const raw = els.editor.value;
+    if (!raw.trim()) {
+      setStatus('warn','Waiting for JSON');
+      els.saveBtn.disabled = true;
+      { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
+      return;
+    }
     try{
-      const obj = JSON.parse(els.editor.value);
+      const obj = JSON.parse(raw);
       canonical = normalizeEntityShape(obj);
       writeEntityToForm(canonical);
       validateAll();
     }catch{
-      setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+      setStatus('bad','Invalid JSON');
+      els.saveBtn.disabled = true;
       { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
     }
   });
