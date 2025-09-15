@@ -9,15 +9,21 @@
 <body>
   <!-- Header -->
   <header>
-    <button id="logoutBtn" class="btn" style="margin-left:auto;" title="Logout">Logout</button>
+    <button id="logoutBtn" class="btn danger" style="margin-left:auto;" title="Logout">Logout</button>
   </header>
 
   <!-- Login overlay -->
   <div id="loginOverlay" class="login-overlay" style="display:none;">
     <form id="loginForm" class="login-form">
       <h2>Sign in</h2>
-      <input id="loginEmail" type="email" placeholder="Email" required />
-      <input id="loginPassword" type="password" placeholder="Password" required />
+      <div class="field">
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" placeholder="Email" required />
+      </div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" placeholder="Password" required />
+      </div>
       <div id="loginError" class="error" style="display:none"></div>
       <button id="loginBtn" class="btn" type="submit">Login</button>
     </form>
@@ -26,8 +32,8 @@
   <!-- Command bar: sticky below header -->
   <div id="commandBar" class="command-bar">
     <input id="search" type="search" placeholder="Search by name…"/>
-    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
     <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
+    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
 
     <span class="spacer"></span>
 
