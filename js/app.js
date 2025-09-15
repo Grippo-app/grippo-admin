@@ -150,6 +150,15 @@ function updateCommandBarVisibility(){
   toggle(viewToggle, active);
   toggle(els.jsonStatus, active);
 
+  // Sync mobile fab buttons
+  const fabPrompt = document.getElementById('fabPrompt');
+  const fabPromptImg = document.getElementById('fabPromptImg');
+  const fabSave = document.getElementById('fabSave');
+  toggle(fabPrompt, active);
+  toggle(fabPromptImg, active);
+  toggle(fabSave, active);
+  if (fabSave) fabSave.disabled = els.saveBtn.disabled;
+
   // Right column content
   if (!active){
     els.builder.classList.remove('show');
@@ -487,6 +496,7 @@ async function saveCurrent(){
   if (!ok){ toast({title:'Fix validation errors', type:'error'}); return; }
 
   els.saveBtn.disabled = true;
+  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
   try{
     if (isNew){
       // Create: DO NOT send id
@@ -545,10 +555,11 @@ async function saveCurrent(){
       renderList();
     }
   }catch(e){
-    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000}); 
+    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000});
     console.error(e);
   }finally{
     els.saveBtn.disabled = false;
+    { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = false; }
   }
 }
 
@@ -601,6 +612,7 @@ function validateAll(){
   else if (warnings.length) setStatus('warn', warnings[0]);
   else setStatus('ok', 'Valid');
   els.saveBtn.disabled = !ok;
+  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = els.saveBtn.disabled; }
 
   if (!els.editor.hasAttribute('hidden')) els.editor.value = pretty(ent);
   return {ok, errors, warnings};
@@ -888,6 +900,7 @@ if (els.loginForm){
       validateAll();
     }catch{
       setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+      { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
     }
   });
 
@@ -897,6 +910,19 @@ if (els.loginForm){
   els.builder.classList.remove('show');
   els.editor.hidden = true;
   document.body.classList.add('hide-json-controls');
+
+  // Floating action button for mobile
+  const fab = document.getElementById('mobileFab');
+  const fabToggle = document.getElementById('fabToggle');
+  if (fab && fabToggle) {
+    const closeFab = () => fab.classList.remove('open');
+    fabToggle.addEventListener('click', () => fab.classList.toggle('open'));
+    document.getElementById('fabNew').addEventListener('click', () => { els.newBtn.click(); closeFab(); });
+    document.getElementById('fabLoad').addEventListener('click', () => { els.load.click(); closeFab(); });
+    document.getElementById('fabPrompt').addEventListener('click', () => { els.promptBtn.click(); closeFab(); });
+    document.getElementById('fabPromptImg').addEventListener('click', () => { els.promptImgBtn.click(); closeFab(); });
+    document.getElementById('fabSave').addEventListener('click', () => { els.saveBtn.click(); closeFab(); });
+  }
 
   updateCommandBarVisibility(); // hide GPT/Save/toggle/status
   updateStickyOffsets();

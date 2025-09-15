@@ -191,6 +191,18 @@
     </section>
   </main>
 
+  <!-- Mobile floating action button -->
+  <div id="mobileFab" class="fab">
+    <div class="fab-menu">
+      <button id="fabNew" class="btn warn" title="Create new exercise example">New</button>
+      <button id="fabLoad" class="btn" title="Fetch list from API">Load list</button>
+      <button id="fabPrompt" class="btn gpt" title="Build GPT prompt">GPT Review</button>
+      <button id="fabPromptImg" class="btn gpt" title="Build Image Prompt">GPT Image</button>
+      <button id="fabSave" class="btn" disabled title="Save changes">Save</button>
+    </div>
+    <button id="fabToggle" class="btn fab-main" title="More actions">+</button>
+  </div>
+
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">
       <img class="thumb" alt="" />
