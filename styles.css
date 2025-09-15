@@ -469,7 +469,7 @@ main > .sidebar .list{
     display:block;
   }
   body.detail-open #commandBar > .cmd-actions {
-    display:flex;
+    display:none;
   }
   body.detail-open #commandBar > #jsonStatus {
     display:block;
