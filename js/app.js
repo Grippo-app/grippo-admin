@@ -202,11 +202,13 @@ function updateCommandBarVisibility(){
 function openDetailView(){
   if (window.matchMedia('(max-width: 600px)').matches && els.main){
     els.main.classList.add('detail-open');
+    document.body.classList.add('detail-open');
   }
 }
 function closeDetailView(){
   if (window.matchMedia('(max-width: 600px)').matches && els.main){
     els.main.classList.remove('detail-open');
+    document.body.classList.remove('detail-open');
   }
 }
 
@@ -472,6 +474,7 @@ function selectItem(it){
   current = it; isNew = false;
   const e = it.entity || emptyTemplate();
   canonical = normalizeEntityShape(e);
+  openDetailView();
   els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
@@ -480,11 +483,11 @@ function selectItem(it){
   autosizeEditor();
   renderList();
   updateCommandBarVisibility(); // reflect active state
-  openDetailView();
 }
 function newItem(){
   current = null; isNew = true;
   canonical = emptyTemplate();
+  openDetailView();
   els.currentId.textContent = 'Creating new item (ID will be assigned on save)';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
@@ -492,7 +495,6 @@ function newItem(){
   validateAll();
   autosizeEditor && autosizeEditor();
   updateCommandBarVisibility(); // reflect active state
-  openDetailView();
 }
 
 async function loadList(){

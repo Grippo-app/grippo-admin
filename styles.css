@@ -442,8 +442,8 @@ main > .sidebar .list{
   }
   main.detail-open { transform:translateX(-100%); }
   .panel .ed-head { display:none; }
-  main.detail-open .panel .ed-head { display:block; padding-bottom:8px; }
-  main.detail-open #backBtn { display:inline-block; }
+  body.detail-open .panel .ed-head { display:block; padding-bottom:8px; }
+  body.detail-open #backBtn { display:inline-block; }
   #commandBar {
     padding:8px 10px;
   }
@@ -456,14 +456,14 @@ main > .sidebar .list{
     width:100%;
     min-width:0;
   }
-  main.detail-open #commandBar > #search { display:none; }
-  main.detail-open #commandBar > .view-toggle {
+  body.detail-open #commandBar > #search { display:none; }
+  body.detail-open #commandBar > .view-toggle {
     display:block;
   }
-  main.detail-open #commandBar > .cmd-actions {
+  body.detail-open #commandBar > .cmd-actions {
     display:flex;
   }
-  main.detail-open #commandBar > #jsonStatus {
+  body.detail-open #commandBar > #jsonStatus {
     display:block;
   }
   .grid.two {
