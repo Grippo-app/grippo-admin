@@ -123,6 +123,10 @@ header{
 .command-bar .view-toggle{ flex-shrink:0; }
 .command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
 
+/* Floating action button (hidden by default) */
+.fab{display:none;}
+#backBtn{display:none;}
+
 /* Inputs — dark */
 input[type="password"],input[type="text"],input[type="email"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
   width:100%;
@@ -195,9 +199,7 @@ main{
   padding:14px;
   overflow:hidden;           /* columns scroll independently */
 }
-@media (max-width:1000px){
-  main{grid-template-columns:1fr}
-}
+/* removed vertical stack on tablets for better continuity */
 
 /* Sidebar (list column) */
 .sidebar{
@@ -333,22 +335,38 @@ main{
 .sum.ok{color:#86efac}
 
 /* JSON editor */
-textarea#editor{
-  flex:1 1 auto;                    /* fill available height */
+.json-wrap{
+  position:relative;
+  flex:1 1 auto;
   min-height:0;
-  height:100%;
-  overflow:auto;                    /* internal scroll in JSON mode */
-  resize:none;
+  margin:16px;
   border:1px solid var(--border);
-  outline:none;
-  margin:16px;                      /* keeps the "card" look */
-  padding:16px;
+  border-radius:12px;
   background:#0f1d33;
+}
+.json-wrap textarea{
+  width:100%;
+  height:100%;
+  min-height:0;
+  overflow:auto;
+  resize:none;
+  border:none;
+  outline:none;
+  padding:16px;
+  background:transparent;
   color:#dbeafe;
   font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
   font-size:13px;
   line-height:1.5;
+  box-sizing:border-box;
   border-radius:12px;
+}
+.json-wrap .clear-json{
+  position:absolute;
+  top:8px;
+  right:8px;
+  padding:2px 6px;
+  line-height:1;
 }
 
 /* Toast */
@@ -402,4 +420,88 @@ main > .sidebar .list{
 .login-form .error{
   color:var(--danger);
   font-size:14px;
+}
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  input, textarea, select {
+    font-size:16px;
+  }
+  main {
+    padding:8px;
+    gap:0;
+    display:flex;
+    overflow:hidden;
+    transform:translateX(0);
+    transition:transform .3s ease;
+  }
+  main > .sidebar,
+  main > .panel {
+    flex:0 0 100%;
+    max-width:100%;
+    overflow:auto;
+  }
+  main.detail-open { transform:translateX(-100%); }
+  .panel .ed-head { display:none; }
+  main.detail-open .panel .ed-head { display:block; padding-bottom:8px; }
+  main.detail-open #backBtn { display:inline-block; }
+  #commandBar {
+    padding:8px 10px;
+  }
+  #commandBar > * {
+    display:none;
+  }
+  #commandBar > #search {
+    display:block;
+    flex:1 1 100%;
+    width:100%;
+    min-width:0;
+  }
+  main.detail-open #commandBar > #search { display:none; }
+  main.detail-open #commandBar > .view-toggle {
+    display:block;
+  }
+  main.detail-open #commandBar > .cmd-actions {
+    display:flex;
+  }
+  main.detail-open #commandBar > #jsonStatus {
+    display:block;
+  }
+  .grid.two {
+    grid-template-columns:1fr;
+  }
+  .bundle-row {
+    grid-template-columns:1fr 1fr auto;
+  }
+
+  /* Floating action menu */
+  .fab {
+    display:flex;
+    position:fixed;
+    bottom:16px;
+    right:16px;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    z-index:50;
+  }
+  .fab .fab-menu {
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .fab.open .fab-menu { display:flex; }
+  .fab .fab-main {
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .fab .fab-main svg {
+    width:24px;
+    height:24px;
+  }
 }
