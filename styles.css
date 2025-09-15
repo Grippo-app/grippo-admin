@@ -229,6 +229,7 @@ main{
   padding: 8px 10px 10px;
   display: grid;
   gap: 10px;
+  align-content: start;
 }
 .item{
   background:var(--panel-2);
@@ -258,6 +259,7 @@ main{
 .item:hover{border-color:#2b394f; background:#13233a}
 .item.active{outline:2px solid rgba(119,182,255,.8)}
 .name{font-weight:800}
+.thumb{width:100%;height:auto;border-radius:8px;object-fit:cover}
 .meta{color:var(--muted); font-size:12px; display:flex; gap:10px; align-items:center}
 .pill{background:#0d213a; color:#c7e2ff; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #15365d}
 

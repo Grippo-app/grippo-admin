@@ -58,9 +58,6 @@ const els = {
   currentId: document.getElementById('currentId'),
   jsonStatus: document.getElementById('jsonStatus'),
   saveBtn: document.getElementById('saveBtn'),
-  formatBtn: document.getElementById('formatBtn'),
-  copyEntityBtn: document.getElementById('copyEntityBtn'),
-  copyFullBtn: document.getElementById('copyFullBtn'),
   promptBtn: document.getElementById('promptBtn'),
   promptImgBtn: document.getElementById('promptImgBtn'),
 
@@ -262,6 +259,16 @@ function renderList(){
     node.querySelector('.name').textContent = entity?.name || '(no name)';
     node.querySelector('.usage').textContent = `used ${it.usageCount ?? 0}`;
     node.querySelector('.lastUsed').textContent = it.lastUsed ? `last: ${formatIso(it.lastUsed)}` : 'last: —';
+    const thumb = node.querySelector('.thumb');
+    if (thumb){
+      if (entity?.imageUrl){
+        thumb.src = entity.imageUrl;
+        thumb.alt = entity.name || '';
+        thumb.addEventListener('error', ()=> thumb.remove());
+      } else {
+        thumb.remove();
+      }
+    }
 
     // Mark "edited in this session"
     if (isEdited(entity?.id)) {
@@ -472,6 +479,8 @@ async function saveCurrent(){
       // Create: DO NOT send id
       const payload = {...canonical};
       delete payload.id;
+      delete payload.createdAt;
+      delete payload.updatedAt;
 
       const resp = await fetch(CREATE_ENDPOINT, {
         method:'POST', headers, body: JSON.stringify(payload)
@@ -506,6 +515,8 @@ async function saveCurrent(){
 
       const payload = {...canonical};
       delete payload.id;
+      delete payload.createdAt;
+      delete payload.updatedAt;
 
       const resp = await fetch(PUT_ENDPOINT(id), {
         method:'PUT', headers, body: JSON.stringify(payload)
@@ -801,21 +812,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // Header actions
   els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
   els.saveBtn.addEventListener('click', saveCurrent);
-  els.formatBtn.addEventListener('click', ()=>{
-    try{
-      const obj = JSON.parse(els.editor.value);
-      els.editor.value = pretty(obj);
-      validateAll();
-      autosizeEditor();
-    }catch(e){
-      toast({title:'Format error', message:String(e.message||e), type:'error'});
-    }
-  });
-  els.copyEntityBtn.addEventListener('click', ()=> copyToClipboard(els.editor.value, 'Editor JSON copied'));
-  els.copyFullBtn.addEventListener('click', ()=>{
-    if (!current){ toast({title:'Nothing selected', type:'error'}); return; }
-    copyToClipboard(JSON.stringify(current,null,2), 'Full item JSON copied');
-  });
   els.promptBtn.addEventListener('click', copyPrompt);
   els.promptImgBtn.addEventListener('click', copyImagePrompt);
 
@@ -862,14 +858,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 });
 
 // ===== Helpers =====
-async function copyToClipboard(text, label='Copied'){
-  try{ await navigator.clipboard.writeText(text); toast({title:label}); }
-  catch(e){
-    const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy'); ta.remove(); toast({title:label});
-  }
-}
-
 // CORS hint wrapper
 (function patchFetchForHints(){
   const orig = window.fetch;
