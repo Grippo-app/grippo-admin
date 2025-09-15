@@ -123,6 +123,9 @@ header{
 .command-bar .view-toggle{ flex-shrink:0; }
 .command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
 
+/* Floating action button (hidden by default) */
+.fab{display:none;}
+
 /* Inputs — dark */
 input[type="password"],input[type="text"],input[type="email"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
   width:100%;
@@ -195,9 +198,7 @@ main{
   padding:14px;
   overflow:hidden;           /* columns scroll independently */
 }
-@media (max-width:1000px){
-  main{grid-template-columns:1fr}
-}
+/* removed vertical stack on tablets for better continuity */
 
 /* Sidebar (list column) */
 .sidebar{
@@ -402,4 +403,78 @@ main > .sidebar .list{
 .login-form .error{
   color:var(--danger);
   font-size:14px;
+}
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  input, textarea, select {
+    font-size:16px;
+  }
+  main {
+    padding:8px;
+    gap:0;
+    display:flex;
+    overflow:hidden;
+    transform:translateX(0);
+    transition:transform .3s ease;
+  }
+  main > .sidebar,
+  main > .panel {
+    flex:0 0 100%;
+    max-width:100%;
+    overflow:auto;
+  }
+  main.detail-open { transform:translateX(-100%); }
+  .panel .ed-head { display:none; }
+  main.detail-open .panel .ed-head { display:block; padding-bottom:8px; }
+  #backBtn { display:none; }
+  main.detail-open #backBtn { display:inline-block; }
+  #commandBar {
+    padding:8px 10px;
+  }
+  #commandBar > *:not(#search) {
+    display:none;
+  }
+  #commandBar input[type="search"] {
+    flex:1 1 100%;
+    width:100%;
+    min-width:0;
+  }
+  .grid.two {
+    grid-template-columns:1fr;
+  }
+  .bundle-row {
+    grid-template-columns:1fr 1fr auto;
+  }
+
+  /* Floating action menu */
+  .fab {
+    display:flex;
+    position:fixed;
+    bottom:16px;
+    right:16px;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    z-index:50;
+  }
+  .fab .fab-menu {
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .fab.open .fab-menu { display:flex; }
+  .fab .fab-main {
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .fab .fab-main svg {
+    width:24px;
+    height:24px;
+  }
 }
