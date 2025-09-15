@@ -4,6 +4,8 @@ const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
 const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;
 const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
+const LOGIN_ENDPOINT = `${API_BASE}/login`;
+
 const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
 const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;
 
@@ -46,8 +48,6 @@ const dict = { equipment: new Map(), muscles: new Map() };
 
 // ===== Elements =====
 const els = {
-  token: document.getElementById('token'),
-  saveToken: document.getElementById('saveToken'),
   load: document.getElementById('loadBtn'),
 
   list: document.getElementById('list'),
@@ -89,6 +89,12 @@ const els = {
   itemTemplate: document.querySelector('#itemTemplate')
 };
 
+// Login elements
+els.loginOverlay = document.getElementById('loginOverlay');
+els.loginForm = document.getElementById('loginForm');
+els.loginEmail = document.getElementById('loginEmail');
+els.loginPassword = document.getElementById('loginPassword');
+
 // ===== Utilities =====
 function toast({title, message = '', type = 'success', ms = 3000}) {
   const t = document.createElement('div');
@@ -97,9 +103,10 @@ function toast({title, message = '', type = 'success', ms = 3000}) {
   document.body.appendChild(t);
   setTimeout(()=>t.remove(), ms);
 }
+let authToken = '';
 function saveTokenLocal(v){ localStorage.setItem('grippo_admin_token', v || ''); }
 function loadTokenLocal(){ return localStorage.getItem('grippo_admin_token') || ''; }
-function bearer(){ const tok = els.token.value.trim(); return tok ? {'Authorization': `Bearer ${tok}`} : {}; }
+function bearer(){ return authToken ? {'Authorization': `Bearer ${authToken}`} : {}; }
 function pretty(json){ return JSON.stringify(json, null, 2); }
 function formatIso(d){ try{ return new Date(d).toISOString().replace('T',' ').replace('Z','Z'); }catch{ return String(d); } }
 function setStatus(kind, text){ els.jsonStatus.className = `status ${kind}`; els.jsonStatus.textContent = text; }
@@ -444,7 +451,9 @@ function newItem(){
 async function loadList(){
   const headers = {accept:'application/json', ...bearer()};
   if (!headers.Authorization){
-    toast({title:'Token required', message:'Set a valid Bearer token first.', type:'error', ms:3500}); return;
+    toast({title:'Login required', message:'Please sign in first.', type:'error', ms:3500});
+    if (els.loginOverlay) els.loginOverlay.style.display='flex';
+    return;
   }
   els.load.disabled = true;
   try{
@@ -464,8 +473,9 @@ async function loadList(){
 async function saveCurrent(){
   const headers = {'accept':'application/json','content-type':'application/json', ...bearer()};
   if (!headers.Authorization){
-    toast({title:'Token required', message:'Set a valid Bearer token first.', type:'error'}); 
-    return; 
+    toast({title:'Login required', message:'Please sign in first.', type:'error'});
+    if (els.loginOverlay) els.loginOverlay.style.display='flex';
+    return;
   }
 
   const ent = readFormToEntity(getEntity());
@@ -795,7 +805,8 @@ function setViewJson(){
 
 // ===== Bootstrap =====
 window.addEventListener('DOMContentLoaded', async ()=>{
-  els.token.value = loadTokenLocal();
+  authToken = loadTokenLocal();
+  if (!authToken && els.loginOverlay){ els.loginOverlay.style.display='flex'; }
   loadEdited(); // restore edited IDs for this tab session
 
   await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
@@ -810,7 +821,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   els.newBtn.addEventListener('click', newItem);
 
   // Header actions
-  els.saveToken.addEventListener('click', ()=>{ saveTokenLocal(els.token.value); toast({title:'Token saved'}); });
   els.saveBtn.addEventListener('click', saveCurrent);
   els.promptBtn.addEventListener('click', copyPrompt);
   els.promptImgBtn.addEventListener('click', copyImagePrompt);
@@ -818,6 +828,31 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   // View
   els.viewForm.addEventListener('click', setViewForm);
   els.viewJson.addEventListener('click', setViewJson);
+
+  // Login form
+  if (els.loginForm){
+    els.loginForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = els.loginEmail.value.trim();
+      const password = els.loginPassword.value;
+      try{
+        const resp = await fetch(LOGIN_ENDPOINT, {
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        if(!resp.ok) throw new Error('Invalid credentials');
+        const data = await resp.json();
+        authToken = data.accessToken || '';
+        saveTokenLocal(authToken);
+        localStorage.setItem('grippo_admin_refresh', data.refreshToken || '');
+        els.loginOverlay.style.display='none';
+        toast({title:'Logged in'});
+      }catch(err){
+        toast({title:'Login failed', message:String(err.message||err), type:'error'});
+      }
+    });
+  }
 
   // Form inputs
   [els.fName, els.fImage, els.fDescription].forEach(input=> input.addEventListener('input', ()=>{ setEntity(readFormToEntity(getEntity())); }));

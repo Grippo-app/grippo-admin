@@ -9,12 +9,18 @@
 <body>
   <!-- Header -->
   <header>
-    <div class="token-input">
-      <input id="token" type="password" placeholder="Bearer token (stored locally)" autocomplete="off"/>
-    </div>
-    <button id="saveToken" class="btn muted" title="Save token to localStorage">Save token</button>
     <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
   </header>
+
+  <!-- Login overlay -->
+  <div id="loginOverlay" class="login-overlay" style="display:none;">
+    <form id="loginForm" class="login-form">
+      <h2>Sign in</h2>
+      <input id="loginEmail" type="email" placeholder="Email" required />
+      <input id="loginPassword" type="password" placeholder="Password" required />
+      <button id="loginBtn" class="btn" type="submit">Login</button>
+    </form>
+  </div>
 
   <!-- Command bar: sticky below header -->
   <div id="commandBar" class="command-bar">
