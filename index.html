@@ -65,7 +65,9 @@
 
     <!-- Editor -->
     <section class="panel">
-      <div class="ed-head"></div>
+      <div class="ed-head">
+        <button id="backBtn" class="btn muted" type="button">Back</button>
+      </div>
 
       <!-- FORM BUILDER -->
       <div id="builder" class="builder show" aria-label="Exercise Example Builder">
@@ -190,6 +192,22 @@
       <textarea id="editor" spellcheck="false" hidden></textarea>
     </section>
   </main>
+
+    <!-- Mobile floating action button -->
+    <div id="mobileFab" class="fab">
+    <div class="fab-menu">
+      <button id="fabNew" class="btn warn" title="Create new exercise example">New</button>
+      <button id="fabLoad" class="btn" title="Fetch list from API">Load list</button>
+      <button id="fabPrompt" class="btn gpt" title="Build GPT prompt">GPT Review</button>
+      <button id="fabPromptImg" class="btn gpt" title="Build Image Prompt">GPT Image</button>
+      <button id="fabSave" class="btn" disabled title="Save changes">Save</button>
+    </div>
+    <button id="fabToggle" class="btn fab-main" title="More actions">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
 
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">
