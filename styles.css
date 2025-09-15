@@ -125,7 +125,7 @@ header{
 
 /* Floating action button (hidden by default) */
 .fab{display:none;}
-#backBtn{display:none;}
+#mobileBackBtn{display:none;}
 
 /* Inputs — dark */
 input[type="password"],input[type="text"],input[type="email"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
@@ -441,9 +441,6 @@ main > .sidebar .list{
     overflow:auto;
   }
   main.detail-open { transform:translateX(-100%); }
-  .panel .ed-head { display:none; }
-  body.detail-open .panel .ed-head { display:block; padding-bottom:8px; }
-  body.detail-open #backBtn { display:inline-block; }
   #commandBar {
     padding:8px 10px;
   }
@@ -457,6 +454,17 @@ main > .sidebar .list{
     min-width:0;
   }
   body.detail-open #commandBar > #search { display:none; }
+  body.detail-open #commandBar > #mobileBackBtn {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  body.detail-open #commandBar > #currentId {
+    display:block;
+  }
+  body.detail-open #commandBar > .spacer {
+    display:block;
+  }
   body.detail-open #commandBar > .view-toggle {
     display:block;
   }

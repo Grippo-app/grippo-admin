@@ -31,6 +31,7 @@
 
   <!-- Command bar: sticky below header -->
   <div id="commandBar" class="command-bar">
+    <button id="mobileBackBtn" class="btn muted" type="button" title="Back to list" aria-label="Back to list">&#8592; Back</button>
     <input id="search" type="search" placeholder="Search by name…"/>
     <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
     <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
@@ -65,9 +66,6 @@
 
     <!-- Editor -->
     <section class="panel">
-      <div class="ed-head">
-        <button id="backBtn" class="btn muted" type="button" title="Back">&#8592;</button>
-      </div>
 
       <!-- FORM BUILDER -->
       <div id="builder" class="builder show" aria-label="Exercise Example Builder">

@@ -66,6 +66,7 @@ const els = {
   list: document.getElementById('list'),
   search: document.getElementById('search'),
   clearSearch: document.getElementById('clearSearch'),
+  mobileBackBtn: document.getElementById('mobileBackBtn'),
   newBtn: document.getElementById('newBtn'),
 
   currentId: document.getElementById('currentId'),
@@ -80,6 +81,11 @@ const els = {
     editorWrap: document.getElementById('jsonWrap'),
     editor: document.getElementById('editor'),
     clearJsonBtn: document.getElementById('clearJsonBtn'),
+
+  mobileFab: document.getElementById('mobileFab'),
+  mobileFabToggle: document.getElementById('fabToggle'),
+
+  main: document.querySelector('main'),
 
   fName: document.getElementById('fName'),
   fImage: document.getElementById('fImage'),
@@ -103,8 +109,6 @@ const els = {
 
   itemTemplate: document.querySelector('#itemTemplate')
 };
-els.backBtn = document.getElementById('backBtn');
-els.main = document.querySelector('main');
 
 // Login elements
 els.loginOverlay = document.getElementById('loginOverlay');
@@ -197,18 +201,28 @@ function updateCommandBarVisibility(){
       document.body.classList.remove('hide-json-controls');
     }
   }
-}
 
-function openDetailView(){
-  if (window.matchMedia('(max-width: 600px)').matches && els.main){
-    els.main.classList.add('detail-open');
-    document.body.classList.add('detail-open');
+  syncMobileDetailState();
+
+  if (!active && els.mobileFab) {
+    els.mobileFab.classList.remove('open');
   }
 }
-function closeDetailView(){
-  if (window.matchMedia('(max-width: 600px)').matches && els.main){
+
+function syncMobileDetailState(){
+  if (!els.main) return;
+  const isMobile = window.matchMedia('(max-width: 600px)').matches;
+  const active = hasActiveItem();
+  if (isMobile && active) {
+    els.main.classList.add('detail-open');
+    document.body.classList.add('detail-open');
+  } else {
     els.main.classList.remove('detail-open');
     document.body.classList.remove('detail-open');
+  }
+
+  if (els.mobileBackBtn) {
+    els.mobileBackBtn.tabIndex = isMobile && active ? 0 : -1;
   }
 }
 
@@ -474,7 +488,6 @@ function selectItem(it){
   current = it; isNew = false;
   const e = it.entity || emptyTemplate();
   canonical = normalizeEntityShape(e);
-  openDetailView();
   els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
@@ -487,7 +500,6 @@ function selectItem(it){
 function newItem(){
   current = null; isNew = true;
   canonical = emptyTemplate();
-  openDetailView();
   els.currentId.textContent = 'Creating new item (ID will be assigned on save)';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
@@ -875,9 +887,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
   }
   els.newBtn.addEventListener('click', newItem);
-  if (els.backBtn) {
-    els.backBtn.addEventListener('click', () => {
-      closeDetailView();
+  if (els.mobileBackBtn) {
+    els.mobileBackBtn.addEventListener('click', () => {
       current = null; isNew = false;
       els.currentId.textContent = 'No item selected';
       updateCommandBarVisibility();
@@ -970,11 +981,9 @@ if (els.loginForm){
   document.body.classList.add('hide-json-controls');
 
   // Floating action button for mobile
-  const fab = document.getElementById('mobileFab');
-  const fabToggle = document.getElementById('fabToggle');
-  if (fab && fabToggle) {
-    const closeFab = () => fab.classList.remove('open');
-    fabToggle.addEventListener('click', () => fab.classList.toggle('open'));
+  if (els.mobileFab && els.mobileFabToggle) {
+    const closeFab = () => els.mobileFab.classList.remove('open');
+    els.mobileFabToggle.addEventListener('click', () => els.mobileFab.classList.toggle('open'));
     document.getElementById('fabNew').addEventListener('click', () => { els.newBtn.click(); closeFab(); });
     document.getElementById('fabLoad').addEventListener('click', () => { els.load.click(); closeFab(); });
     document.getElementById('fabPrompt').addEventListener('click', () => { els.promptBtn.click(); closeFab(); });
@@ -984,7 +993,10 @@ if (els.loginForm){
 
   updateCommandBarVisibility(); // hide GPT/Save/toggle/status
   updateStickyOffsets();
-  window.addEventListener('resize', updateStickyOffsets);
+  window.addEventListener('resize', () => {
+    updateStickyOffsets();
+    syncMobileDetailState();
+  });
 });
 
 // ===== Helpers =====
