@@ -9,7 +9,7 @@
 <body>
   <!-- Header -->
   <header>
-    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
+    <button id="logoutBtn" class="btn" style="margin-left:auto;" title="Logout">Logout</button>
   </header>
 
   <!-- Login overlay -->
@@ -18,6 +18,7 @@
       <h2>Sign in</h2>
       <input id="loginEmail" type="email" placeholder="Email" required />
       <input id="loginPassword" type="password" placeholder="Password" required />
+      <div id="loginError" class="error" style="display:none"></div>
       <button id="loginBtn" class="btn" type="submit">Login</button>
     </form>
   </div>
@@ -25,6 +26,7 @@
   <!-- Command bar: sticky below header -->
   <div id="commandBar" class="command-bar">
     <input id="search" type="search" placeholder="Search by name…"/>
+    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
     <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
 
     <span class="spacer"></span>

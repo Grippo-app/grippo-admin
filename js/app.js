@@ -4,7 +4,7 @@ const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
 const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;
 const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
-const LOGIN_ENDPOINT = `${API_BASE}/login`;
+const LOGIN_ENDPOINT = `${API_BASE}/auth/login`;
 
 const EQUIPMENT_GROUPS_ENDPOINT = `${API_BASE}/equipments`;
 const MUSCLE_GROUPS_ENDPOINT    = `${API_BASE}/muscles`;
@@ -94,6 +94,8 @@ els.loginOverlay = document.getElementById('loginOverlay');
 els.loginForm = document.getElementById('loginForm');
 els.loginEmail = document.getElementById('loginEmail');
 els.loginPassword = document.getElementById('loginPassword');
+els.loginError = document.getElementById('loginError');
+els.logoutBtn = document.getElementById('logoutBtn');
 
 // ===== Utilities =====
 function toast({title, message = '', type = 'success', ms = 3000}) {
@@ -108,6 +110,7 @@ function saveTokenLocal(v){ localStorage.setItem('grippo_admin_token', v || '');
 function loadTokenLocal(){ return localStorage.getItem('grippo_admin_token') || ''; }
 function bearer(){ return authToken ? {'Authorization': `Bearer ${authToken}`} : {}; }
 function pretty(json){ return JSON.stringify(json, null, 2); }
+function logout(){ authToken=''; saveTokenLocal(''); localStorage.removeItem('grippo_admin_refresh'); if(els.loginOverlay) els.loginOverlay.style.display='flex'; }
 function formatIso(d){ try{ return new Date(d).toISOString().replace('T',' ').replace('Z','Z'); }catch{ return String(d); } }
 function setStatus(kind, text){ els.jsonStatus.className = `status ${kind}`; els.jsonStatus.textContent = text; }
 function uuidv4(){
@@ -824,37 +827,45 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   els.saveBtn.addEventListener('click', saveCurrent);
   els.promptBtn.addEventListener('click', copyPrompt);
   els.promptImgBtn.addEventListener('click', copyImagePrompt);
+  if (els.logoutBtn) { els.logoutBtn.addEventListener('click', ()=>{ logout(); toast({title:'Logged out'}); }); }
 
   // View
   els.viewForm.addEventListener('click', setViewForm);
   els.viewJson.addEventListener('click', setViewJson);
 
-  // Login form
-  if (els.loginForm){
-    els.loginForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const email = els.loginEmail.value.trim();
-      const password = els.loginPassword.value;
-      try{
-        const resp = await fetch(LOGIN_ENDPOINT, {
-          method:'POST',
-          headers:{'content-type':'application/json'},
-          body: JSON.stringify({email, password})
-        });
-        if(!resp.ok) throw new Error('Invalid credentials');
-        const data = await resp.json();
-        authToken = data.accessToken || '';
-        saveTokenLocal(authToken);
-        localStorage.setItem('grippo_admin_refresh', data.refreshToken || '');
-        els.loginOverlay.style.display='none';
-        toast({title:'Logged in'});
-      }catch(err){
-        toast({title:'Login failed', message:String(err.message||err), type:'error'});
+  
+// Login form
+if (els.loginForm){
+  els.loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const email = els.loginEmail.value.trim();
+    const password = els.loginPassword.value;
+    if (els.loginError){ els.loginError.textContent=''; els.loginError.style.display='none'; }
+    try{
+      const resp = await fetch(LOGIN_ENDPOINT, {
+        method:'POST',
+        headers:{'content-type':'application/json','accept':'application/json'},
+        body: JSON.stringify({email, password})
+      });
+      if(!resp.ok){
+        const msg = 'Invalid credentials';
+        if(els.loginError){ els.loginError.textContent=msg; els.loginError.style.display='block'; }
+        throw new Error(msg);
       }
-    });
-  }
+      const data = await resp.json();
+      authToken = data.accessToken || '';
+      saveTokenLocal(authToken);
+      localStorage.setItem('grippo_admin_refresh', data.refreshToken || '');
+      els.loginOverlay.style.display='none';
+      toast({title:'Logged in'});
+    }catch(err){
+      if(els.loginError){ els.loginError.textContent=String(err.message||err); els.loginError.style.display='block'; }
+      toast({title:'Login failed', message:String(err.message||err), type:'error'});
+    }
+  });
+}
 
-  // Form inputs
+// Form inputs
   [els.fName, els.fImage, els.fDescription].forEach(input=> input.addEventListener('input', ()=>{ setEntity(readFormToEntity(getEntity())); }));
   [els.fWeightType, els.fCategory, els.fExperience, els.fForceType].forEach(sel=> sel.addEventListener('change', ()=>{ setEntity(readFormToEntity(getEntity())); }));
 
@@ -894,11 +905,18 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
 // ===== Helpers =====
 // CORS hint wrapper
+
 (function patchFetchForHints(){
   const orig = window.fetch;
   window.fetch = async (...args)=>{
-    try{ return await orig(...args); }
-    catch(e){
+    try{
+      const resp = await orig(...args);
+      if(resp.status === 403){
+        logout();
+        toast({title:'Session expired', type:'error'});
+      }
+      return resp;
+    }catch(e){
       toast({
         title:'Network error',
         message:'If this runs on GitHub Pages, enable CORS on grippo-app.com for GET, POST, PUT and header Authorization.',
@@ -908,3 +926,4 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     }
   };
 })();
+
