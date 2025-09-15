@@ -179,6 +179,7 @@ input[type=number]{ -moz-appearance:textfield }
 .btn:hover{filter:brightness(1.05)}
 .btn.muted{background:var(--panel-2); color:var(--text); border:1px solid var(--border); box-shadow:none}
 .btn.warn{background:var(--warning); color:#111}
+.btn.danger{background:var(--danger); color:#fff}
 .btn.ghost{background:transparent; border:1px dashed var(--border)}
 .btn:disabled{opacity:.5; cursor:not-allowed}
 .btn:active{transform:translateY(1px)}
@@ -391,13 +392,6 @@ main > .sidebar .list{
   flex-direction:column;
   gap:12px;
   min-width:320px;
-}
-.login-form input{
-  padding:12px;
-  background:var(--field);
-  border:1px solid var(--border);
-  color:var(--text);
-  font-size:16px;
 }
 .login-form .error{
   color:var(--danger);
