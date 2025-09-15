@@ -63,8 +63,10 @@ const els = {
 
   viewForm: document.getElementById('viewForm'),
   viewJson: document.getElementById('viewJson'),
-  builder: document.getElementById('builder'),
-  editor: document.getElementById('editor'),
+    builder: document.getElementById('builder'),
+    editorWrap: document.getElementById('jsonWrap'),
+    editor: document.getElementById('editor'),
+    clearJsonBtn: document.getElementById('clearJsonBtn'),
 
   fName: document.getElementById('fName'),
   fImage: document.getElementById('fImage'),
@@ -88,6 +90,8 @@ const els = {
 
   itemTemplate: document.querySelector('#itemTemplate')
 };
+els.backBtn = document.getElementById('backBtn');
+els.main = document.querySelector('main');
 
 // Login elements
 els.loginOverlay = document.getElementById('loginOverlay');
@@ -150,22 +154,42 @@ function updateCommandBarVisibility(){
   toggle(viewToggle, active);
   toggle(els.jsonStatus, active);
 
+  // Sync mobile fab buttons
+  const fabPrompt = document.getElementById('fabPrompt');
+  const fabPromptImg = document.getElementById('fabPromptImg');
+  const fabSave = document.getElementById('fabSave');
+  toggle(fabPrompt, active);
+  toggle(fabPromptImg, active);
+  toggle(fabSave, active);
+  if (fabSave) fabSave.disabled = els.saveBtn.disabled;
+
   // Right column content
   if (!active){
     els.builder.classList.remove('show');
-    els.editor.hidden = true;
+    els.editorWrap.hidden = true;
     document.body.classList.add('hide-json-controls');
   } else {
     const formActive = els.viewForm.classList.contains('active');
     if (formActive){
       els.builder.classList.add('show');
-      els.editor.hidden = true;
+      els.editorWrap.hidden = true;
       document.body.classList.add('hide-json-controls');
     } else {
       els.builder.classList.remove('show');
-      els.editor.hidden = false;
+      els.editorWrap.hidden = false;
       document.body.classList.remove('hide-json-controls');
     }
+  }
+}
+
+function openDetailView(){
+  if (window.matchMedia('(max-width: 600px)').matches && els.main){
+    els.main.classList.add('detail-open');
+  }
+}
+function closeDetailView(){
+  if (window.matchMedia('(max-width: 600px)').matches && els.main){
+    els.main.classList.remove('detail-open');
   }
 }
 
@@ -434,10 +458,12 @@ function selectItem(it){
   els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
+  setViewForm();
   validateAll();
   autosizeEditor();
   renderList();
   updateCommandBarVisibility(); // reflect active state
+  openDetailView();
 }
 function newItem(){
   current = null; isNew = true;
@@ -449,6 +475,7 @@ function newItem(){
   validateAll();
   autosizeEditor && autosizeEditor();
   updateCommandBarVisibility(); // reflect active state
+  openDetailView();
 }
 
 async function loadList(){
@@ -487,6 +514,7 @@ async function saveCurrent(){
   if (!ok){ toast({title:'Fix validation errors', type:'error'}); return; }
 
   els.saveBtn.disabled = true;
+  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
   try{
     if (isNew){
       // Create: DO NOT send id
@@ -545,10 +573,11 @@ async function saveCurrent(){
       renderList();
     }
   }catch(e){
-    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000}); 
+    toast({title:'Save failed', message:String(e.message||e), type:'error', ms:7000});
     console.error(e);
   }finally{
     els.saveBtn.disabled = false;
+    { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = false; }
   }
 }
 
@@ -601,6 +630,7 @@ function validateAll(){
   else if (warnings.length) setStatus('warn', warnings[0]);
   else setStatus('ok', 'Valid');
   els.saveBtn.disabled = !ok;
+  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = els.saveBtn.disabled; }
 
   if (!els.editor.hasAttribute('hidden')) els.editor.value = pretty(ent);
   return {ok, errors, warnings};
@@ -794,13 +824,13 @@ async function copyPrompt(){
 // ===== View switching + JSON controls toggle =====
 function setViewForm(){
   els.viewForm.classList.add('active'); els.viewJson.classList.remove('active');
-  els.builder.classList.add('show'); els.editor.hidden = true;
+  els.builder.classList.add('show'); els.editorWrap.hidden = true;
   document.body.classList.add('hide-json-controls'); // hides Format/Copy buttons
   updateCommandBarVisibility();
 }
 function setViewJson(){
   els.viewJson.classList.add('active'); els.viewForm.classList.remove('active');
-  els.builder.classList.remove('show'); els.editor.hidden = false;
+  els.builder.classList.remove('show'); els.editorWrap.hidden = false;
   els.editor.value = pretty(getEntity());
   document.body.classList.remove('hide-json-controls');
   updateCommandBarVisibility();
@@ -822,6 +852,11 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
   }
   els.newBtn.addEventListener('click', newItem);
+  if (els.backBtn) {
+    els.backBtn.addEventListener('click', () => {
+      closeDetailView();
+    });
+  }
 
   // Header actions
   els.saveBtn.addEventListener('click', saveCurrent);
@@ -888,15 +923,36 @@ if (els.loginForm){
       validateAll();
     }catch{
       setStatus('bad','Invalid JSON'); els.saveBtn.disabled = true;
+      { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
     }
   });
+
+  if (els.clearJsonBtn) {
+    els.clearJsonBtn.addEventListener('click', () => {
+      els.editor.value = '';
+      els.editor.dispatchEvent(new Event('input'));
+    });
+  }
 
   // Start — nothing selected yet, no "New" pressed
   current = null; isNew = false;
   canonical = emptyTemplate();
   els.builder.classList.remove('show');
-  els.editor.hidden = true;
+  els.editorWrap.hidden = true;
   document.body.classList.add('hide-json-controls');
+
+  // Floating action button for mobile
+  const fab = document.getElementById('mobileFab');
+  const fabToggle = document.getElementById('fabToggle');
+  if (fab && fabToggle) {
+    const closeFab = () => fab.classList.remove('open');
+    fabToggle.addEventListener('click', () => fab.classList.toggle('open'));
+    document.getElementById('fabNew').addEventListener('click', () => { els.newBtn.click(); closeFab(); });
+    document.getElementById('fabLoad').addEventListener('click', () => { els.load.click(); closeFab(); });
+    document.getElementById('fabPrompt').addEventListener('click', () => { els.promptBtn.click(); closeFab(); });
+    document.getElementById('fabPromptImg').addEventListener('click', () => { els.promptImgBtn.click(); closeFab(); });
+    document.getElementById('fabSave').addEventListener('click', () => { els.saveBtn.click(); closeFab(); });
+  }
 
   updateCommandBarVisibility(); // hide GPT/Save/toggle/status
   updateStickyOffsets();
