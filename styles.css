@@ -94,10 +94,9 @@ header{
   background:linear-gradient(180deg,var(--header-bg) 75%, rgba(0,0,0,0));
   border-bottom:1px solid var(--border);
   padding:12px 14px;
-  display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center;
+  display:flex; gap:10px; align-items:center;
   box-shadow:0 8px 26px rgba(0,0,0,.35);
 }
-.token-input{width:100%}
 
 /* Command bar (single row) */
 .command-bar{
@@ -371,4 +370,30 @@ main > .sidebar .list{
   background:transparent !important;
   border:0 !important;
   box-shadow:none !important;
+}
+
+/* Login overlay */
+.login-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.8);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+.login-form{
+  background:var(--panel);
+  padding:32px;
+  border-radius:8px;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.login-form input{
+  padding:8px;
+  background:var(--field);
+  border:1px solid var(--border);
+  color:var(--text);
 }
