@@ -124,7 +124,7 @@ header{
 .command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
 
 /* Inputs — dark */
-input[type="password"],input[type="text"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
+input[type="password"],input[type="text"],input[type="email"],input[type="search"],input[type="url"],input[type="number"],select,textarea{
   width:100%;
   background:var(--field)!important;
   border:1px solid var(--border);
@@ -392,6 +392,12 @@ main > .sidebar .list{
   flex-direction:column;
   gap:12px;
   min-width:320px;
+}
+.login-form h2{
+  text-align:center;
+}
+.login-form button{
+  margin-top:8px;
 }
 .login-form .error{
   color:var(--danger);
