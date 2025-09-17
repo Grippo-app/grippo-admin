@@ -1015,9 +1015,10 @@ if (els.loginForm){
   window.fetch = async (...args)=>{
     try{
       const resp = await orig(...args);
-      if(resp.status === 403){
+      if(resp.status === 401 || resp.status === 403){
         logout();
-        toast({title:'Session expired', type:'error'});
+        const message = resp.status === 401 ? 'Authorization has expired. Please log in again.' : 'Session expired';
+        toast({title:'Logged out', message, type:'error'});
       }
       return resp;
     }catch(e){
