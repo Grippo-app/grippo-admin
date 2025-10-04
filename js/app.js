@@ -264,10 +264,35 @@ function updateSortUI(){
   }
 }
 
+function positionSortMenu(){
+  if (!els.sortDropdown || !els.sortMenu || !els.sortToggle) return;
+  if (!els.sortDropdown.classList.contains('open')) return;
+
+  const menu = els.sortMenu;
+  const toggleRect = els.sortToggle.getBoundingClientRect();
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+  const gutter = 12;
+
+  // Force layout so width is measured correctly.
+  const menuWidth = menu.offsetWidth;
+
+  let left = toggleRect.right - menuWidth;
+  if (left < gutter) left = gutter;
+  if (left + menuWidth > viewportWidth - gutter) {
+    left = Math.max(gutter, viewportWidth - gutter - menuWidth);
+  }
+
+  const top = toggleRect.bottom + 8;
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+}
+
 function openSortMenu(){
   if (!els.sortDropdown) return;
   els.sortDropdown.classList.add('open');
   if (els.sortToggle) els.sortToggle.setAttribute('aria-expanded', 'true');
+  positionSortMenu();
   if (els.sortMenu){
     const active = els.sortMenu.querySelector(`[data-sort="${currentSort}"]`);
     if (active) active.focus();
@@ -283,6 +308,10 @@ function closeSortMenu(){
     if (els.sortDropdown.contains(document.activeElement)) {
       els.sortToggle.focus();
     }
+  }
+  if (els.sortMenu) {
+    els.sortMenu.style.left = '';
+    els.sortMenu.style.top = '';
   }
 }
 
@@ -1035,6 +1064,14 @@ window.addEventListener('DOMContentLoaded', async ()=>{
       toggleSortMenu();
     });
   }
+  const commandBar = document.getElementById('commandBar');
+  if (commandBar) {
+    try {
+      commandBar.addEventListener('scroll', positionSortMenu, {passive:true});
+    } catch {
+      commandBar.addEventListener('scroll', positionSortMenu);
+    }
+  }
   if (els.sortMenu) {
     els.sortMenu.querySelectorAll('.dropdown-item').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1057,6 +1094,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
     if (els.sortDropdown.contains(evt.target)) return;
     closeSortMenu();
   });
+  window.addEventListener('resize', positionSortMenu);
   updateSortUI();
   els.newBtn.addEventListener('click', newItem);
   if (els.mobileBackBtn) {

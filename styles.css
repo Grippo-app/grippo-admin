@@ -109,7 +109,9 @@ header{
   border-bottom:1px solid var(--border);
   box-shadow:0 6px 18px rgba(0,0,0,.22);
   white-space:nowrap;
-  overflow-x:auto; scrollbar-width:thin;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:thin;
 }
 .command-bar #currentId{
   max-width:28ch; overflow:hidden; text-overflow:ellipsis;
@@ -128,9 +130,9 @@ header{
 .command-bar .dropdown .chevron{ transition:transform .2s ease; font-size:12px; }
 .command-bar .dropdown.open .chevron{ transform:rotate(180deg); }
 .command-bar .dropdown-menu{
-  position:absolute;
-  top:calc(100% + 8px);
-  right:0;
+  position:fixed;
+  top:auto;
+  left:auto;
   display:none;
   flex-direction:column;
   gap:4px;
@@ -140,7 +142,9 @@ header{
   border:1px solid var(--border);
   border-radius:14px;
   box-shadow:var(--shadow);
-  z-index:30;
+  z-index:90;
+  max-height:70vh;
+  overflow-y:auto;
 }
 .command-bar .dropdown.open .dropdown-menu{ display:flex; }
 .command-bar .dropdown-item{
