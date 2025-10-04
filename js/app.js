@@ -21,6 +21,7 @@ let items = [];
 let filtered = [];
 let current = null;
 let isNew = false;
+let currentSort = 'name';
 
 // Persisted view mode (form or json) shared across exercises
 let viewMode = 'form';
@@ -65,6 +66,10 @@ const els = {
 
   list: document.getElementById('list'),
   search: document.getElementById('search'),
+  sortDropdown: document.getElementById('sortDropdown'),
+  sortToggle: document.getElementById('sortToggle'),
+  sortMenu: document.getElementById('sortMenu'),
+  sortLabel: document.getElementById('sortLabel'),
   clearSearch: document.getElementById('clearSearch'),
   mobileBackBtn: document.getElementById('mobileBackBtn'),
   newBtn: document.getElementById('newBtn'),
@@ -159,6 +164,142 @@ function hasActiveItem(){
 function toggle(el, show){
   if (!el) return;
   el.style.display = show ? '' : 'none';
+}
+
+// ===== Sorting =====
+const collator = (typeof Intl !== 'undefined' && Intl.Collator)
+  ? new Intl.Collator(undefined, {sensitivity:'base', numeric:true})
+  : null;
+
+const SORT_OPTIONS = {
+  name: {
+    label: 'Имя',
+    compare: (a, b) => compareByName(a, b)
+  },
+  createdAt: {
+    label: 'Дата создания',
+    compare: (a, b) => {
+      const diff = getCreatedAtStamp(b) - getCreatedAtStamp(a);
+      return diff !== 0 ? diff : compareByName(a, b);
+    }
+  },
+  hasImage: {
+    label: 'Наличие картинки',
+    compare: (a, b) => {
+      const diff = Number(itemHasImage(b)) - Number(itemHasImage(a));
+      return diff !== 0 ? diff : compareByName(a, b);
+    }
+  }
+};
+
+function safeString(value){
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return '';
+  try{ return String(value); }
+  catch{ return ''; }
+}
+
+function compareStrings(a, b){
+  const strA = safeString(a);
+  const strB = safeString(b);
+  if (collator) return collator.compare(strA, strB);
+  const cmp = strA.toLowerCase().localeCompare(strB.toLowerCase());
+  if (cmp !== 0) return cmp;
+  return strA.localeCompare(strB);
+}
+
+function getItemName(it){
+  return safeString(it?.entity?.name ?? it?.name ?? '').trim();
+}
+
+function compareByName(a, b){
+  const nameA = getItemName(a);
+  const nameB = getItemName(b);
+  const cmp = compareStrings(nameA, nameB);
+  if (cmp !== 0) return cmp;
+  const idA = safeString(a?.entity?.id ?? a?.id ?? '');
+  const idB = safeString(b?.entity?.id ?? b?.id ?? '');
+  return compareStrings(idA, idB);
+}
+
+function toTimestamp(value){
+  if (typeof value === 'number' && isFinite(value)) return value;
+  if (value instanceof Date){
+    const ts = value.getTime();
+    return Number.isFinite(ts) ? ts : 0;
+  }
+  if (typeof value === 'string' && value.trim()){
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function getCreatedAtStamp(it){
+  const raw = it?.entity?.createdAt ?? it?.entity?.created_at ?? it?.createdAt ?? it?.created_at ?? null;
+  return toTimestamp(raw);
+}
+
+function itemHasImage(it){
+  const raw = it?.entity?.imageUrl ?? it?.entity?.image_url ?? it?.entity?.image ?? it?.imageUrl ?? it?.image_url ?? it?.image ?? '';
+  return typeof raw === 'string' && raw.trim() !== '';
+}
+
+function applySort(){
+  if (!Array.isArray(filtered)) filtered = [];
+  const sorter = SORT_OPTIONS[currentSort] || SORT_OPTIONS.name;
+  filtered.sort((a, b) => sorter.compare(a, b));
+}
+
+function updateSortUI(){
+  const opt = SORT_OPTIONS[currentSort] || SORT_OPTIONS.name;
+  if (els.sortLabel) els.sortLabel.textContent = opt.label;
+  if (els.sortMenu){
+    els.sortMenu.querySelectorAll('[data-sort]').forEach(btn => {
+      const key = btn.getAttribute('data-sort');
+      const active = key === currentSort;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
+  }
+}
+
+function openSortMenu(){
+  if (!els.sortDropdown) return;
+  els.sortDropdown.classList.add('open');
+  if (els.sortToggle) els.sortToggle.setAttribute('aria-expanded', 'true');
+  if (els.sortMenu){
+    const active = els.sortMenu.querySelector(`[data-sort="${currentSort}"]`);
+    if (active) active.focus();
+  }
+}
+
+function closeSortMenu(){
+  if (!els.sortDropdown) return;
+  if (!els.sortDropdown.classList.contains('open')) return;
+  els.sortDropdown.classList.remove('open');
+  if (els.sortToggle) {
+    els.sortToggle.setAttribute('aria-expanded', 'false');
+    if (els.sortDropdown.contains(document.activeElement)) {
+      els.sortToggle.focus();
+    }
+  }
+}
+
+function toggleSortMenu(){
+  if (!els.sortDropdown) return;
+  if (els.sortDropdown.classList.contains('open')) closeSortMenu();
+  else openSortMenu();
+}
+
+function setSort(key){
+  if (!SORT_OPTIONS[key]){ closeSortMenu(); return; }
+  if (currentSort !== key){
+    currentSort = key;
+  }
+  updateSortUI();
+  renderList();
+  closeSortMenu();
 }
 function updateCommandBarVisibility(){
   const active = hasActiveItem();
@@ -318,6 +459,7 @@ function setEntity(newEnt){
 
 // ===== Sidebar =====
 function renderList(){
+  applySort();
   els.list.innerHTML = '';
   const frag = document.createDocumentFragment();
   filtered.forEach(it=>{
@@ -359,7 +501,7 @@ function renderList(){
   els.list.appendChild(frag);
 }
 function applySearch(){
-  const q = els.search.value.trim().toLowerCase();
+  const q = (els.search?.value || '').trim().toLowerCase();
   filtered = !q ? items.slice() : items.filter(it => (it.entity?.name || '').toLowerCase().includes(q));
   renderList();
 }
@@ -524,8 +666,9 @@ async function loadList(){
     }
     const data = await resp.json();
     if(!Array.isArray(data)) throw new Error('Unexpected response shape: expected an array');
-    items = data; filtered = items.slice();
-    renderList(); toast({title:'Loaded', message:`Items: ${items.length}`});
+    items = data;
+    applySearch();
+    toast({title:'Loaded', message:`Items: ${items.length}`});
   }catch(e){
     toast({title:'Load failed', message:String(e.message||e), type:'error', ms:6000}); console.error(e);
   }finally{ els.load.disabled = false; }
@@ -886,6 +1029,35 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   if (els.clearSearch) {
     els.clearSearch.addEventListener('click', ()=>{ els.search.value=''; applySearch(); });
   }
+  if (els.sortToggle) {
+    els.sortToggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      toggleSortMenu();
+    });
+  }
+  if (els.sortMenu) {
+    els.sortMenu.querySelectorAll('.dropdown-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-sort');
+        setSort(key);
+      });
+    });
+  }
+  document.addEventListener('click', (evt) => {
+    if (!els.sortDropdown) return;
+    if (els.sortDropdown.contains(evt.target)) return;
+    closeSortMenu();
+  });
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') closeSortMenu();
+  });
+  document.addEventListener('focusin', (evt) => {
+    if (!els.sortDropdown) return;
+    if (!els.sortDropdown.classList.contains('open')) return;
+    if (els.sortDropdown.contains(evt.target)) return;
+    closeSortMenu();
+  });
+  updateSortUI();
   els.newBtn.addEventListener('click', newItem);
   if (els.mobileBackBtn) {
     els.mobileBackBtn.addEventListener('click', () => {
@@ -1004,6 +1176,7 @@ if (els.loginForm){
   window.addEventListener('resize', () => {
     updateStickyOffsets();
     syncMobileDetailState();
+    closeSortMenu();
   });
 });
 
