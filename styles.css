@@ -122,6 +122,40 @@ header{
 .command-bar .spacer{ flex:1 1 auto; }
 .command-bar .view-toggle{ flex-shrink:0; }
 .command-bar .cmd-actions{ display:flex; gap:8px; flex-shrink:0; }
+.command-bar .dropdown{ position:relative; flex:0 0 auto; }
+.command-bar .dropdown .btn{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.command-bar .dropdown .sort-label{ font-weight:600; }
+.command-bar .dropdown .chevron{ transition:transform .2s ease; font-size:12px; }
+.command-bar .dropdown.open .chevron{ transform:rotate(180deg); }
+.command-bar .dropdown-menu{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  display:none;
+  flex-direction:column;
+  gap:4px;
+  min-width:190px;
+  padding:10px;
+  background:var(--panel-2);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  z-index:30;
+}
+.command-bar .dropdown.open .dropdown-menu{ display:flex; }
+.command-bar .dropdown-item{
+  background:transparent;
+  border:0;
+  color:var(--text);
+  text-align:left;
+  padding:9px 10px;
+  border-radius:10px;
+  cursor:pointer;
+  font:inherit;
+}
+.command-bar .dropdown-item:hover,
+.command-bar .dropdown-item:focus{ background:var(--field-hover); outline:none; }
+.command-bar .dropdown-item.active{ background:var(--field-focus); font-weight:600; }
 
 /* Floating action button (hidden by default) */
 .fab{display:none;}
@@ -478,6 +512,9 @@ main > .sidebar .list{
   }
   #commandBar {
     padding:8px 10px;
+    flex-wrap:wrap;
+    row-gap:8px;
+    white-space:normal;
   }
   #commandBar > * {
     display:none;
@@ -488,7 +525,19 @@ main > .sidebar .list{
     width:100%;
     min-width:0;
   }
+  #commandBar > #sortDropdown {
+    display:block;
+    flex:1 1 100%;
+  }
+  #commandBar > #sortDropdown .btn {
+    width:100%;
+    justify-content:space-between;
+  }
+  #commandBar > #sortDropdown .dropdown-menu{
+    min-width:100%;
+  }
   body.detail-open #commandBar > #search { display:none; }
+  body.detail-open #commandBar > #sortDropdown { display:none; }
   body.detail-open #commandBar > #mobileBackBtn {
     display:inline-flex;
     align-items:center;
