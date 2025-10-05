@@ -189,6 +189,13 @@ const SORT_OPTIONS = {
       const diff = Number(itemHasImage(b)) - Number(itemHasImage(a));
       return diff !== 0 ? diff : compareByName(a, b);
     }
+  },
+  missingImage: {
+    label: 'Отсутствие картинки',
+    compare: (a, b) => {
+      const diff = Number(!itemHasImage(b)) - Number(!itemHasImage(a));
+      return diff !== 0 ? diff : compareByName(a, b);
+    }
   }
 };
 
