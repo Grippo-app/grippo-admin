@@ -83,7 +83,6 @@ const els = {
   sortMenu: document.getElementById('sortMenu'),
   sortLabel: document.getElementById('sortLabel'),
   clearSearch: document.getElementById('clearSearch'),
-  mobileBackBtn: document.getElementById('mobileBackBtn'),
   newBtn: document.getElementById('newBtn'),
 
   currentId: document.getElementById('currentId'),
@@ -99,9 +98,6 @@ const els = {
     editorWrap: document.getElementById('jsonWrap'),
     editor: document.getElementById('editor'),
     clearJsonBtn: document.getElementById('clearJsonBtn'),
-
-  mobileFab: document.getElementById('mobileFab'),
-  mobileFabToggle: document.getElementById('fabToggle'),
 
   main: document.querySelector('main'),
 
@@ -155,23 +151,28 @@ function getTranslation(map, lang){
   return typeof raw === 'string' ? raw : '';
 }
 
-function sanitizeTranslationPayload(map){
-  const payload = {};
-  if (!map || typeof map !== 'object') return payload;
-  for (const lang of SUPPORTED_LANGUAGES){
-    const raw = map[lang];
-    if (typeof raw === 'string'){
-      const trimmed = raw.trim();
-      if (trimmed) payload[lang] = trimmed;
-    }
-  }
-  return payload;
+function cloneArrayOfObjects(arr){
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map(item => (item && typeof item === 'object') ? {...item} : null)
+    .filter(Boolean);
 }
 
-function buildHeaders({json = false, auth = true, accept = true} = {}){
+function buildLocalizedEntries(map){
+  const normalized = ensureTranslationMap(map);
+  const entries = SUPPORTED_LANGUAGES.map(lang => {
+    const value = typeof normalized[lang] === 'string' ? normalized[lang].trim() : '';
+    const entry = { language: lang };
+    if (value) entry.value = value;
+    return entry;
+  });
+  return entries.length ? entries : [{ language: DEFAULT_LANGUAGE }];
+}
+
+function buildHeaders({json = false, auth = true, accept = true, locale} = {}){
   const headers = {};
   if (accept) headers.accept = 'application/json';
-  headers['accept-language'] = activeLocale;
+  headers['accept-language'] = locale || activeLocale;
   if (json) headers['content-type'] = 'application/json';
   if (auth){
     Object.assign(headers, bearer());
@@ -187,15 +188,16 @@ function buildLocalePlaceholder(basePlaceholder, fallbackValue, locale){
 
 function buildPersistencePayload(entity){
   const payload = {...entity};
-  payload.nameTranslations = sanitizeTranslationPayload(entity.nameTranslations);
-  payload.descriptionTranslations = sanitizeTranslationPayload(entity.descriptionTranslations);
-  const defaultName = getTranslation(entity.nameTranslations, DEFAULT_LANGUAGE).trim();
-  const defaultDescription = getTranslation(entity.descriptionTranslations, DEFAULT_LANGUAGE).trim();
-  payload.name = defaultName;
-  payload.description = defaultDescription;
+  const nameEntries = buildLocalizedEntries(entity.nameTranslations);
+  const descriptionEntries = buildLocalizedEntries(entity.descriptionTranslations);
+  payload.name = nameEntries;
+  payload.description = descriptionEntries;
   delete payload.translations;
   delete payload.localizedName;
   delete payload.localizedDescription;
+  delete payload.locales;
+  delete payload.nameTranslations;
+  delete payload.descriptionTranslations;
   return payload;
 }
 
@@ -447,19 +449,6 @@ function updateCommandBarVisibility(){
   const showLocale = !!(current && current.entity && current.entity.id && !isNew);
   toggle(els.localeSwitcher, showLocale);
 
-  // Sync mobile fab buttons
-  const fabPrompt = document.getElementById('fabPrompt');
-  const fabPromptImg = document.getElementById('fabPromptImg');
-  const fabSave = document.getElementById('fabSave');
-  const fabNew = document.getElementById('fabNew');
-  const fabLoad = document.getElementById('fabLoad');
-  toggle(fabPrompt, active);
-  toggle(fabPromptImg, active);
-  toggle(fabSave, active);
-  toggle(fabNew, !active);
-  toggle(fabLoad, !active);
-  if (fabSave) fabSave.disabled = els.saveBtn.disabled;
-
   // Right column content
   if (!active){
     els.builder.classList.remove('show');
@@ -478,28 +467,6 @@ function updateCommandBarVisibility(){
     }
   }
 
-  syncMobileDetailState();
-
-  if (!active && els.mobileFab) {
-    els.mobileFab.classList.remove('open');
-  }
-}
-
-function syncMobileDetailState(){
-  if (!els.main) return;
-  const isMobile = window.matchMedia('(max-width: 600px)').matches;
-  const active = hasActiveItem();
-  if (isMobile && active) {
-    els.main.classList.add('detail-open');
-    document.body.classList.add('detail-open');
-  } else {
-    els.main.classList.remove('detail-open');
-    document.body.classList.remove('detail-open');
-  }
-
-  if (els.mobileBackBtn) {
-    els.mobileBackBtn.tabIndex = isMobile && active ? 0 : -1;
-  }
 }
 
 // ===== Dictionaries =====
@@ -593,6 +560,24 @@ function normalizeEntityShape(src, options = {}){
   const nameTranslations = ensureTranslationMap(e.nameTranslations);
   const descriptionTranslations = ensureTranslationMap(e.descriptionTranslations);
 
+  const applyLocalizedArray = (target, value) => {
+    if (!Array.isArray(value)) return;
+    value.forEach(entry => {
+      if (!entry || typeof entry !== 'object') return;
+      const lang = typeof entry.language === 'string' ? entry.language.toLowerCase() : '';
+      if (!SUPPORTED_LANGUAGES.includes(lang)) return;
+      const val = typeof entry.value === 'string'
+        ? entry.value
+        : (typeof entry.name === 'string'
+          ? entry.name
+          : (typeof entry.text === 'string' ? entry.text : ''));
+      if (typeof val === 'string') target[lang] = val;
+    });
+  };
+
+  applyLocalizedArray(nameTranslations, e.name);
+  applyLocalizedArray(descriptionTranslations, e.description);
+
   for (const lang of SUPPORTED_LANGUAGES){
     if (!nameTranslations[lang] && prevNameTranslations[lang]) nameTranslations[lang] = prevNameTranslations[lang];
     if (!descriptionTranslations[lang] && prevDescTranslations[lang]) descriptionTranslations[lang] = prevDescTranslations[lang];
@@ -629,6 +614,8 @@ function normalizeEntityShape(src, options = {}){
   e.name = nameTranslations[DEFAULT_LANGUAGE] || '';
   e.description = descriptionTranslations[DEFAULT_LANGUAGE] || '';
   delete e.translations;
+  if (Array.isArray(e.name)) delete e.name;
+  if (Array.isArray(e.description)) delete e.description;
 
   return e;
 }
@@ -639,6 +626,49 @@ function getEntity(){
     nameTranslations: ensureTranslationMap(canonical.nameTranslations),
     descriptionTranslations: ensureTranslationMap(canonical.descriptionTranslations),
   };
+}
+
+function mergeLocalizedEntity(base, addition){
+  if (!addition) return base || null;
+  const incoming = {
+    ...addition,
+    nameTranslations: ensureTranslationMap(addition.nameTranslations),
+    descriptionTranslations: ensureTranslationMap(addition.descriptionTranslations),
+    [FIELD.equipmentRefs]: cloneArrayOfObjects(addition[FIELD.equipmentRefs]),
+    [FIELD.bundles]: cloneArrayOfObjects(addition[FIELD.bundles])
+  };
+
+  if (!base){
+    return incoming;
+  }
+
+  const merged = {
+    ...base,
+    nameTranslations: ensureTranslationMap(base.nameTranslations),
+    descriptionTranslations: ensureTranslationMap(base.descriptionTranslations)
+  };
+
+  for (const [key, value] of Object.entries(incoming)){
+    if (key === 'nameTranslations' || key === 'descriptionTranslations') continue;
+    if (key === FIELD.equipmentRefs || key === FIELD.bundles){
+      if (Array.isArray(value) && value.length) merged[key] = cloneArrayOfObjects(value);
+      continue;
+    }
+    if (value !== undefined && value !== null && value !== ''){
+      merged[key] = value;
+    }
+  }
+
+  merged.nameTranslations = {
+    ...merged.nameTranslations,
+    ...incoming.nameTranslations
+  };
+  merged.descriptionTranslations = {
+    ...merged.descriptionTranslations,
+    ...incoming.descriptionTranslations
+  };
+
+  return merged;
 }
 function setEntity(newEnt){
   canonical = {
@@ -858,42 +888,43 @@ async function selectItem(it){
   updateCommandBarVisibility();
 
   const previousEntity = getEntity();
-  const sameEntity = previousEntity?.id && String(previousEntity.id) === id;
 
   els.currentId.textContent = `Loading ID: ${id}…`;
   try{
-    const detail = await fetchExerciseExampleById(id);
-    const remoteEntity = detail?.entity || {};
-    const localizedNameFromServer = typeof remoteEntity.name === 'string' ? remoteEntity.name : '';
-    const localizedDescriptionFromServer = typeof remoteEntity.description === 'string' ? remoteEntity.description : '';
-    const normalized = normalizeEntityShape(remoteEntity, { locale: activeLocale, previous: sameEntity ? previousEntity : null });
+    const cachedLocales = it?.locales;
+    const hasCachedLocales = cachedLocales && SUPPORTED_LANGUAGES.every(lang => cachedLocales[lang]);
+    const responses = hasCachedLocales
+      ? SUPPORTED_LANGUAGES.map(lang => ({ lang, detail: cachedLocales[lang] }))
+      : await Promise.all(
+          SUPPORTED_LANGUAGES.map(async (lang) => ({ lang, detail: await fetchExerciseExampleById(id, lang) }))
+        );
 
-    let mergedEntity = normalized;
-    if (sameEntity){
-      mergedEntity = {
-        ...previousEntity,
-        ...normalized,
-        nameTranslations: {
-          ...previousEntity.nameTranslations,
-          ...normalized.nameTranslations,
-        },
-        descriptionTranslations: {
-          ...previousEntity.descriptionTranslations,
-          ...normalized.descriptionTranslations,
-        }
-      };
-      mergedEntity.nameTranslations[activeLocale] = getTranslation(normalized.nameTranslations, activeLocale);
-      mergedEntity.descriptionTranslations[activeLocale] = getTranslation(normalized.descriptionTranslations, activeLocale);
-      mergedEntity.name = getTranslation(mergedEntity.nameTranslations, DEFAULT_LANGUAGE);
-      mergedEntity.description = getTranslation(mergedEntity.descriptionTranslations, DEFAULT_LANGUAGE);
+    let mergedEntity = null;
+    let baseDetail = null;
+    const localesCache = {};
+    for (const {lang, detail} of responses){
+      localesCache[lang] = detail;
+      if (!baseDetail) baseDetail = detail;
+      const remoteEntity = detail?.entity || {};
+      const normalized = normalizeEntityShape(remoteEntity, { locale: lang, previous: mergedEntity || previousEntity });
+      const fallbackName = typeof remoteEntity.name === 'string' ? remoteEntity.name : '';
+      const fallbackDescription = typeof remoteEntity.description === 'string' ? remoteEntity.description : '';
+      if (fallbackName && !normalized.nameTranslations[lang]) {
+        normalized.nameTranslations[lang] = fallbackName;
+      }
+      if (fallbackDescription && !normalized.descriptionTranslations[lang]) {
+        normalized.descriptionTranslations[lang] = fallbackDescription;
+      }
+      mergedEntity = mergeLocalizedEntity(mergedEntity, normalized);
     }
 
+    if (!mergedEntity) throw new Error('No exercise data received');
     if (!mergedEntity.id) mergedEntity.id = id;
 
-    const localizedName = getTranslation(normalized.nameTranslations, activeLocale) || localizedNameFromServer;
-    const localizedDescription = getTranslation(normalized.descriptionTranslations, activeLocale) || localizedDescriptionFromServer;
-    mergedEntity.localizedName = localizedName;
-    mergedEntity.localizedDescription = localizedDescription;
+    mergedEntity.name = getTranslation(mergedEntity.nameTranslations, DEFAULT_LANGUAGE);
+    mergedEntity.description = getTranslation(mergedEntity.descriptionTranslations, DEFAULT_LANGUAGE);
+    mergedEntity.localizedName = getTranslation(mergedEntity.nameTranslations, activeLocale) || mergedEntity.name;
+    mergedEntity.localizedDescription = getTranslation(mergedEntity.descriptionTranslations, activeLocale) || mergedEntity.description;
 
     setEntity(mergedEntity);
     els.currentId.textContent = mergedEntity?.id ? `Editing ID: ${mergedEntity.id}` : `Editing ID: ${id}`;
@@ -901,15 +932,22 @@ async function selectItem(it){
     updateLocaleUI();
 
     const enrichedDetail = {
-      ...detail,
-      entity: {...mergedEntity}
+      ...(baseDetail || {}),
+      entity: {...mergedEntity},
+      locales: localesCache
     };
     current = enrichedDetail;
 
     const idx = items.findIndex(entry => String(entry?.entity?.id || '') === id);
-    if (idx >= 0) items[idx] = enrichedDetail;
+    if (idx >= 0) items[idx] = {
+      ...enrichedDetail,
+      entity: {...mergedEntity}
+    };
     const fIdx = filtered.findIndex(entry => String(entry?.entity?.id || '') === id);
-    if (fIdx >= 0) filtered[fIdx] = enrichedDetail;
+    if (fIdx >= 0) filtered[fIdx] = {
+      ...enrichedDetail,
+      entity: {...mergedEntity}
+    };
 
     renderList();
   }catch(e){
@@ -937,23 +975,15 @@ function newItem(){
   updateCommandBarVisibility(); // reflect active state
 }
 
-async function setActiveLocale(lang, {forceRefetch = false} = {}){
+async function setActiveLocale(lang){
   if (!SUPPORTED_LANGUAGES.includes(lang)) return;
   const snapshot = readFormToEntity(getEntity());
-  const hasCurrent = current && current.entity && current.entity.id && !isNew;
-  const same = lang === activeLocale;
 
-  if (!same){
-    activeLocale = lang;
-    try { localStorage.setItem(LOCALE_STORAGE_KEY, lang); } catch {}
-  }
+  activeLocale = lang;
+  try { localStorage.setItem(LOCALE_STORAGE_KEY, lang); } catch {}
 
   updateLocaleUI();
   setEntity(snapshot);
-
-  if (hasCurrent && (forceRefetch || !same)){
-    await selectItem(current);
-  }
   updateCommandBarVisibility();
 }
 
@@ -985,8 +1015,8 @@ async function loadList(){
   }finally{ els.load.disabled = false; }
 }
 
-async function fetchExerciseExampleById(id){
-  const headers = buildHeaders();
+async function fetchExerciseExampleById(id, locale){
+  const headers = buildHeaders({ locale });
   if (!headers.Authorization){
     toast({title:'Login required', message:'Please sign in first.', type:'error'});
     if (els.loginOverlay) els.loginOverlay.style.display='flex';
@@ -1014,7 +1044,6 @@ async function saveCurrent(){
   if (!ok){ toast({title:'Fix validation errors', type:'error'}); return; }
 
   els.saveBtn.disabled = true;
-  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
   try{
     if (isNew){
       // Create: DO NOT send id
@@ -1077,7 +1106,6 @@ async function saveCurrent(){
     console.error(e);
   }finally{
     els.saveBtn.disabled = false;
-    { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = false; }
   }
 }
 
@@ -1134,7 +1162,6 @@ function validateAll(){
   else if (warnings.length) setStatus('warn', warnings[0]);
   else setStatus('ok', 'Valid');
   els.saveBtn.disabled = !ok;
-  { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = els.saveBtn.disabled; }
 
   if (!els.editor.hasAttribute('hidden')) els.editor.value = pretty(ent);
   return {ok, errors, warnings};
@@ -1359,8 +1386,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
         event.preventDefault();
         const lang = btn.dataset.locale;
         if (!lang) return;
-        const forceRefetch = lang === activeLocale;
-        setActiveLocale(lang, {forceRefetch}).catch(err => console.error(err));
+        setActiveLocale(lang).catch(err => console.error(err));
       });
     });
   }
@@ -1410,15 +1436,6 @@ window.addEventListener('DOMContentLoaded', async ()=>{
   window.addEventListener('resize', positionSortMenu);
   updateSortUI();
   els.newBtn.addEventListener('click', newItem);
-  if (els.mobileBackBtn) {
-    els.mobileBackBtn.addEventListener('click', () => {
-      current = null; isNew = false;
-      els.currentId.textContent = 'No item selected';
-      updateCommandBarVisibility();
-      renderList();
-    });
-  }
-
   // Header actions
   els.saveBtn.addEventListener('click', saveCurrent);
   els.promptBtn.addEventListener('click', copyPrompt);
@@ -1482,7 +1499,6 @@ if (els.loginForm){
     if (!raw.trim()) {
       setStatus('warn','Waiting for JSON');
       els.saveBtn.disabled = true;
-      { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
       return;
     }
     try{
@@ -1493,7 +1509,6 @@ if (els.loginForm){
     }catch{
       setStatus('bad','Invalid JSON');
       els.saveBtn.disabled = true;
-      { const fabSave = document.getElementById('fabSave'); if (fabSave) fabSave.disabled = true; }
     }
   });
 
@@ -1511,22 +1526,10 @@ if (els.loginForm){
   els.editorWrap.hidden = true;
   document.body.classList.add('hide-json-controls');
 
-  // Floating action button for mobile
-  if (els.mobileFab && els.mobileFabToggle) {
-    const closeFab = () => els.mobileFab.classList.remove('open');
-    els.mobileFabToggle.addEventListener('click', () => els.mobileFab.classList.toggle('open'));
-    document.getElementById('fabNew').addEventListener('click', () => { els.newBtn.click(); closeFab(); });
-    document.getElementById('fabLoad').addEventListener('click', () => { els.load.click(); closeFab(); });
-    document.getElementById('fabPrompt').addEventListener('click', () => { els.promptBtn.click(); closeFab(); });
-    document.getElementById('fabPromptImg').addEventListener('click', () => { els.promptImgBtn.click(); closeFab(); });
-    document.getElementById('fabSave').addEventListener('click', () => { els.saveBtn.click(); closeFab(); });
-  }
-
   updateCommandBarVisibility(); // hide GPT/Save/toggle/status
   updateStickyOffsets();
   window.addEventListener('resize', () => {
     updateStickyOffsets();
-    syncMobileDetailState();
     closeSortMenu();
   });
 });

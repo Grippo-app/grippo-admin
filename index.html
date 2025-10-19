@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
   <title>Grippo Admin — Exercise Examples</title>
   <link rel="stylesheet" href="./styles.css"/>
 </head>
@@ -31,7 +30,6 @@
 
   <!-- Command bar: sticky below header -->
   <div id="commandBar" class="command-bar">
-    <button id="mobileBackBtn" class="btn muted" type="button" title="Back to list" aria-label="Back to list">&#8592; Back</button>
     <input id="search" type="search" placeholder="Search by name…"/>
     <div id="sortDropdown" class="dropdown">
       <button id="sortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
@@ -212,22 +210,6 @@
         </div>
       </section>
     </main>
-
-    <!-- Mobile floating action button -->
-    <div id="mobileFab" class="fab">
-    <div class="fab-menu">
-      <button id="fabNew" class="btn warn" title="Create new exercise example">New</button>
-      <button id="fabLoad" class="btn" title="Fetch list from API">Load list</button>
-      <button id="fabPrompt" class="btn gpt" title="Build GPT prompt">GPT Review</button>
-      <button id="fabPromptImg" class="btn gpt" title="Build Image Prompt">GPT Image</button>
-      <button id="fabSave" class="btn" disabled title="Save changes">Save</button>
-    </div>
-    <button id="fabToggle" class="btn fab-main" title="More actions">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    </button>
-  </div>
 
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">
