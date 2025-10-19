@@ -1,6 +1,7 @@
 // ===== Constants =====
 const API_BASE = 'https://grippo-app.com';
 const LIST_ENDPOINT   = `${API_BASE}/exercise-examples`;
+const DETAIL_ENDPOINT = (id) => `${API_BASE}/exercise-examples/${encodeURIComponent(id)}`;
 const CREATE_ENDPOINT = `${API_BASE}/exercise-examples`;
 const PUT_ENDPOINT    = (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`;
 
@@ -16,12 +17,23 @@ const FIELD = {
   percentage: 'percentage'
 };
 
+const SUPPORTED_LANGUAGES = ['en','ua','ru'];
+const DEFAULT_LANGUAGE = 'en';
+const LOCALE_STORAGE_KEY = 'grippo_admin_locale';
+
 // ===== State =====
 let items = [];
 let filtered = [];
 let current = null;
 let isNew = false;
 let currentSort = 'name';
+let activeLocale = DEFAULT_LANGUAGE;
+try {
+  const storedLocale = localStorage.getItem(LOCALE_STORAGE_KEY);
+  if (storedLocale && SUPPORTED_LANGUAGES.includes(storedLocale)) {
+    activeLocale = storedLocale;
+  }
+} catch {}
 
 // Persisted view mode (form or json) shared across exercises
 let viewMode = 'form';
@@ -76,6 +88,7 @@ const els = {
 
   currentId: document.getElementById('currentId'),
   jsonStatus: document.getElementById('jsonStatus'),
+  localeSwitcher: document.getElementById('localeSwitcher'),
   saveBtn: document.getElementById('saveBtn'),
   promptBtn: document.getElementById('promptBtn'),
   promptImgBtn: document.getElementById('promptImgBtn'),
@@ -114,6 +127,90 @@ const els = {
 
   itemTemplate: document.querySelector('#itemTemplate')
 };
+
+const localeButtons = Array.from(els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
+const defaultNamePlaceholder = els.fName?.getAttribute('placeholder') || '';
+const defaultDescriptionPlaceholder = els.fDescription?.getAttribute('placeholder') || '';
+
+function createEmptyTranslations(){
+  const map = {};
+  for (const lang of SUPPORTED_LANGUAGES){ map[lang] = ''; }
+  return map;
+}
+
+function ensureTranslationMap(value){
+  const base = createEmptyTranslations();
+  if (!value || typeof value !== 'object') return base;
+  for (const lang of SUPPORTED_LANGUAGES){
+    const raw = value[lang];
+    if (typeof raw === 'string') base[lang] = raw;
+    else if (raw != null) base[lang] = String(raw);
+  }
+  return base;
+}
+
+function getTranslation(map, lang){
+  if (!map || typeof map !== 'object') return '';
+  const raw = map[lang];
+  return typeof raw === 'string' ? raw : '';
+}
+
+function sanitizeTranslationPayload(map){
+  const payload = {};
+  if (!map || typeof map !== 'object') return payload;
+  for (const lang of SUPPORTED_LANGUAGES){
+    const raw = map[lang];
+    if (typeof raw === 'string'){
+      const trimmed = raw.trim();
+      if (trimmed) payload[lang] = trimmed;
+    }
+  }
+  return payload;
+}
+
+function buildHeaders({json = false, auth = true, accept = true} = {}){
+  const headers = {};
+  if (accept) headers.accept = 'application/json';
+  headers['accept-language'] = activeLocale;
+  if (json) headers['content-type'] = 'application/json';
+  if (auth){
+    Object.assign(headers, bearer());
+  }
+  return headers;
+}
+
+function buildLocalePlaceholder(basePlaceholder, fallbackValue, locale){
+  if (locale === DEFAULT_LANGUAGE) return basePlaceholder;
+  if (!fallbackValue) return basePlaceholder;
+  return `${fallbackValue} (${DEFAULT_LANGUAGE.toUpperCase()} fallback)`;
+}
+
+function buildPersistencePayload(entity){
+  const payload = {...entity};
+  payload.nameTranslations = sanitizeTranslationPayload(entity.nameTranslations);
+  payload.descriptionTranslations = sanitizeTranslationPayload(entity.descriptionTranslations);
+  const defaultName = getTranslation(entity.nameTranslations, DEFAULT_LANGUAGE).trim();
+  const defaultDescription = getTranslation(entity.descriptionTranslations, DEFAULT_LANGUAGE).trim();
+  payload.name = defaultName;
+  payload.description = defaultDescription;
+  delete payload.translations;
+  delete payload.localizedName;
+  delete payload.localizedDescription;
+  return payload;
+}
+
+function updateLocaleUI(){
+  if (!els.localeSwitcher) return;
+  els.localeSwitcher.setAttribute('data-active-locale', activeLocale);
+  localeButtons.forEach(btn => {
+    const lang = btn?.dataset?.locale;
+    if (!lang) return;
+    const isActive = lang === activeLocale;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', String(isActive));
+    btn.disabled = isActive;
+  });
+}
 
 // Login elements
 els.loginOverlay = document.getElementById('loginOverlay');
@@ -347,6 +444,8 @@ function updateCommandBarVisibility(){
   toggle(els.saveBtn, active);
   toggle(viewToggle, active);
   toggle(els.jsonStatus, active);
+  const showLocale = !!(current && current.entity && current.entity.id && !isNew);
+  toggle(els.localeSwitcher, showLocale);
 
   // Sync mobile fab buttons
   const fabPrompt = document.getElementById('fabPrompt');
@@ -406,7 +505,7 @@ function syncMobileDetailState(){
 // ===== Dictionaries =====
 async function fetchEquipmentDict(){
   try{
-    const resp = await fetch(EQUIPMENT_GROUPS_ENDPOINT, {headers:{accept:'application/json'}});
+    const resp = await fetch(EQUIPMENT_GROUPS_ENDPOINT, {headers: buildHeaders({auth:false})});
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
     const data = await resp.json();
     const equipments = [];
@@ -422,7 +521,7 @@ async function fetchEquipmentDict(){
 }
 async function fetchMuscleDict(){
   try{
-    const resp = await fetch(MUSCLE_GROUPS_ENDPOINT, {headers:{accept:'application/json'}});
+    const resp = await fetch(MUSCLE_GROUPS_ENDPOINT, {headers: buildHeaders({auth:false})});
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
     const data = await resp.json();
     if (Array.isArray(data)){
@@ -453,6 +552,8 @@ function emptyTemplate(){
     id: uuidv4(),
     name: '',
     description: '',
+    nameTranslations: createEmptyTranslations(),
+    descriptionTranslations: createEmptyTranslations(),
     weightType: '',
     category: '',
     experience: '',
@@ -462,7 +563,10 @@ function emptyTemplate(){
     [FIELD.equipmentRefs]: []
   };
 }
-function normalizeEntityShape(src){
+function normalizeEntityShape(src, options = {}){
+  const locale = SUPPORTED_LANGUAGES.includes(options.locale) ? options.locale : DEFAULT_LANGUAGE;
+  const previous = options.previous && typeof options.previous === 'object' ? options.previous : null;
+
   const e = {...src};
   const eq = Array.isArray(e[FIELD.equipmentRefs]) ? e[FIELD.equipmentRefs] : [];
   e[FIELD.equipmentRefs] = eq.map(x=>{
@@ -473,6 +577,7 @@ function normalizeEntityShape(src){
     }
     return null;
   }).filter(Boolean);
+
   const rawB = Array.isArray(e[FIELD.bundles]) ? e[FIELD.bundles] : [];
   e[FIELD.bundles] = rawB.map(b=>{
     if (!b || typeof b !== 'object') return null;
@@ -481,12 +586,66 @@ function normalizeEntityShape(src){
     if (!muscleId || !isFinite(percentage)) return null;
     return { muscleId, percentage };
   }).filter(Boolean);
+
+  const prevNameTranslations = ensureTranslationMap(previous?.nameTranslations);
+  const prevDescTranslations = ensureTranslationMap(previous?.descriptionTranslations);
+
+  const nameTranslations = ensureTranslationMap(e.nameTranslations);
+  const descriptionTranslations = ensureTranslationMap(e.descriptionTranslations);
+
+  for (const lang of SUPPORTED_LANGUAGES){
+    if (!nameTranslations[lang] && prevNameTranslations[lang]) nameTranslations[lang] = prevNameTranslations[lang];
+    if (!descriptionTranslations[lang] && prevDescTranslations[lang]) descriptionTranslations[lang] = prevDescTranslations[lang];
+  }
+
+  const rawTranslations = Array.isArray(e.translations) ? e.translations : [];
+  rawTranslations.forEach(tr => {
+    if (!tr || typeof tr !== 'object') return;
+    const lang = typeof tr.language === 'string' ? tr.language.toLowerCase() : '';
+    if (!SUPPORTED_LANGUAGES.includes(lang)) return;
+    if (typeof tr.name === 'string') nameTranslations[lang] = tr.name;
+    if (typeof tr.description === 'string') descriptionTranslations[lang] = tr.description;
+  });
+
+  if (typeof e.name === 'string' && !nameTranslations[locale]) nameTranslations[locale] = e.name;
+  if (typeof e.description === 'string' && !descriptionTranslations[locale]) descriptionTranslations[locale] = e.description;
+
+  if (typeof e.name === 'string' && locale === DEFAULT_LANGUAGE && !nameTranslations[DEFAULT_LANGUAGE]) {
+    nameTranslations[DEFAULT_LANGUAGE] = e.name;
+  }
+  if (typeof e.description === 'string' && locale === DEFAULT_LANGUAGE && !descriptionTranslations[DEFAULT_LANGUAGE]) {
+    descriptionTranslations[DEFAULT_LANGUAGE] = e.description;
+  }
+
+  if (!nameTranslations[DEFAULT_LANGUAGE] && typeof previous?.name === 'string') {
+    nameTranslations[DEFAULT_LANGUAGE] = previous.name;
+  }
+  if (!descriptionTranslations[DEFAULT_LANGUAGE] && typeof previous?.description === 'string') {
+    descriptionTranslations[DEFAULT_LANGUAGE] = previous.description;
+  }
+
+  e.nameTranslations = nameTranslations;
+  e.descriptionTranslations = descriptionTranslations;
+  e.name = nameTranslations[DEFAULT_LANGUAGE] || '';
+  e.description = descriptionTranslations[DEFAULT_LANGUAGE] || '';
+  delete e.translations;
+
   return e;
 }
 let canonical = emptyTemplate();
-function getEntity(){ return {...canonical}; }
+function getEntity(){
+  return {
+    ...canonical,
+    nameTranslations: ensureTranslationMap(canonical.nameTranslations),
+    descriptionTranslations: ensureTranslationMap(canonical.descriptionTranslations),
+  };
+}
 function setEntity(newEnt){
-  canonical = {...newEnt};
+  canonical = {
+    ...newEnt,
+    nameTranslations: ensureTranslationMap(newEnt.nameTranslations),
+    descriptionTranslations: ensureTranslationMap(newEnt.descriptionTranslations),
+  };
   writeEntityToForm(canonical);
   els.editor.value = pretty(canonical);
   validateAll();
@@ -501,14 +660,15 @@ function renderList(){
   filtered.forEach(it=>{
     const node = els.itemTemplate.content.firstElementChild.cloneNode(true);
     const entity = it.entity;
-    node.querySelector('.name').textContent = entity?.name || '(no name)';
+    const displayName = entity?.localizedName || entity?.name || '(no name)';
+    node.querySelector('.name').textContent = displayName;
     node.querySelector('.usage').textContent = `used ${it.usageCount ?? 0}`;
     node.querySelector('.lastUsed').textContent = it.lastUsed ? `last: ${formatIso(it.lastUsed)}` : 'last: —';
     const thumb = node.querySelector('.thumb');
     if (thumb){
       if (entity?.imageUrl){
         thumb.src = entity.imageUrl;
-        thumb.alt = entity.name || '';
+        thumb.alt = displayName || '';
         thumb.addEventListener('error', ()=> thumb.remove());
       } else {
         thumb.remove();
@@ -538,16 +698,26 @@ function renderList(){
 }
 function applySearch(){
   const q = (els.search?.value || '').trim().toLowerCase();
-  filtered = !q ? items.slice() : items.filter(it => (it.entity?.name || '').toLowerCase().includes(q));
+  filtered = !q ? items.slice() : items.filter(it => {
+    const value = (it.entity?.localizedName || it.entity?.name || '').toLowerCase();
+    return value.includes(q);
+  });
   renderList();
 }
 
 // ===== Form sync =====
 function readFormToEntity(entity){
   const e = {...entity};
-  e.name = els.fName.value.trim();
+  const locale = activeLocale;
+  const nameValue = els.fName.value.trim();
+  const descriptionValue = els.fDescription.value.trim();
+  e.nameTranslations = ensureTranslationMap(e.nameTranslations);
+  e.descriptionTranslations = ensureTranslationMap(e.descriptionTranslations);
+  e.nameTranslations[locale] = nameValue;
+  e.descriptionTranslations[locale] = descriptionValue;
+  e.name = getTranslation(e.nameTranslations, DEFAULT_LANGUAGE);
   e.imageUrl = els.fImage.value.trim();
-  e.description = els.fDescription.value.trim();
+  e.description = getTranslation(e.descriptionTranslations, DEFAULT_LANGUAGE);
   e.weightType = els.fWeightType.value;
   e.category = els.fCategory.value;
   e.experience = els.fExperience.value;
@@ -555,10 +725,20 @@ function readFormToEntity(entity){
   return e;
 }
 function writeEntityToForm(entity){
+  const locale = activeLocale;
+  const nameTranslations = ensureTranslationMap(entity?.nameTranslations);
+  const descTranslations = ensureTranslationMap(entity?.descriptionTranslations);
+  const localeName = getTranslation(nameTranslations, locale);
+  const localeDescription = getTranslation(descTranslations, locale);
+  const defaultName = getTranslation(nameTranslations, DEFAULT_LANGUAGE) || entity?.name || '';
+  const defaultDescription = getTranslation(descTranslations, DEFAULT_LANGUAGE) || entity?.description || '';
+
   els.fId.value = entity?.id || '';
-  els.fName.value = entity?.name || '';
+  els.fName.value = localeName;
+  els.fName.placeholder = buildLocalePlaceholder(defaultNamePlaceholder, defaultName, locale);
   els.fImage.value = entity?.imageUrl || '';
-  els.fDescription.value = entity?.description || '';
+  els.fDescription.value = localeDescription;
+  els.fDescription.placeholder = buildLocalePlaceholder(defaultDescriptionPlaceholder, defaultDescription, locale);
   els.fWeightType.value = entity?.weightType || '';
   els.fCategory.value = entity?.category || '';
   els.fExperience.value = entity?.experience || '';
@@ -662,18 +842,88 @@ function addBundleFromInputs(){
 }
 
 // ===== Selection & CRUD =====
-function selectItem(it){
-  current = it; isNew = false;
-  const e = it.entity || emptyTemplate();
-  canonical = normalizeEntityShape(e);
-  els.currentId.textContent = canonical?.id ? `Editing ID: ${canonical.id}` : 'Editing: unknown ID';
-  writeEntityToForm(canonical);
-  els.editor.value = pretty(canonical);
-  applyViewMode();
-  validateAll();
-  autosizeEditor();
+async function selectItem(it){
+  if (!it || !it.entity) return;
+  const id = String(it.entity.id || '').trim();
+  if (!id){ toast({title:'Missing ID', type:'error'}); return; }
+
+  const prevCurrent = current;
+  const prevEntitySnapshot = getEntity();
+  const prevIsNew = isNew;
+  const prevIdText = els.currentId.textContent;
+
+  isNew = false;
+  current = it;
   renderList();
-  updateCommandBarVisibility(); // reflect active state
+  updateCommandBarVisibility();
+
+  const previousEntity = getEntity();
+  const sameEntity = previousEntity?.id && String(previousEntity.id) === id;
+
+  els.currentId.textContent = `Loading ID: ${id}…`;
+  try{
+    const detail = await fetchExerciseExampleById(id);
+    const remoteEntity = detail?.entity || {};
+    const localizedNameFromServer = typeof remoteEntity.name === 'string' ? remoteEntity.name : '';
+    const localizedDescriptionFromServer = typeof remoteEntity.description === 'string' ? remoteEntity.description : '';
+    const normalized = normalizeEntityShape(remoteEntity, { locale: activeLocale, previous: sameEntity ? previousEntity : null });
+
+    let mergedEntity = normalized;
+    if (sameEntity){
+      mergedEntity = {
+        ...previousEntity,
+        ...normalized,
+        nameTranslations: {
+          ...previousEntity.nameTranslations,
+          ...normalized.nameTranslations,
+        },
+        descriptionTranslations: {
+          ...previousEntity.descriptionTranslations,
+          ...normalized.descriptionTranslations,
+        }
+      };
+      mergedEntity.nameTranslations[activeLocale] = getTranslation(normalized.nameTranslations, activeLocale);
+      mergedEntity.descriptionTranslations[activeLocale] = getTranslation(normalized.descriptionTranslations, activeLocale);
+      mergedEntity.name = getTranslation(mergedEntity.nameTranslations, DEFAULT_LANGUAGE);
+      mergedEntity.description = getTranslation(mergedEntity.descriptionTranslations, DEFAULT_LANGUAGE);
+    }
+
+    if (!mergedEntity.id) mergedEntity.id = id;
+
+    const localizedName = getTranslation(normalized.nameTranslations, activeLocale) || localizedNameFromServer;
+    const localizedDescription = getTranslation(normalized.descriptionTranslations, activeLocale) || localizedDescriptionFromServer;
+    mergedEntity.localizedName = localizedName;
+    mergedEntity.localizedDescription = localizedDescription;
+
+    setEntity(mergedEntity);
+    els.currentId.textContent = mergedEntity?.id ? `Editing ID: ${mergedEntity.id}` : `Editing ID: ${id}`;
+    applyViewMode();
+    updateLocaleUI();
+
+    const enrichedDetail = {
+      ...detail,
+      entity: {...mergedEntity}
+    };
+    current = enrichedDetail;
+
+    const idx = items.findIndex(entry => String(entry?.entity?.id || '') === id);
+    if (idx >= 0) items[idx] = enrichedDetail;
+    const fIdx = filtered.findIndex(entry => String(entry?.entity?.id || '') === id);
+    if (fIdx >= 0) filtered[fIdx] = enrichedDetail;
+
+    renderList();
+  }catch(e){
+    console.error(e);
+    toast({title:'Failed to load item', message:String(e.message||e), type:'error'});
+    current = prevCurrent;
+    isNew = prevIsNew;
+    setEntity(prevEntitySnapshot);
+    els.currentId.textContent = prevIdText || 'No item selected';
+    updateLocaleUI();
+    renderList();
+  }finally{
+    updateCommandBarVisibility(); // reflect active state
+  }
 }
 function newItem(){
   current = null; isNew = true;
@@ -687,8 +937,28 @@ function newItem(){
   updateCommandBarVisibility(); // reflect active state
 }
 
+async function setActiveLocale(lang, {forceRefetch = false} = {}){
+  if (!SUPPORTED_LANGUAGES.includes(lang)) return;
+  const snapshot = readFormToEntity(getEntity());
+  const hasCurrent = current && current.entity && current.entity.id && !isNew;
+  const same = lang === activeLocale;
+
+  if (!same){
+    activeLocale = lang;
+    try { localStorage.setItem(LOCALE_STORAGE_KEY, lang); } catch {}
+  }
+
+  updateLocaleUI();
+  setEntity(snapshot);
+
+  if (hasCurrent && (forceRefetch || !same)){
+    await selectItem(current);
+  }
+  updateCommandBarVisibility();
+}
+
 async function loadList(){
-  const headers = {accept:'application/json', ...bearer()};
+  const headers = buildHeaders();
   if (!headers.Authorization){
     toast({title:'Login required', message:'Please sign in first.', type:'error', ms:3500});
     if (els.loginOverlay) els.loginOverlay.style.display='flex';
@@ -702,7 +972,12 @@ async function loadList(){
     }
     const data = await resp.json();
     if(!Array.isArray(data)) throw new Error('Unexpected response shape: expected an array');
-    items = data;
+    items = data.map(entry => {
+      const entity = entry?.entity ? {...entry.entity} : {};
+      if (entity && typeof entity.name === 'string') entity.localizedName = entity.name;
+      if (entity && typeof entity.description === 'string') entity.localizedDescription = entity.description;
+      return {...entry, entity};
+    });
     applySearch();
     toast({title:'Loaded', message:`Items: ${items.length}`});
   }catch(e){
@@ -710,8 +985,23 @@ async function loadList(){
   }finally{ els.load.disabled = false; }
 }
 
+async function fetchExerciseExampleById(id){
+  const headers = buildHeaders();
+  if (!headers.Authorization){
+    toast({title:'Login required', message:'Please sign in first.', type:'error'});
+    if (els.loginOverlay) els.loginOverlay.style.display='flex';
+    throw new Error('Not authenticated');
+  }
+  const resp = await fetch(DETAIL_ENDPOINT(id), {headers, method:'GET'});
+  if (!resp.ok){
+    const text = await resp.text();
+    throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0,400)}`);
+  }
+  return resp.json();
+}
+
 async function saveCurrent(){
-  const headers = {'accept':'application/json','content-type':'application/json', ...bearer()};
+  const headers = buildHeaders({json:true});
   if (!headers.Authorization){
     toast({title:'Login required', message:'Please sign in first.', type:'error'});
     if (els.loginOverlay) els.loginOverlay.style.display='flex';
@@ -728,7 +1018,7 @@ async function saveCurrent(){
   try{
     if (isNew){
       // Create: DO NOT send id
-      const payload = {...canonical};
+      const payload = buildPersistencePayload({...canonical});
       delete payload.id;
       delete payload.createdAt;
       delete payload.updatedAt;
@@ -764,7 +1054,7 @@ async function saveCurrent(){
       const id = current?.entity?.id || canonical.id;
       if (!id){ toast({title:'Missing ID', type:'error'}); return; }
 
-      const payload = {...canonical};
+      const payload = buildPersistencePayload({...canonical});
       delete payload.id;
       delete payload.createdAt;
       delete payload.updatedAt;
@@ -798,8 +1088,12 @@ function validateAll(){
   const errors = [];
   const warnings = [];
 
-  if (!ent.name) errors.push('Missing: name');
-  if (!ent.description) errors.push('Missing: description');
+  const defaultName = getTranslation(ent.nameTranslations, DEFAULT_LANGUAGE).trim();
+  const defaultDescription = getTranslation(ent.descriptionTranslations, DEFAULT_LANGUAGE).trim();
+  ent.name = defaultName;
+  ent.description = defaultDescription;
+  if (!defaultName) errors.push(`Missing: name (${DEFAULT_LANGUAGE.toUpperCase()})`);
+  if (!defaultDescription) errors.push(`Missing: description (${DEFAULT_LANGUAGE.toUpperCase()})`);
   if (!ent.weightType) errors.push('Missing: weightType');
   if (!ent.category) errors.push('Missing: category');
   if (!ent.experience) errors.push('Missing: experience');
@@ -1058,6 +1352,18 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 
   await Promise.all([fetchEquipmentDict(), fetchMuscleDict()]);
   refreshOptionLists();
+  updateLocaleUI();
+  if (els.localeSwitcher){
+    localeButtons.forEach(btn => {
+      btn.addEventListener('click', (event) => {
+        event.preventDefault();
+        const lang = btn.dataset.locale;
+        if (!lang) return;
+        const forceRefetch = lang === activeLocale;
+        setActiveLocale(lang, {forceRefetch}).catch(err => console.error(err));
+      });
+    });
+  }
 
   // Sidebar
   els.load.addEventListener('click', loadList);
@@ -1135,7 +1441,7 @@ if (els.loginForm){
     try{
       const resp = await fetch(LOGIN_ENDPOINT, {
         method:'POST',
-        headers:{'content-type':'application/json','accept':'application/json'},
+        headers: buildHeaders({json:true, auth:false}),
         body: JSON.stringify({email, password})
       });
       if(!resp.ok){
@@ -1181,7 +1487,7 @@ if (els.loginForm){
     }
     try{
       const obj = JSON.parse(raw);
-      canonical = normalizeEntityShape(obj);
+      canonical = normalizeEntityShape(obj, { locale: activeLocale, previous: canonical });
       writeEntityToForm(canonical);
       validateAll();
     }catch{

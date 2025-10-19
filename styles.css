@@ -161,6 +161,47 @@ header{
 .command-bar .dropdown-item:focus{ background:var(--field-hover); outline:none; }
 .command-bar .dropdown-item.active{ background:var(--field-focus); font-weight:600; }
 
+.locale-switcher{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:4px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--panel-2);
+  flex-shrink:0;
+}
+.locale-switcher .locale-btn{
+  background:transparent;
+  border:0;
+  color:var(--muted);
+  font:600 12px/1.1 "Inter",system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  padding:6px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.locale-switcher .locale-btn:hover,
+.locale-switcher .locale-btn:focus{
+  background:var(--field-hover);
+  color:var(--text);
+  outline:none;
+}
+.locale-switcher .locale-btn.active{
+  background:var(--field-focus);
+  color:var(--text);
+  box-shadow:0 0 0 1px rgba(119,182,255,.25);
+}
+.locale-switcher .locale-btn:disabled{
+  opacity:1;
+  cursor:default;
+}
+.locale-switcher .locale-btn:focus-visible{
+  box-shadow:0 0 0 2px rgba(119,182,255,.32);
+}
+
 /* Floating action button (hidden by default) */
 .fab{display:none;}
 #mobileBackBtn{display:none;}
