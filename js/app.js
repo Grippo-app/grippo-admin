@@ -796,13 +796,16 @@ class GrippoAdminApp {
     const prevEntitySnapshot = this.getEntity();
     const prevIsNew = this.isNew;
     const prevIdText = this.els.currentId?.textContent;
+    const prevId = prevCurrent?.entity?.id;
+    const nextId = item?.entity?.id;
+    const isSameItem = prevId && nextId && String(prevId) === String(nextId);
 
     this.isNew = false;
     this.current = item;
     this.renderList();
     this.updateCommandBarVisibility();
 
-    const previousEntity = this.getEntity();
+    const previousEntity = isSameItem ? prevEntitySnapshot : null;
     if (this.els.currentId) this.els.currentId.textContent = `Loading ID: ${id}…`;
 
     try {
