@@ -293,9 +293,8 @@ header{
              radial-gradient(circle at 80% 20%, rgba(124,255,0,.07), transparent 45%),
              var(--field);
   overflow:hidden;
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:grid;
+  place-items:center;
   inline-size:var(--preview-size);
   block-size:var(--preview-size);
   max-inline-size:100%;
@@ -305,6 +304,10 @@ header{
   padding:0;
   border:1px dashed var(--border);
   color:inherit;
+}
+.preview-frame img,
+.preview-empty{
+  grid-area:1 / 1;
 }
 .preview-frame img{
   width:100%;
@@ -324,6 +327,8 @@ header{
 .preview-empty{
   color:var(--muted);
   font-size:13px;
+  text-align:center;
+  padding:0 12px;
 }
 .image-lightbox{
   position:fixed;
