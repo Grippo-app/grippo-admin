@@ -742,24 +742,18 @@ class GrippoAdminApp {
   updatePreviewSize() {
     if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
 
-    const introHeight = this.els.introMain.offsetHeight;
+    const introHeight = this.els.introMain.scrollHeight;
     if (!introHeight) return;
 
+    const target = Math.round(Math.min(420, Math.max(260, introHeight)));
     const cardStyles = getComputedStyle(this.els.previewCard);
     const paddingX = parseFloat(cardStyles.paddingLeft || '0') + parseFloat(cardStyles.paddingRight || '0');
 
-    const rowWidth = this.els.introRow?.clientWidth || 0;
-    const mainWidth = this.els.introMain.getBoundingClientRect().width || 0;
-    const rowStyles = this.els.introRow ? getComputedStyle(this.els.introRow) : null;
-    const gap = parseFloat(rowStyles?.columnGap || rowStyles?.gap || '0');
-    const availableWidth = rowWidth ? Math.max(0, rowWidth - mainWidth - gap) : this.els.previewCard.clientWidth;
-
-    const size = Math.min(introHeight, availableWidth || introHeight);
-
-    if (Number.isFinite(size) && size > 0) {
-      this.els.previewCard.style.setProperty('--preview-size', `${size}px`);
-      this.els.previewCard.style.width = `${size + paddingX}px`;
-    }
+    this.els.introMain.style.minHeight = `${target}px`;
+    this.els.introMain.style.maxHeight = `${target}px`;
+    this.els.previewCard.style.setProperty('--preview-size', `${target}px`);
+    this.els.previewCard.style.width = `${target + paddingX}px`;
+    this.els.introRow?.style.setProperty('--intro-fixed-h', `${target}px`);
   }
 
   openImageLightbox() {

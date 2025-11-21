@@ -241,14 +241,15 @@ header{
   cursor:default;
 }
 .intro-row{
+  --intro-fixed-h: 320px;
   display:grid;
   grid-template-columns:auto 1fr;
   gap:16px;
-  align-items:stretch;
+  align-items:flex-start;
   margin-bottom:var(--block-gap);
 }
 .preview-card{
-  --preview-size: clamp(220px, 28vw, 640px);
+  --preview-size: var(--intro-fixed-h);
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid var(--border);
   border-radius:16px;
@@ -259,9 +260,9 @@ header{
   align-items:center;
   gap:10px;
   min-width:220px;
-  width:auto;
+  width:calc(var(--preview-size) + 24px);
   max-width:100%;
-  align-self:start;
+  align-self:flex-start;
 }
 .intro-main{
   flex:1 1 360px;
@@ -271,6 +272,10 @@ header{
   border-radius:16px;
   padding:16px;
   box-shadow:var(--shadow);
+  min-height:var(--intro-fixed-h);
+  max-height:var(--intro-fixed-h);
+  display:flex;
+  flex-direction:column;
 }
 .intro-stack{ display:flex; flex-direction:column; gap:12px; }
 .preview-label{
