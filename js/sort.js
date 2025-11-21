@@ -1,7 +1,11 @@
+import { DEFAULT_LANGUAGE } from './constants.js';
 import { compareStrings, safeString, toTimestamp } from './utils.js';
 
 function getItemName(item) {
-  return safeString(item?.entity?.name ?? item?.name ?? '').trim();
+  const translations = item?.entity?.nameTranslations || {};
+  const englishName = translations[DEFAULT_LANGUAGE];
+  const fallback = item?.entity?.name ?? item?.name ?? '';
+  return safeString(englishName ?? fallback).trim();
 }
 
 function getCreatedAtStamp(item) {
