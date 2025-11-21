@@ -28,6 +28,7 @@ class GrippoAdminApp {
     this.current = null;
     this.isNew = false;
     this.canonical = EntityToolkit.emptyTemplate();
+    this.activeSection = 'exercise';
 
     this.els = {};
     this.localeButtons = [];
@@ -37,6 +38,8 @@ class GrippoAdminApp {
 
   async init() {
     this.cacheElements();
+    this.updatePrimarySectionVisibility();
+    this.attachPrimaryNavHandlers();
     this.loadPersistedState();
     await this.dictionaries.loadAll();
     this.refreshOptionLists();
@@ -94,12 +97,23 @@ class GrippoAdminApp {
       loginEmail: document.getElementById('loginEmail'),
       loginPassword: document.getElementById('loginPassword'),
       loginError: document.getElementById('loginError'),
-      logoutBtn: document.getElementById('logoutBtn')
+      logoutBtn: document.getElementById('logoutBtn'),
+      commandBar: document.getElementById('commandBar'),
+      exerciseView: document.getElementById('exerciseView'),
+      generalView: document.getElementById('generalView'),
+      tabExercise: document.getElementById('tabExercise'),
+      tabGeneral: document.getElementById('tabGeneral'),
+      previewImg: document.getElementById('exercisePreview'),
+      previewCard: document.getElementById('exercisePreviewCard'),
+      previewEmpty: document.getElementById('exercisePreviewEmpty')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
     this.defaultNamePlaceholder = this.els.fName?.getAttribute('placeholder') || '';
     this.defaultDescriptionPlaceholder = this.els.fDescription?.getAttribute('placeholder') || '';
+    if (this.els.previewImg) {
+      this.els.previewImg.addEventListener('error', () => this.renderImagePreview(''));
+    }
   }
 
   loadPersistedState() {
@@ -163,6 +177,17 @@ class GrippoAdminApp {
         commandBar.addEventListener('scroll', handler);
       }
     }
+  }
+
+  attachPrimaryNavHandlers() {
+    [this.els.tabExercise, this.els.tabGeneral]
+      .filter(Boolean)
+      .forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.section;
+          this.setActiveSection(target);
+        });
+      });
   }
 
   attachSortHandlers() {
@@ -313,6 +338,37 @@ class GrippoAdminApp {
   logout() {
     this.api.clearAuthToken();
     this.showLoginOverlay();
+  }
+
+  setActiveSection(section) {
+    if (!section || section === this.activeSection) return;
+    this.activeSection = section;
+    this.updatePrimarySectionVisibility();
+    this.updateStickyOffsets();
+    if (section === 'exercise') this.updateCommandBarVisibility();
+  }
+
+  updatePrimarySectionVisibility() {
+    const showExercise = this.activeSection !== 'general';
+    const showGeneral = this.activeSection === 'general';
+    this.toggleElement(this.els.commandBar, showExercise);
+    if (this.els.commandBar) this.els.commandBar.hidden = !showExercise;
+    if (this.els.exerciseView) {
+      this.els.exerciseView.hidden = !showExercise;
+      this.els.exerciseView.classList.toggle('active', showExercise);
+    }
+    if (this.els.generalView) {
+      this.els.generalView.hidden = !showGeneral;
+      this.els.generalView.classList.toggle('active', showGeneral);
+    }
+    if (this.els.tabExercise) {
+      this.els.tabExercise.classList.toggle('active', showExercise);
+      this.els.tabExercise.setAttribute('aria-selected', String(showExercise));
+    }
+    if (this.els.tabGeneral) {
+      this.els.tabGeneral.classList.toggle('active', showGeneral);
+      this.els.tabGeneral.setAttribute('aria-selected', String(showGeneral));
+    }
   }
 
   updateStickyOffsets() {
@@ -615,6 +671,7 @@ class GrippoAdminApp {
       );
     }
     if (this.els.fImage) this.els.fImage.value = entity?.imageUrl || '';
+    this.renderImagePreview(entity?.imageUrl || '');
     if (this.els.fDescription) {
       this.els.fDescription.value = localeDescription;
       this.els.fDescription.placeholder = EntityToolkit.buildLocalePlaceholder(
@@ -629,6 +686,25 @@ class GrippoAdminApp {
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
     this.renderEquipmentTokens(entity);
     this.renderBundles(entity);
+  }
+
+  renderImagePreview(url) {
+    if (!this.els.previewCard) return;
+    const hasImage = !!url;
+    const altName = (this.els.fName?.value || this.canonical?.name || 'Exercise').trim();
+    if (this.els.previewImg) {
+      if (hasImage) {
+        this.els.previewImg.src = url;
+        this.els.previewImg.alt = `${altName || 'Exercise'} illustration`;
+      } else {
+        this.els.previewImg.removeAttribute('src');
+        this.els.previewImg.alt = 'Exercise image preview';
+      }
+    }
+    if (this.els.previewEmpty) {
+      this.els.previewEmpty.textContent = 'No image selected yet';
+    }
+    this.els.previewCard.classList.toggle('has-image', hasImage);
   }
 
   renderEquipmentTokens(entity) {
