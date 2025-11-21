@@ -108,6 +108,7 @@ class GrippoAdminApp {
       previewCard: document.getElementById('exercisePreviewCard'),
       previewEmpty: document.getElementById('exercisePreviewEmpty'),
       previewFrame: document.getElementById('previewFrame'),
+      previewLabel: document.querySelector('.preview-card .preview-label'),
       introRow: document.querySelector('.intro-row'),
       lightbox: document.getElementById('imageLightbox'),
       lightboxImg: document.getElementById('lightboxImage'),
@@ -742,17 +743,27 @@ class GrippoAdminApp {
   updatePreviewSize() {
     if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
 
-    const introHeight = this.els.introMain.scrollHeight;
+    const introRect = this.els.introMain.getBoundingClientRect();
+    const introHeight = Math.round(introRect.height || this.els.introMain.scrollHeight);
     if (!introHeight) return;
 
     const target = Math.round(Math.min(420, Math.max(260, introHeight)));
     const cardStyles = getComputedStyle(this.els.previewCard);
     const paddingX = parseFloat(cardStyles.paddingLeft || '0') + parseFloat(cardStyles.paddingRight || '0');
+    const paddingY = parseFloat(cardStyles.paddingTop || '0') + parseFloat(cardStyles.paddingBottom || '0');
+    const gapY = parseFloat(cardStyles.rowGap || cardStyles.gap || '0');
+    const labelHeight = this.els.previewLabel?.getBoundingClientRect()?.height || 0;
+    const labelMargin = this.els.previewLabel ? parseFloat(getComputedStyle(this.els.previewLabel).marginBottom || '0') : 0;
+    const available = Math.max(0, target - paddingY - labelHeight - labelMargin - gapY);
+    const frameSize = Math.max(160, Math.min(target, available));
 
     this.els.introMain.style.minHeight = `${target}px`;
     this.els.introMain.style.maxHeight = `${target}px`;
-    this.els.previewCard.style.setProperty('--preview-size', `${target}px`);
-    this.els.previewCard.style.width = `${target + paddingX}px`;
+    this.els.previewCard.style.height = `${target}px`;
+    this.els.previewCard.style.minHeight = `${target}px`;
+    this.els.previewCard.style.maxHeight = `${target}px`;
+    this.els.previewCard.style.setProperty('--preview-size', `${frameSize}px`);
+    this.els.previewCard.style.width = `${frameSize + paddingX}px`;
     this.els.introRow?.style.setProperty('--intro-fixed-h', `${target}px`);
   }
 
