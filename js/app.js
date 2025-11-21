@@ -36,6 +36,15 @@ class GrippoAdminApp {
     this.defaultDescriptionPlaceholder = '';
   }
 
+  getListName(item) {
+    const translations = EntityToolkit.ensureTranslationMap(item?.entity?.nameTranslations);
+    const english = EntityToolkit.getTranslation(translations, DEFAULT_LANGUAGE);
+    if (english) return english;
+    if (typeof item?.entity?.name === 'string') return item.entity.name;
+    if (typeof item?.name === 'string') return item.name;
+    return '';
+  }
+
   async init() {
     this.cacheElements();
     this.updatePrimarySectionVisibility();
@@ -563,9 +572,16 @@ class GrippoAdminApp {
       const data = await this.api.fetchList();
       if (!Array.isArray(data)) throw new Error('Unexpected response shape: expected an array');
       this.items = data.map((entry) => {
-        const entity = entry?.entity ? { ...entry.entity } : {};
-        if (entity && typeof entity.name === 'string') entity.localizedName = entity.name;
-        if (entity && typeof entity.description === 'string') entity.localizedDescription = entity.description;
+        const rawEntity = entry?.entity ? { ...entry.entity } : {};
+        const normalized = EntityToolkit.normalizeEntityShape(rawEntity, { locale: DEFAULT_LANGUAGE });
+        const entity = {
+          ...normalized,
+          localizedName:
+            EntityToolkit.getTranslation(normalized.nameTranslations, DEFAULT_LANGUAGE) || normalized.name || '',
+          localizedDescription:
+            EntityToolkit.getTranslation(normalized.descriptionTranslations, DEFAULT_LANGUAGE) ||
+            normalized.description || ''
+        };
         return { ...entry, entity };
       });
       this.applySearch();
@@ -583,7 +599,7 @@ class GrippoAdminApp {
     this.filtered = !query
       ? [...this.items]
       : this.items.filter((item) => {
-          const value = (item.entity?.localizedName || item.entity?.name || '').toLowerCase();
+          const value = this.getListName(item).toLowerCase();
           return value.includes(query);
         });
     this.renderList();
@@ -597,7 +613,7 @@ class GrippoAdminApp {
     this.filtered.forEach((item) => {
       const node = this.els.itemTemplate.content.firstElementChild.cloneNode(true);
       const entity = item.entity;
-      const displayName = entity?.localizedName || entity?.name || '(no name)';
+      const displayName = this.getListName(item) || '(no name)';
       node.querySelector('.name').textContent = displayName;
       node.querySelector('.usage').textContent = `used ${item.usageCount ?? 0}`;
       node.querySelector('.lastUsed').textContent = item.lastUsed ? `last: ${formatIso(item.lastUsed)}` : 'last: —';

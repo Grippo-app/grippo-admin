@@ -1,4 +1,4 @@
-import { ENDPOINTS } from './constants.js';
+import { DEFAULT_LANGUAGE, ENDPOINTS } from './constants.js';
 
 export class ApiClient {
   constructor({ storage, getLocale }) {
@@ -31,7 +31,9 @@ export class ApiClient {
   }
 
   async fetchList() {
-    const resp = await fetch(ENDPOINTS.list, { headers: this.buildHeaders() });
+    const resp = await fetch(ENDPOINTS.list, {
+      headers: this.buildHeaders({ locale: DEFAULT_LANGUAGE })
+    });
     if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
     return resp.json();
   }
