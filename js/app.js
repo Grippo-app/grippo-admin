@@ -105,7 +105,11 @@ class GrippoAdminApp {
       tabGeneral: document.getElementById('tabGeneral'),
       previewImg: document.getElementById('exercisePreview'),
       previewCard: document.getElementById('exercisePreviewCard'),
-      previewEmpty: document.getElementById('exercisePreviewEmpty')
+      previewEmpty: document.getElementById('exercisePreviewEmpty'),
+      previewFrame: document.getElementById('previewFrame'),
+      lightbox: document.getElementById('imageLightbox'),
+      lightboxImg: document.getElementById('lightboxImage'),
+      lightboxClose: document.getElementById('lightboxClose')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
@@ -133,6 +137,7 @@ class GrippoAdminApp {
     this.attachSidebarHandlers();
     this.attachLocaleHandlers();
     this.attachViewHandlers();
+    this.attachPreviewHandlers();
     this.attachFormHandlers();
     this.attachAuthHandlers();
     this.attachBundleHandlers();
@@ -222,6 +227,17 @@ class GrippoAdminApp {
   attachViewHandlers() {
     this.els.viewForm?.addEventListener('click', () => this.setViewForm());
     this.els.viewJson?.addEventListener('click', () => this.setViewJson());
+  }
+
+  attachPreviewHandlers() {
+    this.els.previewFrame?.addEventListener('click', () => this.openImageLightbox());
+    this.els.lightboxClose?.addEventListener('click', () => this.closeImageLightbox());
+    this.els.lightbox?.addEventListener('click', (event) => {
+      if (event.target === this.els.lightbox) this.closeImageLightbox();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.closeImageLightbox();
+    });
   }
 
   attachFormHandlers() {
@@ -705,6 +721,30 @@ class GrippoAdminApp {
       this.els.previewEmpty.textContent = 'No image selected yet';
     }
     this.els.previewCard.classList.toggle('has-image', hasImage);
+    if (this.els.previewFrame) {
+      this.els.previewFrame.setAttribute('aria-disabled', hasImage ? 'false' : 'true');
+    }
+  }
+
+  openImageLightbox() {
+    const src = this.els.previewImg?.getAttribute('src');
+    if (!src || !this.els.previewCard?.classList.contains('has-image')) return;
+    if (this.els.lightboxImg) {
+      this.els.lightboxImg.src = src;
+      this.els.lightboxImg.alt = this.els.previewImg?.alt || 'Exercise image preview';
+    }
+    if (this.els.lightbox) {
+      this.els.lightbox.removeAttribute('hidden');
+    }
+  }
+
+  closeImageLightbox() {
+    if (this.els.lightbox) {
+      this.els.lightbox.setAttribute('hidden', 'hidden');
+    }
+    if (this.els.lightboxImg) {
+      this.els.lightboxImg.removeAttribute('src');
+    }
   }
 
   renderEquipmentTokens(entity) {
