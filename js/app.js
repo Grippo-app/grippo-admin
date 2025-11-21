@@ -74,6 +74,7 @@ class GrippoAdminApp {
       editor: document.getElementById('editor'),
       clearJsonBtn: document.getElementById('clearJsonBtn'),
       main: document.querySelector('main'),
+      introMain: document.querySelector('.intro-main'),
       fName: document.getElementById('fName'),
       fImage: document.getElementById('fImage'),
       fDescription: document.getElementById('fDescription'),
@@ -118,6 +119,7 @@ class GrippoAdminApp {
     if (this.els.previewImg) {
       this.els.previewImg.addEventListener('error', () => this.renderImagePreview(''));
     }
+    this.initPreviewSizing();
   }
 
   loadPersistedState() {
@@ -702,6 +704,7 @@ class GrippoAdminApp {
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
     this.renderEquipmentTokens(entity);
     this.renderBundles(entity);
+    this.updatePreviewSize();
   }
 
   renderImagePreview(url) {
@@ -723,6 +726,35 @@ class GrippoAdminApp {
     this.els.previewCard.classList.toggle('has-image', hasImage);
     if (this.els.previewFrame) {
       this.els.previewFrame.setAttribute('aria-disabled', hasImage ? 'false' : 'true');
+    }
+  }
+
+  initPreviewSizing() {
+    this.updatePreviewSize();
+    if (this.els.introMain) {
+      this.previewSizer = new ResizeObserver(() => this.updatePreviewSize());
+      this.previewSizer.observe(this.els.introMain);
+    }
+    window.addEventListener('resize', () => this.updatePreviewSize());
+  }
+
+  updatePreviewSize() {
+    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
+    const introHeight = this.els.introMain.offsetHeight;
+    if (!introHeight) return;
+    const cardStyles = getComputedStyle(this.els.previewCard);
+    const paddingY = parseFloat(cardStyles.paddingTop || '0') + parseFloat(cardStyles.paddingBottom || '0');
+    const paddingX = parseFloat(cardStyles.paddingLeft || '0') + parseFloat(cardStyles.paddingRight || '0');
+    const label = this.els.previewCard.querySelector('.preview-label');
+    const labelStyles = label ? getComputedStyle(label) : null;
+    const labelOffset = label ? label.offsetHeight + parseFloat(labelStyles?.marginBottom || '0') : 0;
+    const availableHeight = introHeight - paddingY - labelOffset;
+    const availableWidth = this.els.previewCard.clientWidth - paddingX;
+    const fitted = Math.min(availableHeight, availableWidth);
+    const capped = Math.min(fitted, 320);
+    const size = Math.min(Math.max(160, capped), fitted);
+    if (Number.isFinite(size) && size > 0) {
+      this.els.previewCard.style.setProperty('--preview-size', `${size}px`);
     }
   }
 

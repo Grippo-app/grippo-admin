@@ -242,21 +242,26 @@ header{
 }
 .intro-row{
   display:grid;
-  grid-template-columns:minmax(220px, 320px) 1fr;
+  grid-template-columns:auto 1fr;
   gap:16px;
   align-items:stretch;
   margin-bottom:var(--block-gap);
 }
 .preview-card{
+  --preview-size: clamp(220px, 24vw, 300px);
   background:linear-gradient(180deg,var(--panel),var(--panel-2));
   border:1px solid var(--border);
   border-radius:16px;
   padding:12px;
   box-shadow:var(--shadow);
-  flex:0 0 clamp(220px, 24vw, 300px);
   display:flex;
   flex-direction:column;
-  align-self:stretch;
+  align-items:center;
+  gap:10px;
+  min-width:220px;
+  width:var(--preview-size);
+  max-width:320px;
+  align-self:start;
 }
 .intro-main{
   flex:1 1 360px;
@@ -285,8 +290,10 @@ header{
   display:flex;
   align-items:center;
   justify-content:center;
-  width:100%;
-  height:100%;
+  inline-size:var(--preview-size);
+  block-size:var(--preview-size);
+  max-inline-size:100%;
+  max-block-size:100%;
   aspect-ratio:1 / 1;
   cursor:default;
   padding:0;
