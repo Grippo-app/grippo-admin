@@ -284,6 +284,7 @@ header{
   color:var(--text);
   font-weight:900;
   margin:0 0 8px;
+  align-self:flex-start;
 }
 .preview-frame{
   position:relative;
