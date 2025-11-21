@@ -269,11 +269,11 @@ header{
 }
 .intro-stack{ display:flex; flex-direction:column; gap:12px; }
 .preview-label{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:0.08em;
-  color:var(--muted);
-  margin-bottom:8px;
+  font-size:14px;
+  letter-spacing:.2px;
+  color:var(--text);
+  font-weight:900;
+  margin:0 0 8px;
 }
 .preview-frame{
   position:relative;
@@ -344,8 +344,8 @@ header{
 }
 .lightbox-close{
   position:absolute;
-  top:10px;
-  right:10px;
+  top:20px;
+  right:20px;
   border:0;
   border-radius:50%;
   width:34px;
