@@ -750,9 +750,7 @@ class GrippoAdminApp {
     const labelOffset = label ? label.offsetHeight + parseFloat(labelStyles?.marginBottom || '0') : 0;
     const availableHeight = introHeight - paddingY - labelOffset;
     const availableWidth = this.els.previewCard.clientWidth - paddingX;
-    const fitted = Math.min(availableHeight, availableWidth);
-    const capped = Math.min(fitted, 320);
-    const size = Math.min(Math.max(160, capped), fitted);
+    const size = Math.min(availableHeight, availableWidth);
     if (Number.isFinite(size) && size > 0) {
       this.els.previewCard.style.setProperty('--preview-size', `${size}px`);
     }

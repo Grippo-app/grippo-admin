@@ -260,7 +260,7 @@ header{
   gap:10px;
   min-width:220px;
   width:var(--preview-size);
-  max-width:320px;
+  max-width:100%;
   align-self:start;
 }
 .intro-main{
