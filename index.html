@@ -8,6 +8,10 @@
 <body>
   <!-- Header -->
   <header>
+    <nav class="primary-tabs" role="tablist" aria-label="Primary sections">
+      <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise" type="button">Exercise examples</button>
+      <button id="tabGeneral" class="tab" role="tab" aria-selected="false" data-section="general" type="button">General</button>
+    </nav>
     <button id="logoutBtn" class="btn danger" style="margin-left:auto;" title="Logout">Logout</button>
   </header>
 
@@ -28,188 +32,211 @@
     </form>
   </div>
 
-  <!-- Command bar: sticky below header -->
-  <div id="commandBar" class="command-bar">
-    <input id="search" type="search" placeholder="Search by name…"/>
-    <div id="sortDropdown" class="dropdown">
-      <button id="sortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
-        <span>Сортировка:</span>
-        <span id="sortLabel" class="sort-label">Имя</span>
-        <span class="chevron" aria-hidden="true">▾</span>
-      </button>
-      <div id="sortMenu" class="dropdown-menu" role="menu" aria-label="Сортировка упражнений">
-        <button type="button" class="dropdown-item" data-sort="name" role="menuitemradio" aria-checked="true">Имя</button>
-        <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="false">Дата создания</button>
-        <button type="button" class="dropdown-item" data-sort="hasImage" role="menuitemradio" aria-checked="false">Наличие картинки</button>
-        <button type="button" class="dropdown-item" data-sort="missingImage" role="menuitemradio" aria-checked="false">Отсутствие картинки</button>
+  <div id="exerciseView" class="primary-view active" aria-labelledby="tabExercise" role="tabpanel">
+    <!-- Command bar: sticky below header -->
+    <div id="commandBar" class="command-bar">
+      <input id="search" type="search" placeholder="Search by name…"/>
+      <div id="sortDropdown" class="dropdown">
+        <button id="sortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
+          <span>Сортировка:</span>
+          <span id="sortLabel" class="sort-label">Имя</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div id="sortMenu" class="dropdown-menu" role="menu" aria-label="Сортировка упражнений">
+          <button type="button" class="dropdown-item" data-sort="name" role="menuitemradio" aria-checked="true">Имя</button>
+          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="false">Дата создания</button>
+          <button type="button" class="dropdown-item" data-sort="hasImage" role="menuitemradio" aria-checked="false">Наличие картинки</button>
+          <button type="button" class="dropdown-item" data-sort="missingImage" role="menuitemradio" aria-checked="false">Отсутствие картинки</button>
+        </div>
+      </div>
+      <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
+      <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
+
+      <span class="spacer"></span>
+
+      <span id="currentId" class="hint">No item selected</span>
+      <span id="jsonStatus" class="status warn">Waiting…</span>
+
+      <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" style="display:none;">
+        <button type="button" class="locale-btn" data-locale="en">EN</button>
+        <button type="button" class="locale-btn" data-locale="ua">UA</button>
+        <button type="button" class="locale-btn" data-locale="ru">RU</button>
+      </div>
+
+      <div class="view-toggle">
+        <div class="segment" role="tablist" aria-label="Editor mode">
+          <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form</button>
+          <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
+        </div>
+      </div>
+
+      <div class="cmd-actions">
+      <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
+      <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
+      <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
       </div>
     </div>
-    <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
-    <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
 
-    <span class="spacer"></span>
-
-    <span id="currentId" class="hint">No item selected</span>
-    <span id="jsonStatus" class="status warn">Waiting…</span>
-
-    <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" style="display:none;">
-      <button type="button" class="locale-btn" data-locale="en">EN</button>
-      <button type="button" class="locale-btn" data-locale="ua">UA</button>
-      <button type="button" class="locale-btn" data-locale="ru">RU</button>
-    </div>
-
-    <div class="view-toggle">
-      <div class="segment" role="tablist" aria-label="Editor mode">
-        <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form</button>
-        <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
-      </div>
-    </div>
-
-    <div class="cmd-actions">
-    <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
-    <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
-    <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
-    </div>
-  </div>
-
-  <main>
-    <!-- Sidebar -->
-    <section class="sidebar" aria-label="Examples list">
-      <div class="side-head">
-        <div class="spacer"></div>
-      </div>
-      <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
-    </section>
-
-    <!-- Editor -->
-    <section class="panel">
-
-      <!-- FORM BUILDER -->
-      <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-        <!-- Identifier on top -->
-        <div class="section">
-          <div class="section-title">Identifier</div>
-          <div class="field">
-            <label for="fId">ID (locked for existing)</label>
-            <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-            <div class="hint">ID cannot be changed for existing items.</div>
-          </div>
-          <hr class="divider"/>
+    <main>
+      <!-- Sidebar -->
+      <section class="sidebar" aria-label="Examples list">
+        <div class="side-head">
+          <div class="spacer"></div>
         </div>
+        <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
+      </section>
 
-        <!-- Basics -->
-        <div class="section">
-          <div class="section-title">Basics</div>
-          <div class="grid two">
-            <div class="field">
-              <label for="fName">Name *</label>
-              <input id="fName" type="text" placeholder="e.g., Bench Press"/>
-            </div>
-            <div class="field">
-              <label for="fImage">Image URL (optional)</label>
-              <input id="fImage" type="url" placeholder="https://..."/>
-            </div>
-          </div>
-          <div class="field">
-            <label for="fDescription">Description *</label>
-            <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
-          </div>
-          <hr class="divider"/>
-        </div>
+      <!-- Editor -->
+      <section class="panel">
 
-        <!-- Attributes in two rows -->
-        <div class="section">
-          <div class="section-title">Attributes</div>
-
-          <div class="grid two">
-            <div class="field">
-              <label for="fWeightType">Weight type *</label>
-              <select id="fWeightType">
-                <option value="">— select —</option>
-                <option value="free">free</option>
-                <option value="fixed">fixed</option>
-                <option value="body_weight">body_weight</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="fCategory">Category *</label>
-              <select id="fCategory">
-                <option value="">— select —</option>
-                <option value="compound">compound</option>
-                <option value="isolation">isolation</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid two">
-            <div class="field">
-              <label for="fExperience">Experience *</label>
-              <select id="fExperience">
-                <option value="">— select —</option>
-                <option value="beginner">beginner</option>
-                <option value="intermediate">intermediate</option>
-                <option value="advanced">advanced</option>
-                <option value="pro">pro</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="fForceType">Force type *</label>
-              <select id="fForceType">
-                <option value="">— select —</option>
-                <option value="push">push</option>
-                <option value="pull">pull</option>
-                <option value="hinge">hinge</option>
-              </select>
-            </div>
-          </div>
-          <hr class="divider"/>
-        </div>
-
-        <!-- Equipment (reorganized: left chips, right single select + add) -->
-        <div class="section">
-          <div class="section-title">Equipment *</div>
-
-          <div class="grid two">
-            <div class="field">
-              <label>Selected</label>
-              <div id="equipTokens" class="token-list" aria-live="polite"></div>
+        <!-- FORM BUILDER -->
+        <div id="builder" class="builder show" aria-label="Exercise Example Builder">
+          <div class="intro-row">
+            <div class="preview-card" id="exercisePreviewCard">
+              <div class="preview-label">Exercise image</div>
+              <button id="previewFrame" type="button" class="preview-frame" aria-label="Open image preview" aria-disabled="true">
+                <img id="exercisePreview" alt="Exercise image preview" />
+                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+              </button>
             </div>
 
-            <div class="field">
-              <label for="equipSingle">Add equipment</label>
-              <select id="equipSingle"></select>
-              <div style="display:flex; gap:8px; margin-top:8px;">
-                <button id="equipAdd" class="btn" type="button">Add selected</button>
-                <button id="equipClear" class="btn muted" type="button">Clear all</button>
+            <!-- Identifier on top -->
+            <div class="section intro-main">
+              <div class="section-title">Identifier</div>
+              <div class="intro-stack">
+                <div class="field">
+                  <label for="fId">ID (locked for existing)</label>
+                  <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+                  <div class="hint">ID cannot be changed for existing items.</div>
+                </div>
+                <div class="field">
+                  <label for="fName">Name *</label>
+                  <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+                </div>
+                <div class="field">
+                  <label for="fImage">Image URL (optional)</label>
+                  <input id="fImage" type="url" placeholder="https://..."/>
+                </div>
               </div>
             </div>
           </div>
-
-          <hr class="divider"/>
-        </div>
-
-        <!-- Muscles -->
-        <div class="section">
-          <div class="section-title">Muscle bundles (sum must be 100%) *</div>
-
-          <div id="bundles" style="display:grid;gap:8px"></div>
-
-          <div class="bundle-row">
-            <select id="muscleSelect"></select>
-            <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
-            <button id="bundleAdd" class="btn" type="button">Add bundle</button>
+          
+          <div class="section">
+            <div class="field">
+              <label for="fDescription">Description *</label>
+              <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
+            </div>
+            <hr class="divider"/>
           </div>
-          <div id="bundleSumInfo" class="sum">Sum: 0%</div>
-        </div>
-      </div>
 
-        <!-- RAW JSON -->
-        <div id="jsonWrap" class="json-wrap" hidden>
-          <button id="clearJsonBtn" class="btn clear-json" type="button" title="Clear JSON" aria-label="Clear JSON">&times;</button>
-          <textarea id="editor" spellcheck="false"></textarea>
+          <!-- Attributes in two rows -->
+          <div class="section">
+            <div class="section-title">Attributes</div>
+
+            <div class="grid two">
+              <div class="field">
+                <label for="fWeightType">Weight type *</label>
+                <select id="fWeightType">
+                  <option value="">— select —</option>
+                  <option value="free">free</option>
+                  <option value="fixed">fixed</option>
+                  <option value="body_weight">body_weight</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fCategory">Category *</label>
+                <select id="fCategory">
+                  <option value="">— select —</option>
+                  <option value="compound">compound</option>
+                  <option value="isolation">isolation</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid two">
+              <div class="field">
+                <label for="fExperience">Experience *</label>
+                <select id="fExperience">
+                  <option value="">— select —</option>
+                  <option value="beginner">beginner</option>
+                  <option value="intermediate">intermediate</option>
+                  <option value="advanced">advanced</option>
+                  <option value="pro">pro</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="fForceType">Force type *</label>
+                <select id="fForceType">
+                  <option value="">— select —</option>
+                  <option value="push">push</option>
+                  <option value="pull">pull</option>
+                  <option value="hinge">hinge</option>
+                </select>
+              </div>
+            </div>
+            <hr class="divider"/>
+          </div>
+
+          <!-- Equipment (reorganized: left chips, right single select + add) -->
+          <div class="section">
+            <div class="section-title">Equipment *</div>
+
+            <div class="grid two">
+              <div class="field">
+                <label>Selected</label>
+                <div id="equipTokens" class="token-list" aria-live="polite"></div>
+              </div>
+
+              <div class="field">
+                <label for="equipSingle">Add equipment</label>
+                <select id="equipSingle"></select>
+                <div style="display:flex; gap:8px; margin-top:8px;">
+                  <button id="equipAdd" class="btn" type="button">Add selected</button>
+                  <button id="equipClear" class="btn muted" type="button">Clear all</button>
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider"/>
+          </div>
+
+          <!-- Muscles -->
+          <div class="section">
+            <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+
+            <div id="bundles" style="display:grid;gap:8px"></div>
+
+            <div class="bundle-row">
+              <select id="muscleSelect"></select>
+              <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
+              <button id="bundleAdd" class="btn" type="button">Add bundle</button>
+            </div>
+            <div id="bundleSumInfo" class="sum">Sum: 0%</div>
+          </div>
         </div>
-      </section>
-    </main>
+
+          <!-- RAW JSON -->
+          <div id="jsonWrap" class="json-wrap" hidden>
+            <button id="clearJsonBtn" class="btn clear-json" type="button" title="Clear JSON" aria-label="Clear JSON">&times;</button>
+            <textarea id="editor" spellcheck="false"></textarea>
+          </div>
+        </section>
+      </main>
+  </div>
+
+  <section id="generalView" class="primary-view" aria-labelledby="tabGeneral" role="tabpanel" hidden>
+    <div class="empty-state">
+      <div class="empty-title">General</div>
+      <p class="empty-copy">Добавьте общий контент позже — вкладка уже готова для переключения.</p>
+    </div>
+  </section>
+
+  <div id="imageLightbox" class="image-lightbox" hidden>
+    <div class="lightbox-surface" role="dialog" aria-modal="true" aria-label="Full-screen exercise image">
+      <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close image preview">×</button>
+      <img id="lightboxImage" alt="Exercise image enlarged" />
+    </div>
+  </div>
 
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">

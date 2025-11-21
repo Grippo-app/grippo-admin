@@ -28,6 +28,7 @@ class GrippoAdminApp {
     this.current = null;
     this.isNew = false;
     this.canonical = EntityToolkit.emptyTemplate();
+    this.activeSection = 'exercise';
 
     this.els = {};
     this.localeButtons = [];
@@ -37,6 +38,8 @@ class GrippoAdminApp {
 
   async init() {
     this.cacheElements();
+    this.updatePrimarySectionVisibility();
+    this.attachPrimaryNavHandlers();
     this.loadPersistedState();
     await this.dictionaries.loadAll();
     this.refreshOptionLists();
@@ -71,6 +74,7 @@ class GrippoAdminApp {
       editor: document.getElementById('editor'),
       clearJsonBtn: document.getElementById('clearJsonBtn'),
       main: document.querySelector('main'),
+      introMain: document.querySelector('.intro-main'),
       fName: document.getElementById('fName'),
       fImage: document.getElementById('fImage'),
       fDescription: document.getElementById('fDescription'),
@@ -94,12 +98,30 @@ class GrippoAdminApp {
       loginEmail: document.getElementById('loginEmail'),
       loginPassword: document.getElementById('loginPassword'),
       loginError: document.getElementById('loginError'),
-      logoutBtn: document.getElementById('logoutBtn')
+      logoutBtn: document.getElementById('logoutBtn'),
+      commandBar: document.getElementById('commandBar'),
+      exerciseView: document.getElementById('exerciseView'),
+      generalView: document.getElementById('generalView'),
+      tabExercise: document.getElementById('tabExercise'),
+      tabGeneral: document.getElementById('tabGeneral'),
+      previewImg: document.getElementById('exercisePreview'),
+      previewCard: document.getElementById('exercisePreviewCard'),
+      previewEmpty: document.getElementById('exercisePreviewEmpty'),
+      previewFrame: document.getElementById('previewFrame'),
+      previewLabel: document.querySelector('.preview-card .preview-label'),
+      introRow: document.querySelector('.intro-row'),
+      lightbox: document.getElementById('imageLightbox'),
+      lightboxImg: document.getElementById('lightboxImage'),
+      lightboxClose: document.getElementById('lightboxClose')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
     this.defaultNamePlaceholder = this.els.fName?.getAttribute('placeholder') || '';
     this.defaultDescriptionPlaceholder = this.els.fDescription?.getAttribute('placeholder') || '';
+    if (this.els.previewImg) {
+      this.els.previewImg.addEventListener('error', () => this.renderImagePreview(''));
+    }
+    this.initPreviewSizing();
   }
 
   loadPersistedState() {
@@ -119,6 +141,7 @@ class GrippoAdminApp {
     this.attachSidebarHandlers();
     this.attachLocaleHandlers();
     this.attachViewHandlers();
+    this.attachPreviewHandlers();
     this.attachFormHandlers();
     this.attachAuthHandlers();
     this.attachBundleHandlers();
@@ -165,6 +188,17 @@ class GrippoAdminApp {
     }
   }
 
+  attachPrimaryNavHandlers() {
+    [this.els.tabExercise, this.els.tabGeneral]
+      .filter(Boolean)
+      .forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.section;
+          this.setActiveSection(target);
+        });
+      });
+  }
+
   attachSortHandlers() {
     this.els.sortToggle?.addEventListener('click', (event) => {
       event.preventDefault();
@@ -197,6 +231,17 @@ class GrippoAdminApp {
   attachViewHandlers() {
     this.els.viewForm?.addEventListener('click', () => this.setViewForm());
     this.els.viewJson?.addEventListener('click', () => this.setViewJson());
+  }
+
+  attachPreviewHandlers() {
+    this.els.previewFrame?.addEventListener('click', () => this.openImageLightbox());
+    this.els.lightboxClose?.addEventListener('click', () => this.closeImageLightbox());
+    this.els.lightbox?.addEventListener('click', (event) => {
+      if (event.target === this.els.lightbox) this.closeImageLightbox();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') this.closeImageLightbox();
+    });
   }
 
   attachFormHandlers() {
@@ -313,6 +358,37 @@ class GrippoAdminApp {
   logout() {
     this.api.clearAuthToken();
     this.showLoginOverlay();
+  }
+
+  setActiveSection(section) {
+    if (!section || section === this.activeSection) return;
+    this.activeSection = section;
+    this.updatePrimarySectionVisibility();
+    this.updateStickyOffsets();
+    if (section === 'exercise') this.updateCommandBarVisibility();
+  }
+
+  updatePrimarySectionVisibility() {
+    const showExercise = this.activeSection !== 'general';
+    const showGeneral = this.activeSection === 'general';
+    this.toggleElement(this.els.commandBar, showExercise);
+    if (this.els.commandBar) this.els.commandBar.hidden = !showExercise;
+    if (this.els.exerciseView) {
+      this.els.exerciseView.hidden = !showExercise;
+      this.els.exerciseView.classList.toggle('active', showExercise);
+    }
+    if (this.els.generalView) {
+      this.els.generalView.hidden = !showGeneral;
+      this.els.generalView.classList.toggle('active', showGeneral);
+    }
+    if (this.els.tabExercise) {
+      this.els.tabExercise.classList.toggle('active', showExercise);
+      this.els.tabExercise.setAttribute('aria-selected', String(showExercise));
+    }
+    if (this.els.tabGeneral) {
+      this.els.tabGeneral.classList.toggle('active', showGeneral);
+      this.els.tabGeneral.setAttribute('aria-selected', String(showGeneral));
+    }
   }
 
   updateStickyOffsets() {
@@ -615,6 +691,7 @@ class GrippoAdminApp {
       );
     }
     if (this.els.fImage) this.els.fImage.value = entity?.imageUrl || '';
+    this.renderImagePreview(entity?.imageUrl || '');
     if (this.els.fDescription) {
       this.els.fDescription.value = localeDescription;
       this.els.fDescription.placeholder = EntityToolkit.buildLocalePlaceholder(
@@ -629,6 +706,86 @@ class GrippoAdminApp {
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
     this.renderEquipmentTokens(entity);
     this.renderBundles(entity);
+    this.updatePreviewSize();
+  }
+
+  renderImagePreview(url) {
+    if (!this.els.previewCard) return;
+    const hasImage = !!url;
+    const altName = (this.els.fName?.value || this.canonical?.name || 'Exercise').trim();
+    if (this.els.previewImg) {
+      if (hasImage) {
+        this.els.previewImg.src = url;
+        this.els.previewImg.alt = `${altName || 'Exercise'} illustration`;
+      } else {
+        this.els.previewImg.removeAttribute('src');
+        this.els.previewImg.alt = 'Exercise image preview';
+      }
+    }
+    if (this.els.previewEmpty) {
+      this.els.previewEmpty.textContent = 'No image selected yet';
+    }
+    this.els.previewCard.classList.toggle('has-image', hasImage);
+    if (this.els.previewFrame) {
+      this.els.previewFrame.setAttribute('aria-disabled', hasImage ? 'false' : 'true');
+    }
+  }
+
+  initPreviewSizing() {
+    this.updatePreviewSize();
+    if (this.els.introMain) {
+      this.previewSizer = new ResizeObserver(() => this.updatePreviewSize());
+      this.previewSizer.observe(this.els.introMain);
+    }
+    window.addEventListener('resize', () => this.updatePreviewSize());
+  }
+
+  updatePreviewSize() {
+    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
+
+    const introRect = this.els.introMain.getBoundingClientRect();
+    const introHeight = Math.round(introRect.height || this.els.introMain.scrollHeight);
+    if (!introHeight) return;
+
+    const target = Math.round(Math.min(420, Math.max(260, introHeight)));
+    const cardStyles = getComputedStyle(this.els.previewCard);
+    const paddingX = parseFloat(cardStyles.paddingLeft || '0') + parseFloat(cardStyles.paddingRight || '0');
+    const paddingY = parseFloat(cardStyles.paddingTop || '0') + parseFloat(cardStyles.paddingBottom || '0');
+    const gapY = parseFloat(cardStyles.rowGap || cardStyles.gap || '0');
+    const labelHeight = this.els.previewLabel?.getBoundingClientRect()?.height || 0;
+    const labelMargin = this.els.previewLabel ? parseFloat(getComputedStyle(this.els.previewLabel).marginBottom || '0') : 0;
+    const available = Math.max(0, target - paddingY - labelHeight - labelMargin - gapY);
+    const frameSize = Math.max(160, Math.min(target, available));
+
+    this.els.introMain.style.minHeight = `${target}px`;
+    this.els.introMain.style.maxHeight = `${target}px`;
+    this.els.previewCard.style.height = `${target}px`;
+    this.els.previewCard.style.minHeight = `${target}px`;
+    this.els.previewCard.style.maxHeight = `${target}px`;
+    this.els.previewCard.style.setProperty('--preview-size', `${frameSize}px`);
+    this.els.previewCard.style.width = `${frameSize + paddingX}px`;
+    this.els.introRow?.style.setProperty('--intro-fixed-h', `${target}px`);
+  }
+
+  openImageLightbox() {
+    const src = this.els.previewImg?.getAttribute('src');
+    if (!src || !this.els.previewCard?.classList.contains('has-image')) return;
+    if (this.els.lightboxImg) {
+      this.els.lightboxImg.src = src;
+      this.els.lightboxImg.alt = this.els.previewImg?.alt || 'Exercise image preview';
+    }
+    if (this.els.lightbox) {
+      this.els.lightbox.removeAttribute('hidden');
+    }
+  }
+
+  closeImageLightbox() {
+    if (this.els.lightbox) {
+      this.els.lightbox.setAttribute('hidden', 'hidden');
+    }
+    if (this.els.lightboxImg) {
+      this.els.lightboxImg.removeAttribute('src');
+    }
   }
 
   renderEquipmentTokens(entity) {
