@@ -91,22 +91,25 @@
 
         <!-- FORM BUILDER -->
         <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-          <div class="preview-card" id="exercisePreviewCard">
-            <div class="preview-label">Exercise image</div>
-            <div class="preview-frame">
-              <img id="exercisePreview" alt="Exercise image preview" />
-              <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+          <div class="intro-row">
+            <div class="preview-card" id="exercisePreviewCard">
+              <div class="preview-label">Exercise image</div>
+              <div class="preview-frame">
+                <img id="exercisePreview" alt="Exercise image preview" />
+                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+              </div>
             </div>
-          </div>
-          <!-- Identifier on top -->
-          <div class="section">
-            <div class="section-title">Identifier</div>
-            <div class="field">
-              <label for="fId">ID (locked for existing)</label>
-              <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-              <div class="hint">ID cannot be changed for existing items.</div>
+
+            <!-- Identifier on top -->
+            <div class="section intro-main">
+              <div class="section-title">Identifier</div>
+              <div class="field">
+                <label for="fId">ID (locked for existing)</label>
+                <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+                <div class="hint">ID cannot be changed for existing items.</div>
+              </div>
+              <hr class="divider"/>
             </div>
-            <hr class="divider"/>
           </div>
 
           <!-- Basics -->
