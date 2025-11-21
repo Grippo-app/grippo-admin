@@ -108,6 +108,7 @@ class GrippoAdminApp {
       previewCard: document.getElementById('exercisePreviewCard'),
       previewEmpty: document.getElementById('exercisePreviewEmpty'),
       previewFrame: document.getElementById('previewFrame'),
+      introRow: document.querySelector('.intro-row'),
       lightbox: document.getElementById('imageLightbox'),
       lightboxImg: document.getElementById('lightboxImage'),
       lightboxClose: document.getElementById('lightboxClose')
@@ -740,19 +741,24 @@ class GrippoAdminApp {
 
   updatePreviewSize() {
     if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
+
     const introHeight = this.els.introMain.offsetHeight;
     if (!introHeight) return;
+
     const cardStyles = getComputedStyle(this.els.previewCard);
-    const paddingY = parseFloat(cardStyles.paddingTop || '0') + parseFloat(cardStyles.paddingBottom || '0');
     const paddingX = parseFloat(cardStyles.paddingLeft || '0') + parseFloat(cardStyles.paddingRight || '0');
-    const label = this.els.previewCard.querySelector('.preview-label');
-    const labelStyles = label ? getComputedStyle(label) : null;
-    const labelOffset = label ? label.offsetHeight + parseFloat(labelStyles?.marginBottom || '0') : 0;
-    const availableHeight = introHeight - paddingY - labelOffset;
-    const availableWidth = this.els.previewCard.clientWidth - paddingX;
-    const size = Math.min(availableHeight, availableWidth);
+
+    const rowWidth = this.els.introRow?.clientWidth || 0;
+    const mainWidth = this.els.introMain.getBoundingClientRect().width || 0;
+    const rowStyles = this.els.introRow ? getComputedStyle(this.els.introRow) : null;
+    const gap = parseFloat(rowStyles?.columnGap || rowStyles?.gap || '0');
+    const availableWidth = rowWidth ? Math.max(0, rowWidth - mainWidth - gap) : this.els.previewCard.clientWidth;
+
+    const size = Math.min(introHeight, availableWidth || introHeight);
+
     if (Number.isFinite(size) && size > 0) {
       this.els.previewCard.style.setProperty('--preview-size', `${size}px`);
+      this.els.previewCard.style.width = `${size + paddingX}px`;
     }
   }
 
