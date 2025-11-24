@@ -154,7 +154,9 @@ class GrippoAdminApp {
       userWeightInput: document.getElementById('userWeightInput'),
 
       confirmOverlay: document.getElementById('confirmOverlay'),
+      confirmTitle: document.getElementById('confirmTitle'),
       confirmMessage: document.getElementById('confirmMessage'),
+      confirmDetail: document.getElementById('confirmDetail'),
       confirmAccept: document.getElementById('confirmAccept'),
       confirmCancel: document.getElementById('confirmCancel'),
       confirmClose: document.getElementById('confirmClose')
@@ -409,6 +411,12 @@ class GrippoAdminApp {
     this.els.confirmAccept?.addEventListener('click', () => this.finishConfirm(true));
     this.els.confirmOverlay?.addEventListener('click', (event) => {
       if (event.target === this.els.confirmOverlay) this.finishConfirm(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && this.els.confirmOverlay && !this.els.confirmOverlay.hidden) {
+        this.finishConfirm(false);
+      }
     });
   }
 
@@ -758,8 +766,12 @@ class GrippoAdminApp {
   async deleteActiveUser() {
     if (!this.activeUser) return;
     if (!this.requireAuth()) return;
+    const userLabel = `${this.activeUser.name || 'User'} (${this.activeUser.email || 'no email'})`;
+    const detail = `ID: ${this.activeUser.id || 'unknown'} · Role: ${this.activeUser.role || '—'}`;
     const confirmed = await this.showConfirm({
-      message: `Delete user ${this.activeUser.email}? This cannot be undone.`,
+      title: 'Delete user?',
+      message: `Удалить ${userLabel}? Действие нельзя отменить.`,
+      detail,
       actionLabel: 'Delete user'
     });
     if (!confirmed) return;
@@ -915,12 +927,23 @@ class GrippoAdminApp {
     this.els.userWeightInput.value = latest?.weight ?? '';
   }
 
-  showConfirm({ message, actionLabel = 'Confirm' } = {}) {
+  showConfirm({ title = 'Confirm action', message, detail, actionLabel = 'Confirm' } = {}) {
     if (!this.els.confirmOverlay || !this.els.confirmMessage || !this.els.confirmAccept) return Promise.resolve(false);
+    if (this.els.confirmTitle) this.els.confirmTitle.textContent = title;
     this.els.confirmMessage.textContent = message || 'Are you sure?';
+    if (this.els.confirmDetail) {
+      if (detail) {
+        this.els.confirmDetail.textContent = detail;
+        this.els.confirmDetail.hidden = false;
+      } else {
+        this.els.confirmDetail.hidden = true;
+        this.els.confirmDetail.textContent = '';
+      }
+    }
     this.els.confirmAccept.textContent = actionLabel;
     this.els.confirmOverlay.hidden = false;
     document.body.classList.add('modal-open');
+    if (this.els.confirmAccept) this.els.confirmAccept.focus();
     return new Promise((resolve) => {
       this.confirmResolver = resolve;
     });

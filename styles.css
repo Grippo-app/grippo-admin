@@ -744,6 +744,9 @@ main > .sidebar .list{
   place-items:center;
   z-index:1100;
 }
+.confirm-overlay[hidden]{
+  display:none !important;
+}
 .confirm-dialog{
   background:var(--panel);
   border:1px solid var(--border);
@@ -757,6 +760,7 @@ main > .sidebar .list{
 .confirm-header{display:flex; align-items:center; justify-content:space-between; gap:10px;}
 .confirm-title{font-weight:800;}
 .confirm-message{color:var(--muted); line-height:1.4;}
+.confirm-detail{color:var(--muted); font-size:13px; background:var(--panel-2); border:1px dashed var(--border); border-radius:8px; padding:10px;}
 .confirm-actions{display:flex; justify-content:flex-end; gap:8px;}
 body.modal-open{overflow:hidden;}
 
