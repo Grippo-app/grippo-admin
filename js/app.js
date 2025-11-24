@@ -30,6 +30,11 @@ class GrippoAdminApp {
     this.canonical = EntityToolkit.emptyTemplate();
     this.activeSection = 'exercise';
 
+    this.users = [];
+    this.filteredUsers = [];
+    this.activeUser = null;
+    this.userEditing = false;
+
     this.els = {};
     this.localeButtons = [];
     this.defaultNamePlaceholder = '';
@@ -110,9 +115,9 @@ class GrippoAdminApp {
       logoutBtn: document.getElementById('logoutBtn'),
       commandBar: document.getElementById('commandBar'),
       exerciseView: document.getElementById('exerciseView'),
-      generalView: document.getElementById('generalView'),
+      usersView: document.getElementById('usersView'),
       tabExercise: document.getElementById('tabExercise'),
-      tabGeneral: document.getElementById('tabGeneral'),
+      tabUsers: document.getElementById('tabUsers'),
       previewImg: document.getElementById('exercisePreview'),
       previewCard: document.getElementById('exercisePreviewCard'),
       previewEmpty: document.getElementById('exercisePreviewEmpty'),
@@ -121,7 +126,27 @@ class GrippoAdminApp {
       introRow: document.querySelector('.intro-row'),
       lightbox: document.getElementById('imageLightbox'),
       lightboxImg: document.getElementById('lightboxImage'),
-      lightboxClose: document.getElementById('lightboxClose')
+      lightboxClose: document.getElementById('lightboxClose'),
+
+      userList: document.getElementById('userList'),
+      userSearch: document.getElementById('userSearch'),
+      reloadUsersBtn: document.getElementById('reloadUsersBtn'),
+      userEmpty: document.getElementById('userEmpty'),
+      userDetail: document.getElementById('userDetail'),
+      userName: document.getElementById('userName'),
+      userEmail: document.getElementById('userEmail'),
+      userRolePill: document.getElementById('userRolePill'),
+      userRoleSelect: document.getElementById('userRoleSelect'),
+      userExperience: document.getElementById('userExperience'),
+      userHeight: document.getElementById('userHeight'),
+      userCreated: document.getElementById('userCreated'),
+      userUpdated: document.getElementById('userUpdated'),
+      editUserBtn: document.getElementById('editUserBtn'),
+      saveUserBtn: document.getElementById('saveUserBtn'),
+      makeAdminBtn: document.getElementById('makeAdminBtn'),
+      removeAdminBtn: document.getElementById('removeAdminBtn'),
+      deleteUserBtn: document.getElementById('deleteUserBtn'),
+      userItemTemplate: document.getElementById('userItemTemplate')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
@@ -156,6 +181,7 @@ class GrippoAdminApp {
     this.attachBundleHandlers();
     this.attachEquipmentHandlers();
     this.attachJsonHandlers();
+    this.attachUserHandlers();
 
     window.addEventListener('resize', () => {
       this.updateStickyOffsets();
@@ -198,7 +224,7 @@ class GrippoAdminApp {
   }
 
   attachPrimaryNavHandlers() {
-    [this.els.tabExercise, this.els.tabGeneral]
+    [this.els.tabExercise, this.els.tabUsers]
       .filter(Boolean)
       .forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -349,6 +375,30 @@ class GrippoAdminApp {
     });
   }
 
+  attachUserHandlers() {
+    this.els.reloadUsersBtn?.addEventListener('click', () => this.loadUsers());
+    this.els.userSearch?.addEventListener('input', () => this.applyUserSearch());
+
+    this.els.userList?.addEventListener('click', (event) => {
+      const item = event.target.closest('[data-user-id]');
+      if (!item) return;
+      const id = item.dataset.userId;
+      const user = this.users.find((u) => u.id === id);
+      this.setActiveUser(user || null);
+    });
+
+    this.els.editUserBtn?.addEventListener('click', () => this.beginUserEdit());
+    this.els.saveUserBtn?.addEventListener('click', () => this.saveUserRole());
+    this.els.makeAdminBtn?.addEventListener('click', () => this.grantAdminRole());
+    this.els.removeAdminBtn?.addEventListener('click', () => this.removeAdminRole());
+    this.els.deleteUserBtn?.addEventListener('click', () => this.deleteActiveUser());
+
+    this.els.userRoleSelect?.addEventListener('change', () => {
+      if (!this.userEditing || !this.els.saveUserBtn) return;
+      this.els.saveUserBtn.disabled = false;
+    });
+  }
+
   showLoginOverlay() {
     if (this.els.loginOverlay) this.els.loginOverlay.style.display = 'flex';
   }
@@ -375,28 +425,29 @@ class GrippoAdminApp {
     this.updatePrimarySectionVisibility();
     this.updateStickyOffsets();
     if (section === 'exercise') this.updateCommandBarVisibility();
+    if (section === 'users' && !this.users.length) this.loadUsers().catch((err) => console.error(err));
   }
 
   updatePrimarySectionVisibility() {
-    const showExercise = this.activeSection !== 'general';
-    const showGeneral = this.activeSection === 'general';
+    const showExercise = this.activeSection === 'exercise';
+    const showUsers = this.activeSection === 'users';
     this.toggleElement(this.els.commandBar, showExercise);
     if (this.els.commandBar) this.els.commandBar.hidden = !showExercise;
     if (this.els.exerciseView) {
       this.els.exerciseView.hidden = !showExercise;
       this.els.exerciseView.classList.toggle('active', showExercise);
     }
-    if (this.els.generalView) {
-      this.els.generalView.hidden = !showGeneral;
-      this.els.generalView.classList.toggle('active', showGeneral);
+    if (this.els.usersView) {
+      this.els.usersView.hidden = !showUsers;
+      this.els.usersView.classList.toggle('active', showUsers);
     }
     if (this.els.tabExercise) {
       this.els.tabExercise.classList.toggle('active', showExercise);
       this.els.tabExercise.setAttribute('aria-selected', String(showExercise));
     }
-    if (this.els.tabGeneral) {
-      this.els.tabGeneral.classList.toggle('active', showGeneral);
-      this.els.tabGeneral.setAttribute('aria-selected', String(showGeneral));
+    if (this.els.tabUsers) {
+      this.els.tabUsers.classList.toggle('active', showUsers);
+      this.els.tabUsers.setAttribute('aria-selected', String(showUsers));
     }
   }
 
@@ -494,6 +545,268 @@ class GrippoAdminApp {
 
   hasActiveItem() {
     return this.isNew || !!(this.current && this.current.entity && this.current.entity.id);
+  }
+
+  async loadUsers() {
+    if (!this.requireAuth()) return;
+    const btn = this.els.reloadUsersBtn;
+    const prevLabel = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+    }
+    const prevSelectedId = this.activeUser?.id || null;
+    try {
+      const users = await this.api.fetchUsers();
+      this.users = Array.isArray(users) ? users : [];
+      this.applyUserSearch({ preserveSelection: true, fallbackId: prevSelectedId });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to load users', message: String(error.message || error), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prevLabel || 'Reload';
+      }
+    }
+  }
+
+  applyUserSearch({ preserveSelection = false, fallbackId = null } = {}) {
+    const term = (this.els.userSearch?.value || '').trim().toLowerCase();
+    const needle = term && term.length > 1 ? term : term;
+    this.filteredUsers = this.users
+      .filter((user) => {
+        if (!needle) return true;
+        const name = (user.name || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        return name.includes(needle) || email.includes(needle);
+      })
+      .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
+
+    const targetId = preserveSelection ? (this.activeUser?.id || fallbackId) : null;
+    this.renderUserList();
+
+    if (this.filteredUsers.length === 0) {
+      this.setActiveUser(null, { skipListRerender: true });
+      return;
+    }
+
+    const preserved = targetId ? this.filteredUsers.find((u) => u.id === targetId) : null;
+    this.setActiveUser(preserved || this.filteredUsers[0], { skipListRerender: true });
+  }
+
+  renderUserList() {
+    if (!this.els.userList) return;
+    this.els.userList.innerHTML = '';
+
+    if (!this.filteredUsers.length) {
+      const empty = document.createElement('div');
+      empty.className = 'list-empty';
+      empty.textContent = 'No users loaded yet';
+      this.els.userList.appendChild(empty);
+      return;
+    }
+
+    this.filteredUsers.forEach((user) => {
+      const template = this.els.userItemTemplate?.content?.firstElementChild;
+      const node = template ? template.cloneNode(true) : document.createElement('div');
+      node.dataset.userId = user.id;
+      node.classList.add('user-row');
+      if (!template) node.textContent = `${user.name || user.email}`;
+
+      const initial = (user.name || user.email || '?')[0]?.toUpperCase?.() || '?';
+      const role = user.role || 'unknown';
+      const nameEl = node.querySelector('.user-name');
+      const emailEl = node.querySelector('.user-email');
+      const roleEl = node.querySelector('.user-role');
+      const badgeEl = node.querySelector('.user-badge');
+      if (nameEl) nameEl.textContent = user.name || 'No name';
+      if (emailEl) emailEl.textContent = user.email || 'No email';
+      if (roleEl) roleEl.textContent = role;
+      if (badgeEl) badgeEl.textContent = initial;
+      node.classList.toggle('active', this.activeUser?.id === user.id);
+      this.els.userList.appendChild(node);
+    });
+  }
+
+  setActiveUser(user, { skipListRerender = false } = {}) {
+    this.activeUser = user;
+    this.userEditing = false;
+    this.renderUserDetail();
+    if (!skipListRerender) this.renderUserList();
+  }
+
+  renderUserDetail() {
+    const hasUser = !!this.activeUser;
+    if (this.els.userEmpty) this.els.userEmpty.hidden = hasUser;
+    if (this.els.userDetail) this.els.userDetail.hidden = !hasUser;
+
+    if (!hasUser || !this.activeUser) {
+      this.updateUserActionsState();
+      return;
+    }
+
+    const user = this.activeUser;
+    if (this.els.userName) this.els.userName.textContent = user.name || 'Unnamed user';
+    if (this.els.userEmail) this.els.userEmail.textContent = user.email || '—';
+
+    const roleLabel = (user.role || '').toString();
+    if (this.els.userRolePill) {
+      this.els.userRolePill.textContent = roleLabel || 'unknown';
+      this.els.userRolePill.classList.toggle('pill-admin', roleLabel === 'admin');
+    }
+    if (this.els.userRoleSelect) {
+      this.els.userRoleSelect.value = roleLabel || 'default';
+      this.els.userRoleSelect.disabled = !this.userEditing;
+    }
+
+    if (this.els.userExperience) this.els.userExperience.textContent = user.experience || '—';
+    if (this.els.userHeight) this.els.userHeight.textContent = user.height ? `${user.height} cm` : '—';
+    if (this.els.userCreated) this.els.userCreated.textContent = formatIso(user.createdAt) || '—';
+    if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';
+
+    this.updateUserActionsState();
+  }
+
+  updateUserActionsState() {
+    const hasUser = !!this.activeUser;
+    const isAdmin = hasUser && this.activeUser.role === 'admin';
+    if (this.els.editUserBtn) this.els.editUserBtn.disabled = !hasUser;
+    if (this.els.saveUserBtn) this.els.saveUserBtn.disabled = !hasUser || !this.userEditing;
+    if (this.els.makeAdminBtn) this.els.makeAdminBtn.disabled = !hasUser || isAdmin;
+    if (this.els.removeAdminBtn) this.els.removeAdminBtn.disabled = !hasUser || !isAdmin;
+    if (this.els.deleteUserBtn) this.els.deleteUserBtn.disabled = !hasUser;
+  }
+
+  beginUserEdit() {
+    if (!this.activeUser || !this.els.userRoleSelect) return;
+    this.userEditing = true;
+    this.els.userRoleSelect.disabled = false;
+    if (this.els.saveUserBtn) this.els.saveUserBtn.disabled = false;
+    this.els.userRoleSelect.focus();
+  }
+
+  async saveUserRole() {
+    if (!this.userEditing || !this.activeUser || !this.els.userRoleSelect) return;
+    if (!this.requireAuth()) return;
+
+    const role = this.els.userRoleSelect.value;
+    const btn = this.els.saveUserBtn;
+    const prev = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+    }
+
+    try {
+      const updated = await this.api.setUserRole(this.activeUser.id, role);
+      this.updateUserCollections(updated);
+      this.setActiveUser(updated, { skipListRerender: true });
+      toast({ title: 'User updated', message: `${updated.email} → ${updated.role}` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to update', message: String(error.message || error), type: 'error' });
+    } finally {
+      this.userEditing = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Save role';
+      }
+      this.renderUserDetail();
+      this.renderUserList();
+    }
+  }
+
+  async grantAdminRole() {
+    if (!this.activeUser) return;
+    if (!this.requireAuth()) return;
+    const btn = this.els.makeAdminBtn;
+    const prev = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Granting…';
+    }
+    try {
+      const updated = await this.api.makeAdmin(this.activeUser.email);
+      this.updateUserCollections(updated);
+      this.setActiveUser(updated, { skipListRerender: true });
+      toast({ title: 'Admin role granted', message: `${updated.email} is now admin` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to grant', message: String(error.message || error), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Give admin';
+      }
+      this.renderUserDetail();
+      this.renderUserList();
+    }
+  }
+
+  async removeAdminRole() {
+    if (!this.activeUser) return;
+    if (!this.requireAuth()) return;
+
+    const btn = this.els.removeAdminBtn;
+    const prev = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Revoking…';
+    }
+    try {
+      const updated = await this.api.setUserRole(this.activeUser.id, 'default');
+      this.updateUserCollections(updated);
+      this.setActiveUser(updated, { skipListRerender: true });
+      toast({ title: 'Admin removed', message: `${updated.email} role set to default` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to update role', message: String(error.message || error), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Remove admin';
+      }
+      this.renderUserDetail();
+      this.renderUserList();
+    }
+  }
+
+  async deleteActiveUser() {
+    if (!this.activeUser) return;
+    if (!this.requireAuth()) return;
+    const confirmed = window.confirm(`Delete user ${this.activeUser.email}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    const btn = this.els.deleteUserBtn;
+    const prev = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Deleting…';
+    }
+    const targetId = this.activeUser.id;
+    try {
+      await this.api.deleteUser(targetId);
+      this.users = this.users.filter((u) => u.id !== targetId);
+      this.filteredUsers = this.filteredUsers.filter((u) => u.id !== targetId);
+      toast({ title: 'User deleted', message: targetId, type: 'warn' });
+      this.setActiveUser(this.filteredUsers[0] || null);
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Delete failed', message: String(error.message || error), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Delete user';
+      }
+    }
+  }
+
+  updateUserCollections(updatedUser) {
+    if (!updatedUser || !updatedUser.id) return;
+    const mapper = (user) => (user.id === updatedUser.id ? { ...user, ...updatedUser } : user);
+    this.users = this.users.map(mapper);
+    this.filteredUsers = this.filteredUsers.map(mapper);
   }
 
   toggleElement(el, show) {

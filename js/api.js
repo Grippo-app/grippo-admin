@@ -72,6 +72,18 @@ export class ApiClient {
     return resp.json().catch(() => null);
   }
 
+  async deleteExercise(id) {
+    const resp = await fetch(ENDPOINTS.remove(id), {
+      method: 'DELETE',
+      headers: this.buildHeaders({ json: false })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.text().catch(() => null);
+  }
+
   async fetchEquipments() {
     const resp = await fetch(ENDPOINTS.equipmentGroups, {
       headers: this.buildHeaders({ auth: false })
@@ -96,5 +108,51 @@ export class ApiClient {
     });
     if (!resp.ok) throw new Error('Invalid credentials');
     return resp.json();
+  }
+
+  async fetchUsers() {
+    const resp = await fetch(ENDPOINTS.users, {
+      headers: this.buildHeaders({ json: false })
+    });
+    if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    return resp.json();
+  }
+
+  async makeAdmin(email) {
+    const resp = await fetch(ENDPOINTS.makeAdmin, {
+      method: 'POST',
+      headers: this.buildHeaders({ json: true }),
+      body: JSON.stringify({ email })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.json();
+  }
+
+  async setUserRole(id, role) {
+    const resp = await fetch(ENDPOINTS.userRole(id), {
+      method: 'PUT',
+      headers: this.buildHeaders({ json: true }),
+      body: JSON.stringify({ role })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.json();
+  }
+
+  async deleteUser(id) {
+    const resp = await fetch(ENDPOINTS.userDelete(id), {
+      method: 'DELETE',
+      headers: this.buildHeaders({ json: false })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.text().catch(() => null);
   }
 }

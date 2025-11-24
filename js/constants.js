@@ -3,11 +3,17 @@ export const API_BASE = 'https://grippo-app.com';
 export const ENDPOINTS = {
   list: `${API_BASE}/exercise-examples`,
   detail: (id) => `${API_BASE}/exercise-examples/${encodeURIComponent(id)}`,
-  create: `${API_BASE}/exercise-examples`,
-  update: (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`,
+  create: `${API_BASE}/admin/exercise-examples`,
+  update: (id) => `${API_BASE}/admin/exercise-examples?id=${encodeURIComponent(id)}`,
+  remove: (id) => `${API_BASE}/admin/exercise-examples/${encodeURIComponent(id)}`,
   login: `${API_BASE}/auth/login`,
   equipmentGroups: `${API_BASE}/equipments`,
-  muscleGroups: `${API_BASE}/muscles`
+  muscleGroups: `${API_BASE}/muscles`,
+
+  users: `${API_BASE}/admin/users`,
+  userRole: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/role`,
+  userDelete: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}`,
+  makeAdmin: `${API_BASE}/admin/users/make-admin`
 };
 
 export const FIELD = {

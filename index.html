@@ -10,7 +10,7 @@
   <header>
     <nav class="primary-tabs" role="tablist" aria-label="Primary sections">
       <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise" type="button">Exercise examples</button>
-      <button id="tabGeneral" class="tab" role="tab" aria-selected="false" data-section="general" type="button">General</button>
+      <button id="tabUsers" class="tab" role="tab" aria-selected="false" data-section="users" type="button">Users</button>
     </nav>
     <button id="logoutBtn" class="btn danger" style="margin-left:auto;" title="Logout">Logout</button>
   </header>
@@ -224,10 +224,76 @@
       </main>
   </div>
 
-  <section id="generalView" class="primary-view" aria-labelledby="tabGeneral" role="tabpanel" hidden>
-    <div class="empty-state">
-      <div class="empty-title">General</div>
-      <p class="empty-copy">Добавьте общий контент позже — вкладка уже готова для переключения.</p>
+  <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
+    <div class="users-layout">
+      <section class="sidebar users-sidebar" aria-label="Users list">
+        <div class="side-head users-head">
+          <div class="field compact">
+            <label for="userSearch">Search</label>
+            <input id="userSearch" type="search" placeholder="Search by email or name" />
+          </div>
+          <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
+        </div>
+
+        <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
+      </section>
+
+      <section class="panel user-panel">
+        <div id="userEmpty" class="empty-state inline">
+          <div class="empty-title">Users</div>
+          <p class="empty-copy">Загрузите список пользователей и выберите аккаунт для управления ролями.</p>
+        </div>
+
+        <div id="userDetail" class="user-detail" hidden>
+          <div class="user-header">
+            <div class="user-header-text">
+              <div class="user-label">Selected user</div>
+              <div id="userName" class="user-title"></div>
+              <div id="userEmail" class="user-subtitle"></div>
+            </div>
+            <span id="userRolePill" class="pill"></span>
+          </div>
+
+          <div class="user-meta-grid">
+            <div class="meta-card">
+              <div class="meta-label">Experience</div>
+              <div id="userExperience" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Height</div>
+              <div id="userHeight" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Created</div>
+              <div id="userCreated" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Updated</div>
+              <div id="userUpdated" class="meta-value">—</div>
+            </div>
+          </div>
+
+          <div class="user-role-editor">
+            <div class="field">
+              <label for="userRoleSelect">Role</label>
+              <select id="userRoleSelect" disabled>
+                <option value="admin">admin</option>
+                <option value="default">default</option>
+              </select>
+            </div>
+            <div class="user-role-actions">
+              <button id="editUserBtn" class="btn warn" type="button">Edit user</button>
+              <button id="saveUserBtn" class="btn" type="button" disabled>Save role</button>
+            </div>
+          </div>
+
+          <div class="user-actions-row">
+            <button id="makeAdminBtn" class="btn" type="button">Give admin</button>
+            <button id="removeAdminBtn" class="btn muted" type="button">Remove admin</button>
+            <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+          </div>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -246,6 +312,17 @@
         <span class="pill usage"></span>
         <span class="lastUsed"></span>
       </div>
+    </div>
+  </template>
+
+  <template id="userItemTemplate">
+    <div class="item user-item" role="option" tabindex="0">
+      <div class="user-badge" aria-hidden="true"></div>
+      <div class="user-copy">
+        <div class="user-name"></div>
+        <div class="user-email"></div>
+      </div>
+      <span class="pill user-role"></span>
     </div>
   </template>
 
