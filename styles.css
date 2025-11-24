@@ -790,14 +790,6 @@ body.modal-open{overflow:hidden;}
 .meta-label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.2px; margin-bottom:4px;}
 .meta-value{font-weight:700; font-size:14px;}
 .user-actions-row{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;}
-.user-weight{border:1px solid var(--border); background:var(--panel-2); border-radius:14px; padding:14px; display:grid; gap:12px;}
-.user-weight-head{display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap;}
-.weight-input-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;}
-.weight-list{display:grid; gap:8px;}
-.weight-row{display:grid; grid-template-columns:1fr 1fr auto; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px;}
-.weight-value{font-weight:800;}
-.weight-meta{color:var(--muted); font-size:12px;}
-.weight-empty{color:var(--muted); padding:12px; border:1px dashed var(--border); border-radius:10px; text-align:center;}
 .user-item{grid-template-columns:auto 1fr auto; align-items:center; gap:10px;}
 .user-item .user-name{font-weight:800;}
 .user-item .user-email{color:var(--muted); font-size:13px;}

@@ -33,8 +33,6 @@ class GrippoAdminApp {
     this.users = [];
     this.filteredUsers = [];
     this.activeUser = null;
-    this.userWeights = new Map();
-    this.weightHistoryRequestToken = 0;
     this.roleChangeInFlight = false;
     this.confirmResolver = null;
 
@@ -141,17 +139,12 @@ class GrippoAdminApp {
       userId: document.getElementById('userId'),
       userIdDisplay: document.getElementById('userIdDisplay'),
       userRolePill: document.getElementById('userRolePill'),
-      userExperience: document.getElementById('userExperience'),
-      userHeight: document.getElementById('userHeight'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
       roleDefaultBtn: document.getElementById('roleDefaultBtn'),
       roleAdminBtn: document.getElementById('roleAdminBtn'),
       deleteUserBtn: document.getElementById('deleteUserBtn'),
       userItemTemplate: document.getElementById('userItemTemplate'),
-      weightList: document.getElementById('weightList'),
-      addWeightBtn: document.getElementById('addWeightBtn'),
-      userWeightInput: document.getElementById('userWeightInput'),
 
       confirmOverlay: document.getElementById('confirmOverlay'),
       confirmTitle: document.getElementById('confirmTitle'),
@@ -403,8 +396,6 @@ class GrippoAdminApp {
     this.els.roleDefaultBtn?.addEventListener('click', () => this.handleRoleSegment('default'));
     this.els.roleAdminBtn?.addEventListener('click', () => this.handleRoleSegment('admin'));
     this.els.deleteUserBtn?.addEventListener('click', () => this.deleteActiveUser());
-
-    this.els.addWeightBtn?.addEventListener('click', () => this.submitWeight());
 
     this.els.confirmCancel?.addEventListener('click', () => this.finishConfirm(false));
     this.els.confirmClose?.addEventListener('click', () => this.finishConfirm(false));
@@ -658,7 +649,6 @@ class GrippoAdminApp {
   setActiveUser(user, { skipListRerender = false } = {}) {
     this.activeUser = user;
     this.renderUserDetail();
-    if (this.activeUser?.id) this.loadWeightHistory(this.activeUser.id);
     if (!skipListRerender) this.renderUserList();
   }
 
@@ -668,14 +658,6 @@ class GrippoAdminApp {
 
     if (!hasUser || !this.activeUser) {
       this.updateUserActionsState();
-      if (this.els.weightList) {
-        this.els.weightList.innerHTML = '';
-        const empty = document.createElement('div');
-        empty.className = 'weight-empty';
-        empty.textContent = 'Select a user to see weight history';
-        this.els.weightList.appendChild(empty);
-      }
-      if (this.els.userWeightInput) this.els.userWeightInput.value = '';
       return;
     }
 
@@ -691,14 +673,10 @@ class GrippoAdminApp {
       this.els.userRolePill.classList.toggle('pill-admin', roleLabel === 'admin');
     }
 
-    if (this.els.userExperience) this.els.userExperience.textContent = user.experience || '—';
-    if (this.els.userHeight) this.els.userHeight.textContent = user.height ? `${user.height} cm` : '—';
     if (this.els.userCreated) this.els.userCreated.textContent = formatIso(user.createdAt) || '—';
     if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';
 
     this.updateUserActionsState();
-    this.renderWeightHistory();
-    this.setWeightInputFromHistory(user.id);
   }
 
   updateUserActionsState() {
@@ -707,8 +685,6 @@ class GrippoAdminApp {
     if (this.els.roleDefaultBtn) this.els.roleDefaultBtn.disabled = disableRole;
     if (this.els.roleAdminBtn) this.els.roleAdminBtn.disabled = disableRole;
     if (this.els.deleteUserBtn) this.els.deleteUserBtn.disabled = !hasUser;
-    if (this.els.addWeightBtn) this.els.addWeightBtn.disabled = !hasUser;
-    if (this.els.userWeightInput) this.els.userWeightInput.disabled = !hasUser;
     if (!hasUser && this.els.userIdDisplay) this.els.userIdDisplay.textContent = 'No user selected';
     this.updateRoleSegmentUI();
   }
@@ -806,148 +782,6 @@ class GrippoAdminApp {
     const mapper = (user) => (user.id === updatedUser.id ? { ...user, ...updatedUser } : user);
     this.users = this.users.map(mapper);
     this.filteredUsers = this.filteredUsers.map(mapper);
-  }
-
-  async loadWeightHistory(userId) {
-    if (!userId || !this.requireAuth()) return;
-    const token = ++this.weightHistoryRequestToken;
-    const isActiveUser = this.activeUser?.id === userId;
-    if (this.els.weightList && isActiveUser) this.els.weightList.textContent = 'Loading…';
-    try {
-      const history = await this.api.fetchWeightHistory(userId);
-      const sorted = Array.isArray(history)
-        ? [...history].sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
-        : [];
-      this.userWeights.set(userId, sorted);
-      if (this.activeUser?.id === userId && token === this.weightHistoryRequestToken) {
-        this.renderWeightHistory();
-        this.setWeightInputFromHistory(userId);
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to load weight history', message: String(error.message || error), type: 'error' });
-      this.userWeights.set(userId, []);
-      if (this.activeUser?.id === userId && token === this.weightHistoryRequestToken) {
-        this.renderWeightHistoryError();
-      }
-    }
-  }
-
-  getActiveWeightHistory() {
-    if (!this.activeUser?.id) return [];
-    return this.userWeights.get(this.activeUser.id) || [];
-  }
-
-  renderWeightHistory() {
-    if (!this.els.weightList) return;
-    const entries = this.getActiveWeightHistory();
-    this.els.weightList.innerHTML = '';
-
-    if (!entries.length) {
-      const empty = document.createElement('div');
-      empty.className = 'weight-empty';
-      empty.textContent = 'No weight entries yet';
-      this.els.weightList.appendChild(empty);
-      return;
-    }
-
-    entries.forEach((entry) => {
-      const row = document.createElement('div');
-      row.className = 'weight-row';
-      const value = document.createElement('div');
-      value.className = 'weight-value';
-      value.textContent = `${entry.weight ?? '—'} kg`;
-
-      const meta = document.createElement('div');
-      meta.className = 'weight-meta';
-      const dateLabel = formatIso(entry.createdAt || entry.date) || '—';
-      meta.textContent = dateLabel;
-
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'btn muted tiny';
-      removeBtn.type = 'button';
-      removeBtn.textContent = 'Delete';
-      removeBtn.addEventListener('click', () => this.removeWeight(entry.id));
-
-      row.append(value, meta, removeBtn);
-      this.els.weightList.appendChild(row);
-    });
-  }
-
-  renderWeightHistoryError() {
-    if (!this.els.weightList) return;
-    this.els.weightList.innerHTML = '';
-    const error = document.createElement('div');
-    error.className = 'weight-empty';
-    error.textContent = 'Unable to load weight history for this user';
-    this.els.weightList.appendChild(error);
-  }
-
-  async submitWeight() {
-    const userId = this.activeUser?.id;
-    if (!userId) return;
-    if (!this.requireAuth()) return;
-    const weightValue = parseFloat(this.els.userWeightInput?.value || '');
-    if (Number.isNaN(weightValue)) {
-      toast({ title: 'Enter weight', message: 'Please input a valid number', type: 'error' });
-      return;
-    }
-    const btn = this.els.addWeightBtn;
-    const prev = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
-    }
-
-    try {
-      const newEntry = await this.api.addWeight(weightValue, userId);
-      const existing = this.userWeights.get(userId) || [];
-      const nextHistory = Array.isArray(newEntry)
-        ? [...newEntry]
-        : [{ ...newEntry }, ...existing];
-      const sorted = nextHistory.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
-      this.userWeights.set(userId, sorted);
-      if (this.activeUser?.id === userId) {
-        this.renderWeightHistory();
-        this.setWeightInputFromHistory(userId);
-      }
-      toast({ title: 'Weight saved', message: `${weightValue} kg recorded` });
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to save weight', message: String(error.message || error), type: 'error' });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prev || 'Add weight';
-      }
-    }
-  }
-
-  async removeWeight(weightId) {
-    const userId = this.activeUser?.id;
-    if (!userId || !weightId) return;
-    if (!this.requireAuth()) return;
-    try {
-      await this.api.removeWeight(weightId, userId);
-      const history = this.userWeights.get(userId) || [];
-      const remaining = history.filter((w) => w.id !== weightId);
-      this.userWeights.set(userId, remaining);
-      if (this.activeUser?.id === userId) {
-        this.renderWeightHistory();
-        this.setWeightInputFromHistory(userId);
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to delete weight', message: String(error.message || error), type: 'error' });
-    }
-  }
-
-  setWeightInputFromHistory(userId) {
-    if (!this.els.userWeightInput) return;
-    if (userId && this.activeUser?.id !== userId) return;
-    const entries = this.userWeights.get(userId) || [];
-    const latest = entries[0];
-    this.els.userWeightInput.value = latest?.weight ?? '';
   }
 
   showConfirm({ title = 'Confirm action', message, detail, actionLabel = 'Confirm' } = {}) {
