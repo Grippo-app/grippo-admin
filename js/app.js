@@ -675,6 +675,7 @@ class GrippoAdminApp {
         empty.textContent = 'Select a user to see weight history';
         this.els.weightList.appendChild(empty);
       }
+      if (this.els.userWeightInput) this.els.userWeightInput.value = '';
       return;
     }
 
@@ -883,7 +884,8 @@ class GrippoAdminApp {
   }
 
   async submitWeight() {
-    if (!this.activeUser?.id) return;
+    const userId = this.activeUser?.id;
+    if (!userId) return;
     if (!this.requireAuth()) return;
     const weightValue = parseFloat(this.els.userWeightInput?.value || '');
     if (Number.isNaN(weightValue)) {
@@ -898,15 +900,17 @@ class GrippoAdminApp {
     }
 
     try {
-      const newEntry = await this.api.addWeight(weightValue, this.activeUser.id);
-      const existing = this.userWeights.get(this.activeUser.id) || [];
+      const newEntry = await this.api.addWeight(weightValue, userId);
+      const existing = this.userWeights.get(userId) || [];
       const nextHistory = Array.isArray(newEntry)
         ? [...newEntry]
         : [{ ...newEntry }, ...existing];
       const sorted = nextHistory.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
-      this.userWeights.set(this.activeUser.id, sorted);
-      this.renderWeightHistory();
-      this.setWeightInputFromHistory(this.activeUser.id);
+      this.userWeights.set(userId, sorted);
+      if (this.activeUser?.id === userId) {
+        this.renderWeightHistory();
+        this.setWeightInputFromHistory(userId);
+      }
       toast({ title: 'Weight saved', message: `${weightValue} kg recorded` });
     } catch (error) {
       console.error(error);
@@ -920,14 +924,18 @@ class GrippoAdminApp {
   }
 
   async removeWeight(weightId) {
-    if (!this.activeUser?.id || !weightId) return;
+    const userId = this.activeUser?.id;
+    if (!userId || !weightId) return;
     if (!this.requireAuth()) return;
     try {
-      await this.api.removeWeight(weightId, this.activeUser.id);
-      const remaining = this.getActiveWeightHistory().filter((w) => w.id !== weightId);
-      this.userWeights.set(this.activeUser.id, remaining);
-      this.renderWeightHistory();
-      this.setWeightInputFromHistory(this.activeUser.id);
+      await this.api.removeWeight(weightId, userId);
+      const history = this.userWeights.get(userId) || [];
+      const remaining = history.filter((w) => w.id !== weightId);
+      this.userWeights.set(userId, remaining);
+      if (this.activeUser?.id === userId) {
+        this.renderWeightHistory();
+        this.setWeightInputFromHistory(userId);
+      }
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to delete weight', message: String(error.message || error), type: 'error' });
@@ -936,6 +944,7 @@ class GrippoAdminApp {
 
   setWeightInputFromHistory(userId) {
     if (!this.els.userWeightInput) return;
+    if (userId && this.activeUser?.id !== userId) return;
     const entries = this.userWeights.get(userId) || [];
     const latest = entries[0];
     this.els.userWeightInput.value = latest?.weight ?? '';
