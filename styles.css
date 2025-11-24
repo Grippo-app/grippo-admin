@@ -736,10 +736,36 @@ main > .sidebar .list{
   font-size:14px;
 }
 
+.confirm-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:grid;
+  place-items:center;
+  z-index:1100;
+}
+.confirm-dialog{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  padding:16px;
+  min-width:320px;
+  display:grid;
+  gap:12px;
+}
+.confirm-header{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.confirm-title{font-weight:800;}
+.confirm-message{color:var(--muted); line-height:1.4;}
+.confirm-actions{display:flex; justify-content:flex-end; gap:8px;}
+body.modal-open{overflow:hidden;}
+
 /* Users view */
 #usersView{padding:0;}
 .users-command .cmd-actions{gap:8px;}
 .users-command input[type="search"]{min-width:260px;}
+.users-command .role-toggle{display:flex; align-items:center;}
+.users-command .role-toggle .segment{background:var(--panel-2);}
 .user-panel{
   background:var(--panel);
   border:1px solid var(--border);

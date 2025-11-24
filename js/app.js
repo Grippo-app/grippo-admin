@@ -34,6 +34,8 @@ class GrippoAdminApp {
     this.filteredUsers = [];
     this.activeUser = null;
     this.userWeights = new Map();
+    this.roleChangeInFlight = false;
+    this.confirmResolver = null;
 
     this.els = {};
     this.localeButtons = [];
@@ -143,13 +145,19 @@ class GrippoAdminApp {
       userHeight: document.getElementById('userHeight'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
-      makeAdminBtn: document.getElementById('makeAdminBtn'),
-      removeAdminBtn: document.getElementById('removeAdminBtn'),
+      roleDefaultBtn: document.getElementById('roleDefaultBtn'),
+      roleAdminBtn: document.getElementById('roleAdminBtn'),
       deleteUserBtn: document.getElementById('deleteUserBtn'),
       userItemTemplate: document.getElementById('userItemTemplate'),
       weightList: document.getElementById('weightList'),
       addWeightBtn: document.getElementById('addWeightBtn'),
-      userWeightInput: document.getElementById('userWeightInput')
+      userWeightInput: document.getElementById('userWeightInput'),
+
+      confirmOverlay: document.getElementById('confirmOverlay'),
+      confirmMessage: document.getElementById('confirmMessage'),
+      confirmAccept: document.getElementById('confirmAccept'),
+      confirmCancel: document.getElementById('confirmCancel'),
+      confirmClose: document.getElementById('confirmClose')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
@@ -390,11 +398,18 @@ class GrippoAdminApp {
       this.setActiveUser(user || null);
     });
 
-    this.els.makeAdminBtn?.addEventListener('click', () => this.grantAdminRole());
-    this.els.removeAdminBtn?.addEventListener('click', () => this.removeAdminRole());
+    this.els.roleDefaultBtn?.addEventListener('click', () => this.handleRoleSegment('default'));
+    this.els.roleAdminBtn?.addEventListener('click', () => this.handleRoleSegment('admin'));
     this.els.deleteUserBtn?.addEventListener('click', () => this.deleteActiveUser());
 
     this.els.addWeightBtn?.addEventListener('click', () => this.submitWeight());
+
+    this.els.confirmCancel?.addEventListener('click', () => this.finishConfirm(false));
+    this.els.confirmClose?.addEventListener('click', () => this.finishConfirm(false));
+    this.els.confirmAccept?.addEventListener('click', () => this.finishConfirm(true));
+    this.els.confirmOverlay?.addEventListener('click', (event) => {
+      if (event.target === this.els.confirmOverlay) this.finishConfirm(false);
+    });
   }
 
   showLoginOverlay() {
@@ -675,70 +690,67 @@ class GrippoAdminApp {
 
     this.updateUserActionsState();
     this.renderWeightHistory();
+    this.setWeightInputFromHistory(user.id);
   }
 
   updateUserActionsState() {
     const hasUser = !!this.activeUser;
-    const isAdmin = hasUser && this.activeUser.role === 'admin';
-    if (this.els.makeAdminBtn) this.els.makeAdminBtn.disabled = !hasUser || isAdmin;
-    if (this.els.removeAdminBtn) this.els.removeAdminBtn.disabled = !hasUser || !isAdmin;
+    const disableRole = !hasUser || this.roleChangeInFlight;
+    if (this.els.roleDefaultBtn) this.els.roleDefaultBtn.disabled = disableRole;
+    if (this.els.roleAdminBtn) this.els.roleAdminBtn.disabled = disableRole;
     if (this.els.deleteUserBtn) this.els.deleteUserBtn.disabled = !hasUser;
     if (this.els.addWeightBtn) this.els.addWeightBtn.disabled = !hasUser;
     if (this.els.userWeightInput) this.els.userWeightInput.disabled = !hasUser;
     if (!hasUser && this.els.userIdDisplay) this.els.userIdDisplay.textContent = 'No user selected';
+    this.updateRoleSegmentUI();
   }
 
-  async grantAdminRole() {
-    if (!this.activeUser) return;
-    if (!this.requireAuth()) return;
-    const btn = this.els.makeAdminBtn;
-    const prev = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Granting…';
+  handleRoleSegment(role) {
+    if (!this.activeUser || this.roleChangeInFlight) return;
+    if (this.activeUser.role === role) {
+      this.updateRoleSegmentUI();
+      return;
     }
-    try {
-      const updated = await this.api.makeAdmin(this.activeUser.email);
-      this.updateUserCollections(updated);
-      this.setActiveUser(updated, { skipListRerender: true });
-      toast({ title: 'Admin role granted', message: `${updated.email} is now admin` });
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to grant', message: String(error.message || error), type: 'error' });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prev || 'Give admin';
-      }
-      this.renderUserDetail();
-      this.renderUserList();
-    }
+    this.changeUserRole(role);
   }
 
-  async removeAdminRole() {
-    if (!this.activeUser) return;
+  updateRoleSegmentUI() {
+    if (!this.els.roleDefaultBtn || !this.els.roleAdminBtn) return;
+    const role = this.activeUser?.role || 'default';
+    const isAdmin = role === 'admin';
+    this.els.roleDefaultBtn.classList.toggle('active', !isAdmin);
+    this.els.roleAdminBtn.classList.toggle('active', isAdmin);
+    this.els.roleDefaultBtn.setAttribute('aria-selected', String(!isAdmin));
+    this.els.roleAdminBtn.setAttribute('aria-selected', String(isAdmin));
+  }
+
+  async changeUserRole(role) {
+    if (!this.activeUser || !role) return;
     if (!this.requireAuth()) return;
 
-    const btn = this.els.removeAdminBtn;
-    const prev = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Revoking…';
-    }
+    const targetId = this.activeUser.id;
+    const adminBtn = this.els.roleAdminBtn;
+    const defaultBtn = this.els.roleDefaultBtn;
+    const targetBtn = role === 'admin' ? adminBtn : defaultBtn;
+    const prevLabel = targetBtn?.textContent;
+
+    this.roleChangeInFlight = true;
+    if (adminBtn) adminBtn.disabled = true;
+    if (defaultBtn) defaultBtn.disabled = true;
+    if (targetBtn) targetBtn.textContent = 'Saving…';
+
     try {
-      const updated = await this.api.setUserRole(this.activeUser.id, 'default');
+      const updated = await this.api.setUserRole(targetId, role);
       this.updateUserCollections(updated);
       this.setActiveUser(updated, { skipListRerender: true });
-      toast({ title: 'Admin removed', message: `${updated.email} role set to default` });
+      toast({ title: 'Role updated', message: `${updated.email} set to ${updated.role}` });
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to update role', message: String(error.message || error), type: 'error' });
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prev || 'Remove admin';
-      }
-      this.renderUserDetail();
+      this.roleChangeInFlight = false;
+      if (targetBtn) targetBtn.textContent = prevLabel || targetBtn.textContent;
+      this.updateUserActionsState();
       this.renderUserList();
     }
   }
@@ -746,7 +758,10 @@ class GrippoAdminApp {
   async deleteActiveUser() {
     if (!this.activeUser) return;
     if (!this.requireAuth()) return;
-    const confirmed = window.confirm(`Delete user ${this.activeUser.email}? This cannot be undone.`);
+    const confirmed = await this.showConfirm({
+      message: `Delete user ${this.activeUser.email}? This cannot be undone.`,
+      actionLabel: 'Delete user'
+    });
     if (!confirmed) return;
 
     const btn = this.els.deleteUserBtn;
@@ -790,7 +805,10 @@ class GrippoAdminApp {
         ? [...history].sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
         : [];
       this.userWeights.set(userId, sorted);
-      if (this.activeUser?.id === userId) this.renderWeightHistory();
+      if (this.activeUser?.id === userId) {
+        this.renderWeightHistory();
+        this.setWeightInputFromHistory(userId);
+      }
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to load weight history', message: String(error.message || error), type: 'error' });
@@ -862,7 +880,7 @@ class GrippoAdminApp {
       const sorted = nextHistory.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
       this.userWeights.set(this.activeUser.id, sorted);
       this.renderWeightHistory();
-      if (this.els.userWeightInput) this.els.userWeightInput.value = '';
+      this.setWeightInputFromHistory(this.activeUser.id);
       toast({ title: 'Weight saved', message: `${weightValue} kg recorded` });
     } catch (error) {
       console.error(error);
@@ -883,10 +901,40 @@ class GrippoAdminApp {
       const remaining = this.getActiveWeightHistory().filter((w) => w.id !== weightId);
       this.userWeights.set(this.activeUser.id, remaining);
       this.renderWeightHistory();
+      this.setWeightInputFromHistory(this.activeUser.id);
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to delete weight', message: String(error.message || error), type: 'error' });
     }
+  }
+
+  setWeightInputFromHistory(userId) {
+    if (!this.els.userWeightInput) return;
+    const entries = this.userWeights.get(userId) || [];
+    const latest = entries[0];
+    this.els.userWeightInput.value = latest?.weight ?? '';
+  }
+
+  showConfirm({ message, actionLabel = 'Confirm' } = {}) {
+    if (!this.els.confirmOverlay || !this.els.confirmMessage || !this.els.confirmAccept) return Promise.resolve(false);
+    this.els.confirmMessage.textContent = message || 'Are you sure?';
+    this.els.confirmAccept.textContent = actionLabel;
+    this.els.confirmOverlay.hidden = false;
+    document.body.classList.add('modal-open');
+    return new Promise((resolve) => {
+      this.confirmResolver = resolve;
+    });
+  }
+
+  finishConfirm(result) {
+    if (typeof this.confirmResolver === 'function') this.confirmResolver(result);
+    this.confirmResolver = null;
+    this.hideConfirm();
+  }
+
+  hideConfirm() {
+    if (this.els.confirmOverlay) this.els.confirmOverlay.hidden = true;
+    document.body.classList.remove('modal-open');
   }
 
   toggleElement(el, show) {
