@@ -506,15 +506,15 @@ main{
   overflow:hidden;
 }
 .users-sidebar{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:10px;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding:0;
 }
 .users-sidebar .list{
-  background:var(--panel-2);
-  border:1px solid var(--border);
-  border-radius:12px;
+  background:transparent;
+  border:0;
+  border-radius:0;
 }
 .users-head{
   display:flex !important;
