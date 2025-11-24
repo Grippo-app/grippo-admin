@@ -225,16 +225,23 @@
   </div>
 
   <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
+    <div id="usersCommandBar" class="command-bar users-command">
+      <input id="userSearch" type="search" placeholder="Search by email or name" />
+      <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
+
+      <span class="spacer"></span>
+
+      <span id="userIdDisplay" class="hint">No user selected</span>
+
+      <div class="cmd-actions">
+        <button id="makeAdminBtn" class="btn" type="button">Give admin</button>
+        <button id="removeAdminBtn" class="btn muted" type="button">Remove admin</button>
+        <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+      </div>
+    </div>
+
     <div class="users-layout">
       <section class="sidebar users-sidebar" aria-label="Users list">
-        <div class="side-head users-head">
-          <div class="field compact">
-            <label for="userSearch">Search</label>
-            <input id="userSearch" type="search" placeholder="Search by email or name" />
-          </div>
-          <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
-        </div>
-
         <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
       </section>
 
@@ -250,6 +257,7 @@
               <div class="user-label">Selected user</div>
               <div id="userName" class="user-title"></div>
               <div id="userEmail" class="user-subtitle"></div>
+              <div class="user-id-row">ID: <span id="userId" class="mono"></span></div>
             </div>
             <span id="userRolePill" class="pill"></span>
           </div>
@@ -273,24 +281,21 @@
             </div>
           </div>
 
-          <div class="user-role-editor">
-            <div class="field">
-              <label for="userRoleSelect">Role</label>
-              <select id="userRoleSelect" disabled>
-                <option value="admin">admin</option>
-                <option value="default">default</option>
-              </select>
+          <div class="user-weight">
+            <div class="user-weight-head">
+              <div>
+                <div class="section-title">Weight history</div>
+                <div class="hint">Manage weights for the selected user</div>
+              </div>
+              <div class="weight-input-row">
+                <div class="field compact">
+                  <label for="userWeightInput">Weight (kg)</label>
+                  <input id="userWeightInput" type="number" min="30" max="300" step="0.1" placeholder="80" />
+                </div>
+                <button id="addWeightBtn" class="btn" type="button">Add weight</button>
+              </div>
             </div>
-            <div class="user-role-actions">
-              <button id="editUserBtn" class="btn warn" type="button">Edit user</button>
-              <button id="saveUserBtn" class="btn" type="button" disabled>Save role</button>
-            </div>
-          </div>
-
-          <div class="user-actions-row">
-            <button id="makeAdminBtn" class="btn" type="button">Give admin</button>
-            <button id="removeAdminBtn" class="btn muted" type="button">Remove admin</button>
-            <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+            <div id="weightList" class="weight-list"></div>
           </div>
         </div>
       </section>

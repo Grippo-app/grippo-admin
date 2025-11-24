@@ -33,7 +33,7 @@ class GrippoAdminApp {
     this.users = [];
     this.filteredUsers = [];
     this.activeUser = null;
-    this.userEditing = false;
+    this.userWeights = new Map();
 
     this.els = {};
     this.localeButtons = [];
@@ -114,6 +114,7 @@ class GrippoAdminApp {
       loginError: document.getElementById('loginError'),
       logoutBtn: document.getElementById('logoutBtn'),
       commandBar: document.getElementById('commandBar'),
+      usersCommandBar: document.getElementById('usersCommandBar'),
       exerciseView: document.getElementById('exerciseView'),
       usersView: document.getElementById('usersView'),
       tabExercise: document.getElementById('tabExercise'),
@@ -135,18 +136,20 @@ class GrippoAdminApp {
       userDetail: document.getElementById('userDetail'),
       userName: document.getElementById('userName'),
       userEmail: document.getElementById('userEmail'),
+      userId: document.getElementById('userId'),
+      userIdDisplay: document.getElementById('userIdDisplay'),
       userRolePill: document.getElementById('userRolePill'),
-      userRoleSelect: document.getElementById('userRoleSelect'),
       userExperience: document.getElementById('userExperience'),
       userHeight: document.getElementById('userHeight'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
-      editUserBtn: document.getElementById('editUserBtn'),
-      saveUserBtn: document.getElementById('saveUserBtn'),
       makeAdminBtn: document.getElementById('makeAdminBtn'),
       removeAdminBtn: document.getElementById('removeAdminBtn'),
       deleteUserBtn: document.getElementById('deleteUserBtn'),
-      userItemTemplate: document.getElementById('userItemTemplate')
+      userItemTemplate: document.getElementById('userItemTemplate'),
+      weightList: document.getElementById('weightList'),
+      addWeightBtn: document.getElementById('addWeightBtn'),
+      userWeightInput: document.getElementById('userWeightInput')
     };
 
     this.localeButtons = Array.from(this.els.localeSwitcher?.querySelectorAll('[data-locale]') || []);
@@ -387,16 +390,11 @@ class GrippoAdminApp {
       this.setActiveUser(user || null);
     });
 
-    this.els.editUserBtn?.addEventListener('click', () => this.beginUserEdit());
-    this.els.saveUserBtn?.addEventListener('click', () => this.saveUserRole());
     this.els.makeAdminBtn?.addEventListener('click', () => this.grantAdminRole());
     this.els.removeAdminBtn?.addEventListener('click', () => this.removeAdminRole());
     this.els.deleteUserBtn?.addEventListener('click', () => this.deleteActiveUser());
 
-    this.els.userRoleSelect?.addEventListener('change', () => {
-      if (!this.userEditing || !this.els.saveUserBtn) return;
-      this.els.saveUserBtn.disabled = false;
-    });
+    this.els.addWeightBtn?.addEventListener('click', () => this.submitWeight());
   }
 
   showLoginOverlay() {
@@ -425,14 +423,19 @@ class GrippoAdminApp {
     this.updatePrimarySectionVisibility();
     this.updateStickyOffsets();
     if (section === 'exercise') this.updateCommandBarVisibility();
-    if (section === 'users' && !this.users.length) this.loadUsers().catch((err) => console.error(err));
+    if (section === 'users') {
+      this.renderUserDetail();
+      if (!this.users.length) this.loadUsers().catch((err) => console.error(err));
+    }
   }
 
   updatePrimarySectionVisibility() {
     const showExercise = this.activeSection === 'exercise';
     const showUsers = this.activeSection === 'users';
     this.toggleElement(this.els.commandBar, showExercise);
+    this.toggleElement(this.els.usersCommandBar, showUsers);
     if (this.els.commandBar) this.els.commandBar.hidden = !showExercise;
+    if (this.els.usersCommandBar) this.els.usersCommandBar.hidden = !showUsers;
     if (this.els.exerciseView) {
       this.els.exerciseView.hidden = !showExercise;
       this.els.exerciseView.classList.toggle('active', showExercise);
@@ -453,7 +456,7 @@ class GrippoAdminApp {
 
   updateStickyOffsets() {
     const header = document.querySelector('header');
-    const bar = document.getElementById('commandBar');
+    const bar = (this.activeSection === 'users' ? this.els.usersCommandBar : this.els.commandBar) || document.getElementById('commandBar');
     const h = header ? header.offsetHeight : 64;
     const b = bar ? bar.offsetHeight : 56;
     document.documentElement.style.setProperty('--header-h', `${h}px`);
@@ -631,8 +634,8 @@ class GrippoAdminApp {
 
   setActiveUser(user, { skipListRerender = false } = {}) {
     this.activeUser = user;
-    this.userEditing = false;
     this.renderUserDetail();
+    if (this.activeUser?.id) this.loadWeightHistory(this.activeUser.id);
     if (!skipListRerender) this.renderUserList();
   }
 
@@ -643,21 +646,26 @@ class GrippoAdminApp {
 
     if (!hasUser || !this.activeUser) {
       this.updateUserActionsState();
+      if (this.els.weightList) {
+        this.els.weightList.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'weight-empty';
+        empty.textContent = 'Select a user to see weight history';
+        this.els.weightList.appendChild(empty);
+      }
       return;
     }
 
     const user = this.activeUser;
     if (this.els.userName) this.els.userName.textContent = user.name || 'Unnamed user';
     if (this.els.userEmail) this.els.userEmail.textContent = user.email || '—';
+    if (this.els.userId) this.els.userId.textContent = user.id || '—';
+    if (this.els.userIdDisplay) this.els.userIdDisplay.textContent = user.id || 'No user selected';
 
     const roleLabel = (user.role || '').toString();
     if (this.els.userRolePill) {
       this.els.userRolePill.textContent = roleLabel || 'unknown';
       this.els.userRolePill.classList.toggle('pill-admin', roleLabel === 'admin');
-    }
-    if (this.els.userRoleSelect) {
-      this.els.userRoleSelect.value = roleLabel || 'default';
-      this.els.userRoleSelect.disabled = !this.userEditing;
     }
 
     if (this.els.userExperience) this.els.userExperience.textContent = user.experience || '—';
@@ -666,55 +674,18 @@ class GrippoAdminApp {
     if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';
 
     this.updateUserActionsState();
+    this.renderWeightHistory();
   }
 
   updateUserActionsState() {
     const hasUser = !!this.activeUser;
     const isAdmin = hasUser && this.activeUser.role === 'admin';
-    if (this.els.editUserBtn) this.els.editUserBtn.disabled = !hasUser;
-    if (this.els.saveUserBtn) this.els.saveUserBtn.disabled = !hasUser || !this.userEditing;
     if (this.els.makeAdminBtn) this.els.makeAdminBtn.disabled = !hasUser || isAdmin;
     if (this.els.removeAdminBtn) this.els.removeAdminBtn.disabled = !hasUser || !isAdmin;
     if (this.els.deleteUserBtn) this.els.deleteUserBtn.disabled = !hasUser;
-  }
-
-  beginUserEdit() {
-    if (!this.activeUser || !this.els.userRoleSelect) return;
-    this.userEditing = true;
-    this.els.userRoleSelect.disabled = false;
-    if (this.els.saveUserBtn) this.els.saveUserBtn.disabled = false;
-    this.els.userRoleSelect.focus();
-  }
-
-  async saveUserRole() {
-    if (!this.userEditing || !this.activeUser || !this.els.userRoleSelect) return;
-    if (!this.requireAuth()) return;
-
-    const role = this.els.userRoleSelect.value;
-    const btn = this.els.saveUserBtn;
-    const prev = btn?.textContent;
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
-    }
-
-    try {
-      const updated = await this.api.setUserRole(this.activeUser.id, role);
-      this.updateUserCollections(updated);
-      this.setActiveUser(updated, { skipListRerender: true });
-      toast({ title: 'User updated', message: `${updated.email} → ${updated.role}` });
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to update', message: String(error.message || error), type: 'error' });
-    } finally {
-      this.userEditing = false;
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = prev || 'Save role';
-      }
-      this.renderUserDetail();
-      this.renderUserList();
-    }
+    if (this.els.addWeightBtn) this.els.addWeightBtn.disabled = !hasUser;
+    if (this.els.userWeightInput) this.els.userWeightInput.disabled = !hasUser;
+    if (!hasUser && this.els.userIdDisplay) this.els.userIdDisplay.textContent = 'No user selected';
   }
 
   async grantAdminRole() {
@@ -789,6 +760,7 @@ class GrippoAdminApp {
       await this.api.deleteUser(targetId);
       this.users = this.users.filter((u) => u.id !== targetId);
       this.filteredUsers = this.filteredUsers.filter((u) => u.id !== targetId);
+      this.userWeights.delete(targetId);
       toast({ title: 'User deleted', message: targetId, type: 'warn' });
       this.setActiveUser(this.filteredUsers[0] || null);
     } catch (error) {
@@ -807,6 +779,114 @@ class GrippoAdminApp {
     const mapper = (user) => (user.id === updatedUser.id ? { ...user, ...updatedUser } : user);
     this.users = this.users.map(mapper);
     this.filteredUsers = this.filteredUsers.map(mapper);
+  }
+
+  async loadWeightHistory(userId) {
+    if (!userId || !this.requireAuth()) return;
+    if (this.els.weightList) this.els.weightList.textContent = 'Loading…';
+    try {
+      const history = await this.api.fetchWeightHistory(userId);
+      const sorted = Array.isArray(history)
+        ? [...history].sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
+        : [];
+      this.userWeights.set(userId, sorted);
+      if (this.activeUser?.id === userId) this.renderWeightHistory();
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to load weight history', message: String(error.message || error), type: 'error' });
+    }
+  }
+
+  getActiveWeightHistory() {
+    if (!this.activeUser?.id) return [];
+    return this.userWeights.get(this.activeUser.id) || [];
+  }
+
+  renderWeightHistory() {
+    if (!this.els.weightList) return;
+    const entries = this.getActiveWeightHistory();
+    this.els.weightList.innerHTML = '';
+
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'weight-empty';
+      empty.textContent = 'No weight entries yet';
+      this.els.weightList.appendChild(empty);
+      return;
+    }
+
+    entries.forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'weight-row';
+      const value = document.createElement('div');
+      value.className = 'weight-value';
+      value.textContent = `${entry.weight ?? '—'} kg`;
+
+      const meta = document.createElement('div');
+      meta.className = 'weight-meta';
+      const dateLabel = formatIso(entry.createdAt || entry.date) || '—';
+      meta.textContent = dateLabel;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn muted tiny';
+      removeBtn.type = 'button';
+      removeBtn.textContent = 'Delete';
+      removeBtn.addEventListener('click', () => this.removeWeight(entry.id));
+
+      row.append(value, meta, removeBtn);
+      this.els.weightList.appendChild(row);
+    });
+  }
+
+  async submitWeight() {
+    if (!this.activeUser?.id) return;
+    if (!this.requireAuth()) return;
+    const weightValue = parseFloat(this.els.userWeightInput?.value || '');
+    if (Number.isNaN(weightValue)) {
+      toast({ title: 'Enter weight', message: 'Please input a valid number', type: 'error' });
+      return;
+    }
+    const btn = this.els.addWeightBtn;
+    const prev = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+    }
+
+    try {
+      const newEntry = await this.api.addWeight(weightValue, this.activeUser.id);
+      const existing = this.userWeights.get(this.activeUser.id) || [];
+      const nextHistory = Array.isArray(newEntry)
+        ? [...newEntry]
+        : [{ ...newEntry }, ...existing];
+      const sorted = nextHistory.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
+      this.userWeights.set(this.activeUser.id, sorted);
+      this.renderWeightHistory();
+      if (this.els.userWeightInput) this.els.userWeightInput.value = '';
+      toast({ title: 'Weight saved', message: `${weightValue} kg recorded` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to save weight', message: String(error.message || error), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = prev || 'Add weight';
+      }
+    }
+  }
+
+  async removeWeight(weightId) {
+    if (!this.activeUser?.id || !weightId) return;
+    if (!this.requireAuth()) return;
+    try {
+      await this.api.removeWeight(weightId, this.activeUser.id);
+      const remaining = this.getActiveWeightHistory().filter((w) => w.id !== weightId);
+      this.userWeights.set(this.activeUser.id, remaining);
+      this.renderWeightHistory();
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'Failed to delete weight', message: String(error.message || error), type: 'error' });
+    }
   }
 
   toggleElement(el, show) {

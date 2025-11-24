@@ -13,7 +13,10 @@ export const ENDPOINTS = {
   users: `${API_BASE}/admin/users`,
   userRole: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/role`,
   userDelete: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}`,
-  makeAdmin: `${API_BASE}/admin/users/make-admin`
+  makeAdmin: `${API_BASE}/admin/users/make-admin`,
+
+  weightHistory: (userId) => `${API_BASE}/weight-history${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`,
+  weightHistoryRemove: (id, userId) => `${API_BASE}/weight-history/${encodeURIComponent(id)}${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`
 };
 
 export const FIELD = {

@@ -155,4 +155,37 @@ export class ApiClient {
     }
     return resp.text().catch(() => null);
   }
+
+  async fetchWeightHistory(userId) {
+    const resp = await fetch(ENDPOINTS.weightHistory(userId), {
+      headers: this.buildHeaders({ json: false })
+    });
+    if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    return resp.json();
+  }
+
+  async addWeight(weight, userId) {
+    const resp = await fetch(ENDPOINTS.weightHistory(userId), {
+      method: 'POST',
+      headers: this.buildHeaders({ json: true }),
+      body: JSON.stringify({ weight })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.json();
+  }
+
+  async removeWeight(weightId, userId) {
+    const resp = await fetch(ENDPOINTS.weightHistoryRemove(weightId, userId), {
+      method: 'DELETE',
+      headers: this.buildHeaders({ json: false })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+    }
+    return resp.text().catch(() => null);
+  }
 }
