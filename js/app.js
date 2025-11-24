@@ -34,6 +34,7 @@ class GrippoAdminApp {
     this.filteredUsers = [];
     this.activeUser = null;
     this.userWeights = new Map();
+    this.weightHistoryRequestToken = 0;
     this.roleChangeInFlight = false;
     this.confirmResolver = null;
 
@@ -810,20 +811,26 @@ class GrippoAdminApp {
 
   async loadWeightHistory(userId) {
     if (!userId || !this.requireAuth()) return;
-    if (this.els.weightList) this.els.weightList.textContent = 'Loading…';
+    const token = ++this.weightHistoryRequestToken;
+    const isActiveUser = this.activeUser?.id === userId;
+    if (this.els.weightList && isActiveUser) this.els.weightList.textContent = 'Loading…';
     try {
       const history = await this.api.fetchWeightHistory(userId);
       const sorted = Array.isArray(history)
         ? [...history].sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0))
         : [];
       this.userWeights.set(userId, sorted);
-      if (this.activeUser?.id === userId) {
+      if (this.activeUser?.id === userId && token === this.weightHistoryRequestToken) {
         this.renderWeightHistory();
         this.setWeightInputFromHistory(userId);
       }
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to load weight history', message: String(error.message || error), type: 'error' });
+      this.userWeights.set(userId, []);
+      if (this.activeUser?.id === userId && token === this.weightHistoryRequestToken) {
+        this.renderWeightHistoryError();
+      }
     }
   }
 
@@ -866,6 +873,15 @@ class GrippoAdminApp {
       row.append(value, meta, removeBtn);
       this.els.weightList.appendChild(row);
     });
+  }
+
+  renderWeightHistoryError() {
+    if (!this.els.weightList) return;
+    this.els.weightList.innerHTML = '';
+    const error = document.createElement('div');
+    error.className = 'weight-empty';
+    error.textContent = 'Unable to load weight history for this user';
+    this.els.weightList.appendChild(error);
   }
 
   async submitWeight() {
