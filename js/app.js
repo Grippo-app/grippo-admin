@@ -657,6 +657,15 @@ class GrippoAdminApp {
     if (this.els.userDetail) this.els.userDetail.hidden = !hasUser;
 
     if (!hasUser || !this.activeUser) {
+      if (this.els.userName) this.els.userName.textContent = '';
+      if (this.els.userEmail) this.els.userEmail.textContent = '';
+      if (this.els.userId) this.els.userId.textContent = '';
+      if (this.els.userRolePill) {
+        this.els.userRolePill.textContent = '';
+        this.els.userRolePill.classList.remove('pill-admin');
+      }
+      if (this.els.userCreated) this.els.userCreated.textContent = '—';
+      if (this.els.userUpdated) this.els.userUpdated.textContent = '—';
       this.updateUserActionsState();
       return;
     }
