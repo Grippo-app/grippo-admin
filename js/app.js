@@ -135,7 +135,6 @@ class GrippoAdminApp {
       userList: document.getElementById('userList'),
       userSearch: document.getElementById('userSearch'),
       reloadUsersBtn: document.getElementById('reloadUsersBtn'),
-      userEmpty: document.getElementById('userEmpty'),
       userDetail: document.getElementById('userDetail'),
       userName: document.getElementById('userName'),
       userEmail: document.getElementById('userEmail'),
@@ -665,7 +664,6 @@ class GrippoAdminApp {
 
   renderUserDetail() {
     const hasUser = !!this.activeUser;
-    if (this.els.userEmpty) this.els.userEmpty.hidden = hasUser;
     if (this.els.userDetail) this.els.userDetail.hidden = !hasUser;
 
     if (!hasUser || !this.activeUser) {
