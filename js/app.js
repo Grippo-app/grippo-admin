@@ -115,8 +115,7 @@ class GrippoAdminApp {
       loginPassword: document.getElementById('loginPassword'),
       loginError: document.getElementById('loginError'),
       logoutBtn: document.getElementById('logoutBtn'),
-      userIdDisplay: document.getElementById('userIdDisplay'),
-      profileIdDisplay: document.getElementById('profileIdDisplay'),
+      userSelectionHint: document.getElementById('userSelectionHint'),
       commandBar: document.getElementById('commandBar'),
       usersCommandBar: document.getElementById('usersCommandBar'),
       exerciseView: document.getElementById('exerciseView'),
@@ -139,8 +138,8 @@ class GrippoAdminApp {
       userDetail: document.getElementById('userDetail'),
       userName: document.getElementById('userName'),
       userEmail: document.getElementById('userEmail'),
-      userId: document.getElementById('userId'),
-      userIdDisplay: document.getElementById('userIdDisplay'),
+      userIdField: document.getElementById('userIdField'),
+      profileIdField: document.getElementById('profileIdField'),
       userRolePill: document.getElementById('userRolePill'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
@@ -431,8 +430,10 @@ class GrippoAdminApp {
   renderUserInfo(info = this.userInfo) {
     const userId = info?.id || '';
     const profileId = info?.profileId || '';
-    if (this.els.userIdDisplay) this.els.userIdDisplay.value = userId;
-    if (this.els.profileIdDisplay) this.els.profileIdDisplay.value = profileId;
+    if (this.els.userSelectionHint) {
+      const hint = userId || profileId ? `Logged in as ${userId || '—'}` : 'No user selected';
+      this.els.userSelectionHint.textContent = hint;
+    }
   }
 
   setUserInfo(info = {}) {
@@ -613,6 +614,13 @@ class GrippoAdminApp {
     return this.isNew || !!(this.current && this.current.entity && this.current.entity.id);
   }
 
+  normalizeUser(user = {}) {
+    const profileId = user?.profileId || user?.profile?.id || '';
+    const profile = user?.profile || null;
+    const name = user?.name || profile?.name || '';
+    return { ...user, profileId, profile, name };
+  }
+
   async loadUsers() {
     if (!this.requireAuth()) return;
     const btn = this.els.reloadUsersBtn;
@@ -624,7 +632,7 @@ class GrippoAdminApp {
     const prevSelectedId = this.activeUser?.id || null;
     try {
       const users = await this.api.fetchUsers();
-      this.users = Array.isArray(users) ? users : [];
+      this.users = Array.isArray(users) ? users.map((u) => this.normalizeUser(u)) : [];
       this.applyUserSearch({ preserveSelection: true, fallbackId: prevSelectedId });
     } catch (error) {
       console.error(error);
@@ -643,7 +651,7 @@ class GrippoAdminApp {
     this.filteredUsers = this.users
       .filter((user) => {
         if (!needle) return true;
-        const name = (user.name || '').toLowerCase();
+        const name = (user.name || user.profile?.name || '').toLowerCase();
         const email = (user.email || '').toLowerCase();
         return name.includes(needle) || email.includes(needle);
       })
@@ -696,7 +704,7 @@ class GrippoAdminApp {
   }
 
   setActiveUser(user, { skipListRerender = false } = {}) {
-    this.activeUser = user;
+    this.activeUser = user ? this.normalizeUser(user) : null;
     this.renderUserDetail();
     if (!skipListRerender) this.renderUserList();
   }
@@ -708,22 +716,27 @@ class GrippoAdminApp {
     if (!hasUser || !this.activeUser) {
       if (this.els.userName) this.els.userName.textContent = '';
       if (this.els.userEmail) this.els.userEmail.textContent = '';
-      if (this.els.userId) this.els.userId.textContent = '';
+      if (this.els.userIdField) this.els.userIdField.value = '';
+      if (this.els.profileIdField) this.els.profileIdField.value = '';
       if (this.els.userRolePill) {
         this.els.userRolePill.textContent = '';
         this.els.userRolePill.classList.remove('pill-admin');
       }
       if (this.els.userCreated) this.els.userCreated.textContent = '—';
       if (this.els.userUpdated) this.els.userUpdated.textContent = '—';
+      if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = 'No user selected';
       this.updateUserActionsState();
       return;
     }
 
     const user = this.activeUser;
-    if (this.els.userName) this.els.userName.textContent = user.name || 'Unnamed user';
+    const profileName = user.profile?.name || user.name || 'Unnamed user';
+    const profileId = user.profileId || user.profile?.id || '';
+    if (this.els.userName) this.els.userName.textContent = profileName;
     if (this.els.userEmail) this.els.userEmail.textContent = user.email || '—';
-    if (this.els.userId) this.els.userId.textContent = user.id || '—';
-    if (this.els.userIdDisplay) this.els.userIdDisplay.textContent = user.id || 'No user selected';
+    if (this.els.userIdField) this.els.userIdField.value = user.id || '';
+    if (this.els.profileIdField) this.els.profileIdField.value = profileId || '';
+    if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = `Selected: ${user.id || '—'}`;
 
     const roleLabel = (user.role || '').toString();
     if (this.els.userRolePill) {
@@ -743,7 +756,7 @@ class GrippoAdminApp {
     if (this.els.roleDefaultBtn) this.els.roleDefaultBtn.disabled = disableRole;
     if (this.els.roleAdminBtn) this.els.roleAdminBtn.disabled = disableRole;
     if (this.els.deleteUserBtn) this.els.deleteUserBtn.disabled = !hasUser;
-    if (!hasUser && this.els.userIdDisplay) this.els.userIdDisplay.textContent = 'No user selected';
+    if (!hasUser && this.els.userSelectionHint) this.els.userSelectionHint.textContent = 'No user selected';
     this.updateRoleSegmentUI();
   }
 
@@ -837,7 +850,8 @@ class GrippoAdminApp {
 
   updateUserCollections(updatedUser) {
     if (!updatedUser || !updatedUser.id) return;
-    const mapper = (user) => (user.id === updatedUser.id ? { ...user, ...updatedUser } : user);
+    const normalised = this.normalizeUser(updatedUser);
+    const mapper = (user) => (user.id === normalised.id ? { ...user, ...normalised } : user);
     this.users = this.users.map(mapper);
     this.filteredUsers = this.filteredUsers.map(mapper);
   }
