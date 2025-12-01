@@ -785,6 +785,12 @@ body.modal-open{overflow:hidden;}
 .users-command input[type="search"]{min-width:260px;}
 .users-command .role-toggle{display:flex; align-items:center;}
 .users-command .role-toggle .segment{background:var(--panel-2);}
+.users-command .cmd-actions{align-items:stretch;}
+.users-command #deleteUserBtn{
+  padding:8px 12px;
+  border-radius:10px;
+  align-self:stretch;
+}
 .user-panel{
   background:var(--panel);
   border:1px solid var(--border);
@@ -799,7 +805,11 @@ body.modal-open{overflow:hidden;}
 .user-label{color:var(--muted); font-weight:700; text-transform:uppercase; font-size:12px; letter-spacing:.3px;}
 .user-title{font-size:20px; font-weight:900;}
 .user-subtitle{color:var(--muted); font-size:13px; word-break:break-all;}
-.user-id-row{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color:var(--muted); font-size:12px;}
+.user-id-fields{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;}
+.user-id-fields .field input[disabled]{
+  cursor:default;
+  color:var(--muted);
+}
 .user-meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
 .meta-card{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:10px;}
 .meta-label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.2px; margin-bottom:4px;}

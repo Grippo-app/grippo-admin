@@ -12,16 +12,6 @@
       <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise" type="button">Exercise examples</button>
       <button id="tabUsers" class="tab" role="tab" aria-selected="false" data-section="users" type="button">Users</button>
     </nav>
-    <div class="user-readonly" aria-label="Current user identifiers">
-      <div class="field compact">
-        <label for="userIdDisplay">User ID</label>
-        <input id="userIdDisplay" type="text" disabled placeholder="—" />
-      </div>
-      <div class="field compact">
-        <label for="profileIdDisplay">Profile ID</label>
-        <input id="profileIdDisplay" type="text" disabled placeholder="—" />
-      </div>
-    </div>
     <button id="logoutBtn" class="btn danger" style="margin-left:auto;" title="Logout">Logout</button>
   </header>
 
@@ -256,7 +246,7 @@
 
       <span class="spacer"></span>
 
-      <span id="userIdDisplay" class="hint">No user selected</span>
+      <span id="userSelectionHint" class="hint">No user selected</span>
 
       <div class="cmd-actions">
         <div class="view-toggle role-toggle">
@@ -281,9 +271,19 @@
               <div class="user-label">Selected user</div>
               <div id="userName" class="user-title"></div>
               <div id="userEmail" class="user-subtitle"></div>
-              <div class="user-id-row">ID: <span id="userId" class="mono"></span></div>
             </div>
             <span id="userRolePill" class="pill"></span>
+          </div>
+
+          <div class="user-id-fields">
+            <div class="field compact">
+              <label for="userIdField">User ID</label>
+              <input id="userIdField" type="text" disabled placeholder="—" />
+            </div>
+            <div class="field compact">
+              <label for="profileIdField">Profile ID</label>
+              <input id="profileIdField" type="text" disabled placeholder="—" />
+            </div>
           </div>
 
           <div class="user-meta-grid">
