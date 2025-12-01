@@ -97,6 +97,21 @@ header{
   display:flex; gap:10px; align-items:center;
   box-shadow:0 8px 26px rgba(0,0,0,.35);
 }
+.user-readonly{
+  display:flex;
+  gap:10px;
+  align-items:flex-end;
+}
+.user-readonly .field{
+  min-width:140px;
+}
+.user-readonly .field.compact label{
+  font-size:12px;
+}
+.user-readonly input[disabled]{
+  cursor:default;
+  color:var(--muted);
+}
 .primary-tabs{
   display:flex;
   gap:6px;

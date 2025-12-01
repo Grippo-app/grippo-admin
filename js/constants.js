@@ -6,6 +6,7 @@ export const ENDPOINTS = {
   create: `${API_BASE}/exercise-examples`,
   update: (id) => `${API_BASE}/exercise-examples?id=${encodeURIComponent(id)}`,
   login: `${API_BASE}/auth/login`,
+  currentUser: `${API_BASE}/user`,
   equipmentGroups: `${API_BASE}/equipments`,
   muscleGroups: `${API_BASE}/muscles`
 };
@@ -25,5 +26,7 @@ export const STORAGE_KEYS = {
   viewMode: 'grippo_view_mode',
   token: 'grippo_admin_token',
   refresh: 'grippo_admin_refresh',
-  edited: 'grippo_edited_ids'
+  edited: 'grippo_edited_ids',
+  userId: 'grippo_admin_user_id',
+  profileId: 'grippo_admin_profile_id'
 };

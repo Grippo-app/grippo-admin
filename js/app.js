@@ -29,6 +29,7 @@ class GrippoAdminApp {
     this.isNew = false;
     this.canonical = EntityToolkit.emptyTemplate();
     this.activeSection = 'exercise';
+    this.userInfo = { id: '', profileId: '' };
 
     this.els = {};
     this.localeButtons = [];
@@ -108,6 +109,8 @@ class GrippoAdminApp {
       loginPassword: document.getElementById('loginPassword'),
       loginError: document.getElementById('loginError'),
       logoutBtn: document.getElementById('logoutBtn'),
+      userIdDisplay: document.getElementById('userIdDisplay'),
+      profileIdDisplay: document.getElementById('profileIdDisplay'),
       commandBar: document.getElementById('commandBar'),
       exerciseView: document.getElementById('exerciseView'),
       generalView: document.getElementById('generalView'),
@@ -137,9 +140,12 @@ class GrippoAdminApp {
     this.activeLocale = this.storage.getLocale();
     this.viewMode = this.storage.getViewMode();
     this.editedIds = this.storage.loadEditedSet();
+    this.userInfo = this.storage.loadUserInfo();
+    this.renderUserInfo();
 
     if (this.api.authToken) {
       this.hideLoginOverlay();
+      this.refreshCurrentUser();
     } else {
       this.showLoginOverlay();
     }
@@ -289,6 +295,9 @@ class GrippoAdminApp {
         const data = await this.api.login({ email, password });
         this.api.setAuthToken(data.accessToken || '');
         this.storage.setRefreshToken(data.refreshToken || '');
+        const info = this.extractUserInfo(data);
+        this.setUserInfo(info);
+        if (!info.id) this.refreshCurrentUser();
         this.hideLoginOverlay();
         toast({ title: 'Logged in' });
       } catch (error) {
@@ -357,6 +366,44 @@ class GrippoAdminApp {
     if (this.els.loginOverlay) this.els.loginOverlay.style.display = 'none';
   }
 
+  renderUserInfo(info = this.userInfo) {
+    const userId = info?.id || '';
+    const profileId = info?.profileId || '';
+    if (this.els.userIdDisplay) this.els.userIdDisplay.value = userId;
+    if (this.els.profileIdDisplay) this.els.profileIdDisplay.value = profileId;
+  }
+
+  setUserInfo(info = {}) {
+    const next = {
+      id: info?.id ? String(info.id) : '',
+      profileId: info?.profileId ? String(info.profileId) : ''
+    };
+    this.userInfo = next;
+    this.storage.setUserId(next.id);
+    this.storage.setProfileId(next.profileId);
+    this.renderUserInfo(next);
+  }
+
+  extractUserInfo(payload) {
+    if (!payload) return { id: '', profileId: '' };
+    const source = payload.user || payload;
+    const profileId = source?.profileId || source?.profile?.id || '';
+    return {
+      id: source?.id ? String(source.id) : '',
+      profileId: profileId ? String(profileId) : ''
+    };
+  }
+
+  async refreshCurrentUser() {
+    if (!this.api.authToken) return;
+    try {
+      const data = await this.api.fetchCurrentUser();
+      this.setUserInfo(this.extractUserInfo(data));
+    } catch (error) {
+      console.error('Failed to load current user', error);
+    }
+  }
+
   requireAuth() {
     if (this.api.authToken) return true;
     toast({ title: 'Login required', message: 'Please sign in first.', type: 'error', ms: 3500 });
@@ -366,6 +413,8 @@ class GrippoAdminApp {
 
   logout() {
     this.api.clearAuthToken();
+    this.storage.clearUserInfo();
+    this.setUserInfo({ id: '', profileId: '' });
     this.showLoginOverlay();
   }
 
