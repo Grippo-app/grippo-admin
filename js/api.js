@@ -88,6 +88,14 @@ export class ApiClient {
     return resp.json();
   }
 
+  async fetchCurrentUser() {
+    const resp = await fetch(ENDPOINTS.currentUser, {
+      headers: this.buildHeaders()
+    });
+    if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    return resp.json();
+  }
+
   async login(credentials) {
     const resp = await fetch(ENDPOINTS.login, {
       method: 'POST',

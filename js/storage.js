@@ -65,6 +65,50 @@ export class StorageManager {
     }
   }
 
+  getUserId() {
+    try {
+      return this.local.getItem(STORAGE_KEYS.userId) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  setUserId(id) {
+    try {
+      this.local.setItem(STORAGE_KEYS.userId, id || '');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  getProfileId() {
+    try {
+      return this.local.getItem(STORAGE_KEYS.profileId) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  setProfileId(id) {
+    try {
+      this.local.setItem(STORAGE_KEYS.profileId, id || '');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  clearUserInfo() {
+    this.setUserId('');
+    this.setProfileId('');
+  }
+
+  loadUserInfo() {
+    return {
+      id: this.getUserId(),
+      profileId: this.getProfileId()
+    };
+  }
+
   setRefreshToken(token) {
     try {
       this.local.setItem(STORAGE_KEYS.refresh, token || '');
