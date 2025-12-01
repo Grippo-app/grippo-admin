@@ -10,7 +10,7 @@
   <header>
     <nav class="primary-tabs" role="tablist" aria-label="Primary sections">
       <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise" type="button">Exercise examples</button>
-      <button id="tabGeneral" class="tab" role="tab" aria-selected="false" data-section="general" type="button">General</button>
+      <button id="tabUsers" class="tab" role="tab" aria-selected="false" data-section="users" type="button">Users</button>
     </nav>
     <div class="user-readonly" aria-label="Current user identifiers">
       <div class="field compact">
@@ -40,6 +40,21 @@
       <div id="loginError" class="error" style="display:none"></div>
       <button id="loginBtn" class="btn" type="submit">Login</button>
     </form>
+  </div>
+
+  <div id="confirmOverlay" class="confirm-overlay" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <div class="confirm-header">
+        <div id="confirmTitle" class="confirm-title">Confirm action</div>
+        <button id="confirmClose" class="btn icon" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="confirmMessage" class="confirm-message"></div>
+      <div id="confirmDetail" class="confirm-detail" hidden></div>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="btn muted" type="button">Cancel</button>
+        <button id="confirmAccept" class="btn danger" type="button">Delete</button>
+      </div>
+    </div>
   </div>
 
   <div id="exerciseView" class="primary-view active" aria-labelledby="tabExercise" role="tabpanel">
@@ -234,10 +249,55 @@
       </main>
   </div>
 
-  <section id="generalView" class="primary-view" aria-labelledby="tabGeneral" role="tabpanel" hidden>
-    <div class="empty-state">
-      <div class="empty-title">General</div>
-      <p class="empty-copy">Добавьте общий контент позже — вкладка уже готова для переключения.</p>
+  <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
+    <div id="usersCommandBar" class="command-bar users-command">
+      <input id="userSearch" type="search" placeholder="Search by email or name" />
+      <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
+
+      <span class="spacer"></span>
+
+      <span id="userIdDisplay" class="hint">No user selected</span>
+
+      <div class="cmd-actions">
+        <div class="view-toggle role-toggle">
+          <div id="roleSegment" class="segment" role="tablist" aria-label="User role">
+            <button id="roleDefaultBtn" class="seg active" role="tab" aria-selected="true" data-role="default">Default</button>
+            <button id="roleAdminBtn" class="seg" role="tab" aria-selected="false" data-role="admin">Admin</button>
+          </div>
+        </div>
+        <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+      </div>
+    </div>
+
+    <div class="users-layout">
+      <section class="sidebar users-sidebar" aria-label="Users list">
+        <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
+      </section>
+
+      <section class="panel user-panel">
+        <div id="userDetail" class="user-detail" hidden>
+          <div class="user-header">
+            <div class="user-header-text">
+              <div class="user-label">Selected user</div>
+              <div id="userName" class="user-title"></div>
+              <div id="userEmail" class="user-subtitle"></div>
+              <div class="user-id-row">ID: <span id="userId" class="mono"></span></div>
+            </div>
+            <span id="userRolePill" class="pill"></span>
+          </div>
+
+          <div class="user-meta-grid">
+            <div class="meta-card">
+              <div class="meta-label">Created</div>
+              <div id="userCreated" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Updated</div>
+              <div id="userUpdated" class="meta-value">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -256,6 +316,17 @@
         <span class="pill usage"></span>
         <span class="lastUsed"></span>
       </div>
+    </div>
+  </template>
+
+  <template id="userItemTemplate">
+    <div class="item user-item" role="option" tabindex="0">
+      <div class="user-badge" aria-hidden="true"></div>
+      <div class="user-copy">
+        <div class="user-name"></div>
+        <div class="user-email"></div>
+      </div>
+      <span class="pill user-role"></span>
     </div>
   </template>
 
