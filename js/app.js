@@ -622,6 +622,32 @@ class GrippoAdminApp {
     return { ...user, profileId, profile, name };
   }
 
+  getAuthIcon(authType) {
+    const type = (authType || '').toLowerCase();
+    if (type === 'google') {
+      return {
+        label: 'Google',
+        svg:
+          '<svg aria-hidden="true" viewBox="0 0 24 24" class="auth-icon auth-icon-google"><path class="g-blue" d="M23.49 12.27c0-.79-.07-1.54-.21-2.27H12v4.3h6.44c-.28 1.38-1.09 2.55-2.32 3.34v2.77h3.75c2.2-2.03 3.62-5.02 3.62-8.14z"></path><path class="g-green" d="M12 24c3.15 0 5.8-1.04 7.73-2.86l-3.75-2.77c-1.04.7-2.37 1.11-3.98 1.11-3.06 0-5.64-2.06-6.57-4.84H1.56v3.03C3.47 21.43 7.43 24 12 24z"></path><path class="g-yellow" d="M5.43 14.64c-.23-.7-.36-1.44-.36-2.21s.13-1.51.36-2.21V7.19H1.56A11.98 11.98 0 0 0 0 12.43c0 1.94.46 3.77 1.56 5.24l3.87-3.03z"></path><path class="g-red" d="M12 4.73c1.71 0 3.24.6 4.45 1.77l3.3-3.3C17.79 1.3 15.15 0 12 0 7.43 0 3.47 2.57 1.56 6.19l3.87 3.03C6.36 6.79 8.94 4.73 12 4.73z"></path></svg>'
+      };
+    }
+
+    const label = type === 'email' ? 'Email' : authType || 'Unknown';
+    return {
+      label,
+      svg:
+        '<svg aria-hidden="true" viewBox="0 0 24 24" class="auth-icon auth-icon-email"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.511l8 5.333 8-5.333V7H4zm16 10V9.489l-8 5.334-8-5.334V17h16z"></path></svg>'
+    };
+  }
+
+  renderAuthIndicator(el, authType) {
+    if (!el) return;
+    const { label, svg } = this.getAuthIcon(authType);
+    el.innerHTML = svg;
+    el.setAttribute('title', label);
+    el.setAttribute('aria-label', label);
+  }
+
   async loadUsers() {
     if (!this.requireAuth()) return;
     const btn = this.els.reloadUsersBtn;
@@ -699,7 +725,7 @@ class GrippoAdminApp {
       if (nameEl) nameEl.textContent = user.name || 'No name';
       if (emailEl) emailEl.textContent = user.email || 'No email';
       if (roleEl) roleEl.textContent = role;
-      if (authEl) authEl.textContent = user.authType || '—';
+      this.renderAuthIndicator(authEl, user.authType);
       if (badgeEl) badgeEl.textContent = initial;
       node.classList.toggle('active', this.activeUser?.id === user.id);
       this.els.userList.appendChild(node);
@@ -721,7 +747,7 @@ class GrippoAdminApp {
       if (this.els.userEmail) this.els.userEmail.textContent = '';
       if (this.els.userIdField) this.els.userIdField.value = '';
       if (this.els.profileIdField) this.els.profileIdField.value = '';
-      if (this.els.userAuthPill) this.els.userAuthPill.textContent = '';
+      if (this.els.userAuthPill) this.els.userAuthPill.innerHTML = '';
       if (this.els.userRolePill) {
         this.els.userRolePill.textContent = '';
         this.els.userRolePill.classList.remove('pill-admin');
@@ -744,10 +770,7 @@ class GrippoAdminApp {
 
     const authLabel = (user.authType || '—').toString();
     const roleLabel = (user.role || '').toString();
-    if (this.els.userAuthPill) {
-      this.els.userAuthPill.textContent = authLabel;
-      this.els.userAuthPill.classList.toggle('pill-admin', false);
-    }
+    this.renderAuthIndicator(this.els.userAuthPill, authLabel);
     if (this.els.userRolePill) {
       this.els.userRolePill.textContent = roleLabel || 'unknown';
       this.els.userRolePill.classList.toggle('pill-admin', roleLabel === 'admin');

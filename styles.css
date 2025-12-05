@@ -802,6 +802,23 @@ body.modal-open{overflow:hidden;}
 .user-detail{display:flex; flex-direction:column; gap:16px; height:100%;}
 .user-header{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; border-bottom:1px solid var(--border); padding-bottom:12px;}
 .user-tags{display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end;}
+.user-auth,.user-auth-pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  padding:0;
+  border:0;
+  background:none;
+  color:var(--muted);
+}
+.user-auth svg,.user-auth-pill svg{width:18px; height:18px; display:block;}
+.auth-icon-email{fill:currentColor;}
+.auth-icon-google .g-blue{fill:#4285f4;}
+.auth-icon-google .g-red{fill:#ea4335;}
+.auth-icon-google .g-yellow{fill:#fbbc04;}
+.auth-icon-google .g-green{fill:#34a853;}
 .user-header-text{display:grid; gap:4px;}
 .user-label{color:var(--muted); font-weight:700; text-transform:uppercase; font-size:12px; letter-spacing:.3px;}
 .user-title{font-size:20px; font-weight:900;}
