@@ -53,15 +53,15 @@
       <input id="search" type="search" placeholder="Search by name…"/>
       <div id="sortDropdown" class="dropdown">
         <button id="sortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
-          <span>Сортировка:</span>
-          <span id="sortLabel" class="sort-label">Имя</span>
+          <span>Sort:</span>
+          <span id="sortLabel" class="sort-label">Name</span>
           <span class="chevron" aria-hidden="true">▾</span>
         </button>
-        <div id="sortMenu" class="dropdown-menu" role="menu" aria-label="Сортировка упражнений">
-          <button type="button" class="dropdown-item" data-sort="name" role="menuitemradio" aria-checked="true">Имя</button>
-          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="false">Дата создания</button>
-          <button type="button" class="dropdown-item" data-sort="hasImage" role="menuitemradio" aria-checked="false">Наличие картинки</button>
-          <button type="button" class="dropdown-item" data-sort="missingImage" role="menuitemradio" aria-checked="false">Отсутствие картинки</button>
+        <div id="sortMenu" class="dropdown-menu" role="menu" aria-label="Exercise sorting">
+          <button type="button" class="dropdown-item" data-sort="name" role="menuitemradio" aria-checked="true">Name</button>
+          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="false">Creation date</button>
+          <button type="button" class="dropdown-item" data-sort="hasImage" role="menuitemradio" aria-checked="false">Image</button>
+          <button type="button" class="dropdown-item" data-sort="missingImage" role="menuitemradio" aria-checked="false">No Image</button>
         </div>
       </div>
       <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
@@ -245,12 +245,13 @@
       <div id="userSortDropdown" class="dropdown">
         <button id="userSortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
           <span>Sort:</span>
-          <span id="userSortLabel" class="sort-label">Created at</span>
+          <span id="userSortLabel" class="sort-label">Creation date</span>
           <span class="chevron" aria-hidden="true">▾</span>
         </button>
         <div id="userSortMenu" class="dropdown-menu" role="menu" aria-label="User sorting">
-          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="true">Created at</button>
-          <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Auth: Google → email</button>
+          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="true">Creation date</button>
+          <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Google</button>
+          <button type="button" class="dropdown-item" data-sort="email" role="menuitemradio" aria-checked="false">Email</button>
         </div>
       </div>
       <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
