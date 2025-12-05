@@ -242,6 +242,17 @@
   <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
     <div id="usersCommandBar" class="command-bar users-command">
       <input id="userSearch" type="search" placeholder="Search by email or name" />
+      <div id="userSortDropdown" class="dropdown">
+        <button id="userSortToggle" class="btn muted" type="button" aria-haspopup="true" aria-expanded="false">
+          <span>Sort:</span>
+          <span id="userSortLabel" class="sort-label">Created at</span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div id="userSortMenu" class="dropdown-menu" role="menu" aria-label="User sorting">
+          <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="true">Created at</button>
+          <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Auth: Google → email</button>
+        </div>
+      </div>
       <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
 
       <span class="spacer"></span>

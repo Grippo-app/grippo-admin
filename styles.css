@@ -782,15 +782,14 @@ body.modal-open{overflow:hidden;}
 
 /* Users view */
 #usersView{padding:0;}
-.users-command .cmd-actions{gap:8px;}
+.users-command .cmd-actions{gap:8px; align-items:center;}
 .users-command input[type="search"]{min-width:260px;}
 .users-command .role-toggle{display:flex; align-items:center;}
 .users-command .role-toggle .segment{background:var(--panel-2);}
-.users-command .cmd-actions{align-items:stretch;}
 .users-command #deleteUserBtn{
   padding:8px 12px;
   border-radius:10px;
-  align-self:stretch;
+  align-self:center;
 }
 .user-panel{
   background:var(--panel);
