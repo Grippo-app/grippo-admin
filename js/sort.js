@@ -33,25 +33,25 @@ export class SortManager {
     this.currentSort = 'name';
     this.options = {
       name: {
-        label: 'Имя',
+        label: 'Name',
         compare: (a, b) => compareByName(a, b)
       },
       createdAt: {
-        label: 'Дата создания',
+        label: 'Creation date',
         compare: (a, b) => {
           const diff = getCreatedAtStamp(b) - getCreatedAtStamp(a);
           return diff !== 0 ? diff : compareByName(a, b);
         }
       },
       hasImage: {
-        label: 'Наличие картинки',
+        label: 'Image',
         compare: (a, b) => {
           const diff = Number(itemHasImage(b)) - Number(itemHasImage(a));
           return diff !== 0 ? diff : compareByName(a, b);
         }
       },
       missingImage: {
-        label: 'Отсутствие картинки',
+        label: 'No Image',
         compare: (a, b) => {
           const diff = Number(!itemHasImage(b)) - Number(!itemHasImage(a));
           return diff !== 0 ? diff : compareByName(a, b);

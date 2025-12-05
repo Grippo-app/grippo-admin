@@ -37,12 +37,16 @@ class GrippoAdminApp {
     this.userSort = 'createdAt';
     this.userSortOptions = {
       createdAt: {
-        label: 'Created at',
+        label: 'Creation date',
         compare: (a, b) => this.compareUsersByCreatedAt(a, b)
       },
       authType: {
-        label: 'Auth: Google → email',
+        label: 'Google',
         compare: (a, b) => this.compareUsersByAuthType(a, b)
+      },
+      email: {
+        label: 'Email',
+        compare: (a, b) => this.compareUsersByEmail(a, b)
       }
     };
     this.roleChangeInFlight = false;
@@ -718,6 +722,12 @@ class GrippoAdminApp {
   compareUsersByAuthType(a, b) {
     const diff = this.getUserAuthRank(a) - this.getUserAuthRank(b);
     if (diff !== 0) return diff;
+    return this.compareUsersByCreatedAt(a, b);
+  }
+
+  compareUsersByEmail(a, b) {
+    const cmp = compareStrings((a?.email || '').toLowerCase(), (b?.email || '').toLowerCase());
+    if (cmp !== 0) return cmp;
     return this.compareUsersByCreatedAt(a, b);
   }
 
