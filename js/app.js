@@ -141,7 +141,6 @@ class GrippoAdminApp {
       userIdField: document.getElementById('userIdField'),
       profileIdField: document.getElementById('profileIdField'),
       userAuthPill: document.getElementById('userAuthPill'),
-      userRolePill: document.getElementById('userRolePill'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
       roleDefaultBtn: document.getElementById('roleDefaultBtn'),
@@ -724,7 +723,10 @@ class GrippoAdminApp {
       const badgeEl = node.querySelector('.user-badge');
       if (nameEl) nameEl.textContent = user.name || 'No name';
       if (emailEl) emailEl.textContent = user.email || 'No email';
-      if (roleEl) roleEl.textContent = role;
+      if (roleEl) {
+        roleEl.textContent = role;
+        roleEl.classList.toggle('pill-admin', role === 'admin');
+      }
       this.renderAuthIndicator(authEl, user.authType);
       if (badgeEl) badgeEl.textContent = initial;
       node.classList.toggle('active', this.activeUser?.id === user.id);
@@ -748,10 +750,6 @@ class GrippoAdminApp {
       if (this.els.userIdField) this.els.userIdField.value = '';
       if (this.els.profileIdField) this.els.profileIdField.value = '';
       if (this.els.userAuthPill) this.els.userAuthPill.innerHTML = '';
-      if (this.els.userRolePill) {
-        this.els.userRolePill.textContent = '';
-        this.els.userRolePill.classList.remove('pill-admin');
-      }
       if (this.els.userCreated) this.els.userCreated.textContent = '—';
       if (this.els.userUpdated) this.els.userUpdated.textContent = '—';
       if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = 'No user selected';
@@ -769,12 +767,7 @@ class GrippoAdminApp {
     if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = `Selected: ${user.id || '—'}`;
 
     const authLabel = (user.authType || '—').toString();
-    const roleLabel = (user.role || '').toString();
     this.renderAuthIndicator(this.els.userAuthPill, authLabel);
-    if (this.els.userRolePill) {
-      this.els.userRolePill.textContent = roleLabel || 'unknown';
-      this.els.userRolePill.classList.toggle('pill-admin', roleLabel === 'admin');
-    }
 
     if (this.els.userCreated) this.els.userCreated.textContent = formatIso(user.createdAt) || '—';
     if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';

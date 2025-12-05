@@ -594,6 +594,7 @@ main{
 .segment{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:6px; display:inline-flex; gap:6px}
 .segment .seg{background:transparent; border:0; color:var(--text); padding:6px 10px; border-radius:10px; cursor:pointer}
 .segment .seg.active{background:var(--panel); border:1px solid var(--border)}
+.segment .seg[data-role="admin"].active{background:linear-gradient(135deg,#0f6b3f,#0b5230); border-color:#1f8f58; color:#e8fff4; box-shadow:0 0 0 1px rgba(31,143,88,.35);} 
 
 /* Builder */
 .builder{
@@ -841,5 +842,5 @@ body.modal-open{overflow:hidden;}
 .pill-subtle{background:#102033; color:#c7e2ff; border-color:#1b3a61;}
 .user-auth{text-transform:uppercase; font-size:11px;}
 .list-empty{color:var(--muted); text-align:center; padding:20px 8px; border:1px dashed var(--border); border-radius:12px;}
-.pill-admin{background:#0c3520; border-color:#1c5f37; color:#d1fae5;}
+.pill-admin{background:linear-gradient(135deg,#0f6b3f,#0b5230); border-color:#1f8f58; color:#e8fff4; box-shadow:0 0 0 1px rgba(31,143,88,.4);} 
 .empty-state.inline{margin:0;}
