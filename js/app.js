@@ -5,7 +5,7 @@ import { DictionaryStore } from './dictionaries.js';
 import { SortManager } from './sort.js';
 import { EntityToolkit } from './entity.js';
 import { EntityValidator } from './validator.js';
-import { toast, pretty, formatIso } from './utils.js';
+import { toast, pretty, formatIso, compareStrings, toTimestamp } from './utils.js';
 
 class GrippoAdminApp {
   constructor() {
@@ -34,6 +34,17 @@ class GrippoAdminApp {
     this.users = [];
     this.filteredUsers = [];
     this.activeUser = null;
+    this.userSort = 'createdAt';
+    this.userSortOptions = {
+      createdAt: {
+        label: 'Created at',
+        compare: (a, b) => this.compareUsersByCreatedAt(a, b)
+      },
+      authType: {
+        label: 'Auth: Google → email',
+        compare: (a, b) => this.compareUsersByAuthType(a, b)
+      }
+    };
     this.roleChangeInFlight = false;
     this.confirmResolver = null;
 
@@ -134,6 +145,10 @@ class GrippoAdminApp {
 
       userList: document.getElementById('userList'),
       userSearch: document.getElementById('userSearch'),
+      userSortDropdown: document.getElementById('userSortDropdown'),
+      userSortToggle: document.getElementById('userSortToggle'),
+      userSortMenu: document.getElementById('userSortMenu'),
+      userSortLabel: document.getElementById('userSortLabel'),
       reloadUsersBtn: document.getElementById('reloadUsersBtn'),
       userDetail: document.getElementById('userDetail'),
       userName: document.getElementById('userName'),
@@ -192,11 +207,14 @@ class GrippoAdminApp {
     this.attachBundleHandlers();
     this.attachEquipmentHandlers();
     this.attachJsonHandlers();
+    this.attachUserSortHandlers();
     this.attachUserHandlers();
 
     window.addEventListener('resize', () => {
       this.updateStickyOffsets();
       this.closeSortMenu();
+      this.closeUserSortMenu();
+      this.positionUserSortMenu();
     });
   }
 
@@ -210,18 +228,20 @@ class GrippoAdminApp {
       this.applySearch();
     });
     document.addEventListener('click', (evt) => {
-      if (!this.els.sortDropdown) return;
-      if (this.els.sortDropdown.contains(evt.target)) return;
-      this.closeSortMenu();
+      if (!this.els.sortDropdown?.contains(evt.target)) this.closeSortMenu();
+      if (!this.els.userSortDropdown?.contains(evt.target)) this.closeUserSortMenu();
     });
     document.addEventListener('keydown', (evt) => {
-      if (evt.key === 'Escape') this.closeSortMenu();
+      if (evt.key === 'Escape') {
+        this.closeSortMenu();
+        this.closeUserSortMenu();
+      }
     });
     document.addEventListener('focusin', (evt) => {
-      if (!this.els.sortDropdown) return;
-      if (!this.els.sortDropdown.classList.contains('open')) return;
-      if (this.els.sortDropdown.contains(evt.target)) return;
-      this.closeSortMenu();
+      const sortMenuOpen = this.els.sortDropdown?.classList.contains('open');
+      const userSortOpen = this.els.userSortDropdown?.classList.contains('open');
+      if (sortMenuOpen && !this.els.sortDropdown.contains(evt.target)) this.closeSortMenu();
+      if (userSortOpen && !this.els.userSortDropdown.contains(evt.target)) this.closeUserSortMenu();
     });
     const commandBar = document.getElementById('commandBar');
     if (commandBar) {
@@ -230,6 +250,15 @@ class GrippoAdminApp {
         commandBar.addEventListener('scroll', handler, { passive: true });
       } catch {
         commandBar.addEventListener('scroll', handler);
+      }
+    }
+    const usersCommandBar = document.getElementById('usersCommandBar');
+    if (usersCommandBar) {
+      const handler = () => this.positionUserSortMenu();
+      try {
+        usersCommandBar.addEventListener('scroll', handler, { passive: true });
+      } catch {
+        usersCommandBar.addEventListener('scroll', handler);
       }
     }
   }
@@ -387,6 +416,26 @@ class GrippoAdminApp {
       this.els.editor.value = '';
       this.els.editor.dispatchEvent(new Event('input'));
     });
+  }
+
+  attachUserSortHandlers() {
+    this.els.userSortToggle?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.toggleUserSortMenu();
+    });
+
+    this.els.userSortMenu?.querySelectorAll('.dropdown-item').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-sort');
+        if (this.setUserSort(key)) {
+          this.updateUserSortUI();
+          this.applyUserSearch({ preserveSelection: true, fallbackId: this.activeUser?.id || null });
+        }
+        this.closeUserSortMenu();
+      });
+    });
+
+    this.updateUserSortUI();
   }
 
   attachUserHandlers() {
@@ -647,6 +696,39 @@ class GrippoAdminApp {
     el.setAttribute('aria-label', label);
   }
 
+  getUserCreatedTimestamp(user) {
+    return toTimestamp(
+      user?.createdAt ?? user?.created_at ?? user?.profile?.createdAt ?? user?.profile?.created_at ?? 0
+    );
+  }
+
+  getUserAuthRank(user) {
+    const type = (user?.authType || '').toLowerCase();
+    if (type === 'google') return 0;
+    if (type === 'email') return 1;
+    return 2;
+  }
+
+  compareUsersByCreatedAt(a, b) {
+    const diff = this.getUserCreatedTimestamp(b) - this.getUserCreatedTimestamp(a);
+    if (diff !== 0) return diff;
+    return compareStrings(a?.email || a?.name || '', b?.email || b?.name || '');
+  }
+
+  compareUsersByAuthType(a, b) {
+    const diff = this.getUserAuthRank(a) - this.getUserAuthRank(b);
+    if (diff !== 0) return diff;
+    return this.compareUsersByCreatedAt(a, b);
+  }
+
+  sortUsers(users = []) {
+    if (!Array.isArray(users)) return [];
+    const sorter = this.userSortOptions[this.userSort]?.compare || ((a, b) => this.compareUsersByCreatedAt(a, b));
+    const sorted = [...users];
+    sorted.sort((a, b) => sorter(a, b));
+    return sorted;
+  }
+
   async loadUsers() {
     if (!this.requireAuth()) return;
     const btn = this.els.reloadUsersBtn;
@@ -674,14 +756,14 @@ class GrippoAdminApp {
   applyUserSearch({ preserveSelection = false, fallbackId = null } = {}) {
     const term = (this.els.userSearch?.value || '').trim().toLowerCase();
     const needle = term && term.length > 1 ? term : term;
-    this.filteredUsers = this.users
-      .filter((user) => {
-        if (!needle) return true;
-        const name = (user.name || user.profile?.name || '').toLowerCase();
-        const email = (user.email || '').toLowerCase();
-        return name.includes(needle) || email.includes(needle);
-      })
-      .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''));
+    const filtered = this.users.filter((user) => {
+      if (!needle) return true;
+      const name = (user.name || user.profile?.name || '').toLowerCase();
+      const email = (user.email || '').toLowerCase();
+      return name.includes(needle) || email.includes(needle);
+    });
+
+    this.filteredUsers = this.sortUsers(filtered);
 
     const targetId = preserveSelection ? (this.activeUser?.id || fallbackId) : null;
     this.renderUserList();
@@ -822,7 +904,7 @@ class GrippoAdminApp {
     try {
       const updated = await this.api.setUserRole(targetId, role);
       this.updateUserCollections(updated);
-      this.setActiveUser(updated, { skipListRerender: true });
+      this.applyUserSearch({ preserveSelection: true, fallbackId: targetId });
       toast({ title: 'Role updated', message: `${updated.email} set to ${updated.role}` });
     } catch (error) {
       console.error(error);
@@ -981,6 +1063,75 @@ class GrippoAdminApp {
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-checked', active ? 'true' : 'false');
     });
+  }
+
+  setUserSort(key) {
+    if (!this.userSortOptions[key]) return false;
+    const changed = this.userSort !== key;
+    this.userSort = key;
+    return changed;
+  }
+
+  updateUserSortUI() {
+    const option = this.userSortOptions[this.userSort] || this.userSortOptions.createdAt;
+    if (this.els.userSortLabel) this.els.userSortLabel.textContent = option.label;
+    this.els.userSortMenu?.querySelectorAll('[data-sort]').forEach((btn) => {
+      const key = btn.getAttribute('data-sort');
+      const active = key === this.userSort;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
+  }
+
+  positionUserSortMenu() {
+    if (!this.els.userSortMenu || !this.els.userSortToggle) return;
+    const toggleRect = this.els.userSortToggle.getBoundingClientRect();
+    const menu = this.els.userSortMenu;
+    const gutter = 12;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const menuWidth = menu.offsetWidth;
+
+    let left = toggleRect.right - menuWidth;
+    if (left < gutter) left = gutter;
+    if (left + menuWidth > viewportWidth - gutter) {
+      left = Math.max(gutter, viewportWidth - gutter - menuWidth);
+    }
+    const top = toggleRect.bottom + 8;
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+
+  openUserSortMenu() {
+    if (!this.els.userSortDropdown) return;
+    this.els.userSortDropdown.classList.add('open');
+    this.els.userSortToggle?.setAttribute('aria-expanded', 'true');
+    this.positionUserSortMenu();
+    if (this.els.userSortMenu) {
+      const active = this.els.userSortMenu.querySelector(`[data-sort="${this.userSort}"]`);
+      active?.focus();
+    }
+  }
+
+  closeUserSortMenu() {
+    if (!this.els.userSortDropdown) return;
+    if (!this.els.userSortDropdown.classList.contains('open')) return;
+    this.els.userSortDropdown.classList.remove('open');
+    if (this.els.userSortToggle) {
+      this.els.userSortToggle.setAttribute('aria-expanded', 'false');
+      if (this.els.userSortDropdown.contains(document.activeElement)) {
+        this.els.userSortToggle.focus();
+      }
+    }
+    if (this.els.userSortMenu) {
+      this.els.userSortMenu.style.left = '';
+      this.els.userSortMenu.style.top = '';
+    }
+  }
+
+  toggleUserSortMenu() {
+    if (!this.els.userSortDropdown) return;
+    if (this.els.userSortDropdown.classList.contains('open')) this.closeUserSortMenu();
+    else this.openUserSortMenu();
   }
 
   async loadList() {
