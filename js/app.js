@@ -953,7 +953,10 @@ class GrippoAdminApp {
       this.filteredUsers = this.filteredUsers.filter((u) => u.id !== targetId);
       this.userWeights.delete(targetId);
       toast({ title: 'User deleted', message: targetId, type: 'warn' });
-      this.setActiveUser(this.filteredUsers[0] || null);
+      if (this.activeUser?.id === targetId) {
+        this.setActiveUser(null, { skipListRerender: true });
+      }
+      this.applyUserSearch();
     } catch (error) {
       console.error(error);
       toast({ title: 'Delete failed', message: String(error.message || error), type: 'error' });

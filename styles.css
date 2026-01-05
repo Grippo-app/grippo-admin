@@ -801,7 +801,15 @@ body.modal-open{overflow:hidden;}
 }
 .user-detail{display:flex; flex-direction:column; gap:16px; height:100%;}
 .user-header{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; border-bottom:1px solid var(--border); padding-bottom:12px;}
-.user-tags{display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end;}
+.user-tags{
+  display:grid;
+  grid-template-rows:auto auto;
+  justify-items:end;
+  align-content:space-between;
+  gap:6px;
+  height:100%;
+  align-self:stretch;
+}
 .user-auth,.user-auth-pill{
   display:inline-flex;
   align-items:center;
@@ -836,7 +844,14 @@ body.modal-open{overflow:hidden;}
 .user-item{grid-template-columns:auto 1fr auto; align-items:center; gap:10px;}
 .user-item .user-name{font-weight:800;}
 .user-item .user-email{color:var(--muted); font-size:13px;}
-.user-item .user-role{font-size:12px; text-transform:uppercase;}
+.user-item .user-role{
+  font-size:12px;
+  text-transform:uppercase;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
 .user-badge{width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#1f3555,#1b2740); display:grid; place-items:center; font-weight:800;}
 .pill-subtle{background:#102033; color:#c7e2ff; border-color:#1b3a61;}
 .user-auth{text-transform:uppercase; font-size:11px;}
