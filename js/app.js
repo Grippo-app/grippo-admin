@@ -951,7 +951,6 @@ class GrippoAdminApp {
       await this.api.deleteUser(targetId);
       this.users = this.users.filter((u) => u.id !== targetId);
       this.filteredUsers = this.filteredUsers.filter((u) => u.id !== targetId);
-      this.userWeights.delete(targetId);
       toast({ title: 'User deleted', message: targetId, type: 'warn' });
       if (this.activeUser?.id === targetId) {
         this.setActiveUser(null, { skipListRerender: true });
