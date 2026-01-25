@@ -250,7 +250,7 @@
         </button>
         <div id="userSortMenu" class="dropdown-menu" role="menu" aria-label="User sorting">
           <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="true">Creation date</button>
-          <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Google</button>
+          <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Auth type</button>
           <button type="button" class="dropdown-item" data-sort="email" role="menuitemradio" aria-checked="false">Email</button>
         </div>
       </div>
@@ -285,7 +285,8 @@
               <div id="userEmail" class="user-subtitle"></div>
             </div>
             <div class="user-tags">
-              <span id="userAuthPill" class="user-auth-pill" aria-label="Auth type"></span>
+              <div id="userAuthPill" class="user-auth-pill" aria-label="Auth types"></div>
+              <div id="userAuthList" class="user-auth-list" aria-label="Auth types list"></div>
             </div>
           </div>
 
@@ -341,7 +342,7 @@
         <div class="user-email"></div>
       </div>
       <div class="user-tags">
-        <span class="user-auth" aria-label="Auth type"></span>
+        <div class="user-auth" aria-label="Auth types"></div>
         <span class="pill user-role"></span>
       </div>
     </div>

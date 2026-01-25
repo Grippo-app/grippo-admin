@@ -41,7 +41,7 @@ class GrippoAdminApp {
         compare: (a, b) => this.compareUsersByCreatedAt(a, b)
       },
       authType: {
-        label: 'Google',
+        label: 'Auth type',
         compare: (a, b) => this.compareUsersByAuthType(a, b)
       },
       email: {
@@ -160,6 +160,7 @@ class GrippoAdminApp {
       userIdField: document.getElementById('userIdField'),
       profileIdField: document.getElementById('profileIdField'),
       userAuthPill: document.getElementById('userAuthPill'),
+      userAuthList: document.getElementById('userAuthList'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
       roleDefaultBtn: document.getElementById('roleDefaultBtn'),
@@ -671,7 +672,27 @@ class GrippoAdminApp {
     const profileId = user?.profileId || user?.profile?.id || '';
     const profile = user?.profile || null;
     const name = user?.name || profile?.name || '';
-    return { ...user, profileId, profile, name };
+    const authTypes = this.normalizeAuthTypes(user?.authTypes || (user?.authType ? [user.authType] : []));
+    return { ...user, profileId, profile, name, authTypes };
+  }
+
+  normalizeAuthTypes(authTypes = []) {
+    if (!Array.isArray(authTypes)) return [];
+    const cleaned = authTypes
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter(Boolean);
+    return Array.from(new Set(cleaned));
+  }
+
+  getUserAuthTypes(user) {
+    if (!user) return [];
+    if (Array.isArray(user.authTypes) && user.authTypes.length) {
+      return this.normalizeAuthTypes(user.authTypes);
+    }
+    if (user.authType) {
+      return this.normalizeAuthTypes([user.authType]);
+    }
+    return [];
   }
 
   getAuthIcon(authType) {
@@ -684,6 +705,14 @@ class GrippoAdminApp {
       };
     }
 
+    if (type === 'apple') {
+      return {
+        label: 'Apple',
+        svg:
+          '<svg aria-hidden="true" viewBox="0 0 24 24" class="auth-icon auth-icon-apple"><path d="M16.39 12.27c.03 2.75 2.41 3.66 2.44 3.68-.02.06-.38 1.33-1.27 2.63-.77 1.12-1.57 2.23-2.83 2.25-1.24.02-1.64-.73-3.06-.73-1.42 0-1.86.71-3.03.75-1.22.05-2.16-1.23-2.94-2.35-1.6-2.32-2.83-6.56-1.18-9.42.82-1.42 2.29-2.32 3.88-2.34 1.21-.02 2.35.82 3.06.82.71 0 2.05-1.01 3.46-.86.59.03 2.23.24 3.29 1.81-.09.06-1.96 1.14-1.94 3.76zm-2.28-6.65c.64-.78 1.07-1.88.95-2.98-.92.04-2.04.61-2.7 1.39-.59.68-1.1 1.78-.96 2.84 1.03.08 2.07-.52 2.71-1.25z"></path></svg>'
+      };
+    }
+
     const label = type === 'email' ? 'Email' : authType || 'Unknown';
     return {
       label,
@@ -692,12 +721,33 @@ class GrippoAdminApp {
     };
   }
 
-  renderAuthIndicator(el, authType) {
+  renderAuthIndicator(el, authTypes = []) {
     if (!el) return;
-    const { label, svg } = this.getAuthIcon(authType);
-    el.innerHTML = svg;
-    el.setAttribute('title', label);
-    el.setAttribute('aria-label', label);
+    const types = this.getUserAuthTypes({ authTypes });
+    if (!types.length) {
+      el.innerHTML = '<span class="auth-type-empty">—</span>';
+      el.setAttribute('aria-label', 'No auth types');
+      return;
+    }
+
+    el.innerHTML = types
+      .map((authType) => {
+        const { label, svg } = this.getAuthIcon(authType);
+        return `<span class="auth-type-icon" title="${label}" aria-label="${label}">${svg}</span>`;
+      })
+      .join('');
+    el.setAttribute('aria-label', `Auth types: ${types.join(', ')}`);
+  }
+
+  renderAuthTypeList(el, authTypes = []) {
+    if (!el) return;
+    const types = this.getUserAuthTypes({ authTypes });
+    if (!types.length) {
+      el.textContent = '—';
+      return;
+    }
+    const labels = types.map((authType) => this.getAuthIcon(authType).label);
+    el.textContent = labels.join(' · ');
   }
 
   getUserCreatedTimestamp(user) {
@@ -707,10 +757,16 @@ class GrippoAdminApp {
   }
 
   getUserAuthRank(user) {
-    const type = (user?.authType || '').toLowerCase();
-    if (type === 'google') return 0;
-    if (type === 'email') return 1;
-    return 2;
+    const rankForType = (authType) => {
+      const type = (authType || '').toLowerCase();
+      if (type === 'google') return 0;
+      if (type === 'apple') return 1;
+      if (type === 'email') return 2;
+      return 3;
+    };
+    const types = this.getUserAuthTypes(user);
+    if (!types.length) return 99;
+    return Math.min(...types.map(rankForType));
   }
 
   compareUsersByCreatedAt(a, b) {
@@ -819,7 +875,7 @@ class GrippoAdminApp {
         roleEl.textContent = role;
         roleEl.classList.toggle('pill-admin', role === 'admin');
       }
-      this.renderAuthIndicator(authEl, user.authType);
+      this.renderAuthIndicator(authEl, user.authTypes);
       if (badgeEl) badgeEl.textContent = initial;
       node.classList.toggle('active', this.activeUser?.id === user.id);
       this.els.userList.appendChild(node);
@@ -842,6 +898,7 @@ class GrippoAdminApp {
       if (this.els.userIdField) this.els.userIdField.value = '';
       if (this.els.profileIdField) this.els.profileIdField.value = '';
       if (this.els.userAuthPill) this.els.userAuthPill.innerHTML = '';
+      if (this.els.userAuthList) this.els.userAuthList.textContent = '';
       if (this.els.userCreated) this.els.userCreated.textContent = '—';
       if (this.els.userUpdated) this.els.userUpdated.textContent = '—';
       if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = 'No user selected';
@@ -858,8 +915,8 @@ class GrippoAdminApp {
     if (this.els.profileIdField) this.els.profileIdField.value = profileId || '';
     if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = `Selected: ${user.id || '—'}`;
 
-    const authLabel = (user.authType || '—').toString();
-    this.renderAuthIndicator(this.els.userAuthPill, authLabel);
+    this.renderAuthIndicator(this.els.userAuthPill, user.authTypes);
+    this.renderAuthTypeList(this.els.userAuthList, user.authTypes);
 
     if (this.els.userCreated) this.els.userCreated.textContent = formatIso(user.createdAt) || '—';
     if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';
