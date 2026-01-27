@@ -27,7 +27,7 @@
 
   --header-h:64px;      /* fallback, JS may update */
   --commandbar-h:56px;  /* fallback, JS may update */
-  --sidebar-w:340px;
+  --sidebar-w:380px;
   --gpt-a:#00FFA3;  /* neon mint */
   --gpt-b:#7CFF00;  /* acid lime */
   --gpt-glow: rgba(0,255,163,.38);
@@ -856,11 +856,21 @@ body.modal-open{overflow:hidden;}
   color:var(--muted);
 }
 .user-meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
+.user-activity-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;}
 .meta-card{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:10px;}
+.meta-card.meta-highlight{
+  background:linear-gradient(135deg,#16263f 0%, #0f2238 100%);
+  border-color:#223a5c;
+  padding:14px;
+  box-shadow:0 10px 20px rgba(0,0,0,.25);
+}
 .meta-label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.2px; margin-bottom:4px;}
 .meta-value{font-weight:700; font-size:14px;}
+.meta-value.meta-emphasis{font-size:18px; font-weight:800; color:#e6f1ff;}
+.meta-hint{color:var(--muted); font-size:12px; margin-top:4px;}
 .user-actions-row{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;}
 .user-item{grid-template-columns:auto 1fr auto; align-items:center; gap:10px;}
+.user-list .user-item{padding:14px 14px;}
 .user-item .user-copy{
   min-width:0;
 }
