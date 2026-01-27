@@ -531,6 +531,9 @@ main{
   border:0;
   border-radius:0;
 }
+.user-list{
+  overflow-x:hidden;
+}
 .users-head{
   display:flex !important;
   align-items:flex-end;
@@ -858,8 +861,15 @@ body.modal-open{overflow:hidden;}
 .meta-value{font-weight:700; font-size:14px;}
 .user-actions-row{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;}
 .user-item{grid-template-columns:auto 1fr auto; align-items:center; gap:10px;}
-.user-item .user-name{font-weight:800;}
-.user-item .user-email{color:var(--muted); font-size:13px;}
+.user-item .user-copy{
+  min-width:0;
+}
+.user-item .user-name{font-weight:800; overflow-wrap:anywhere;}
+.user-item .user-email{
+  color:var(--muted);
+  font-size:13px;
+  overflow-wrap:anywhere;
+}
 .user-item .user-role{
   font-size:12px;
   text-transform:uppercase;

@@ -40,6 +40,14 @@ class GrippoAdminApp {
         label: 'Creation date',
         compare: (a, b) => this.compareUsersByCreatedAt(a, b)
       },
+      lastActivity: {
+        label: 'Last activity',
+        compare: (a, b) => this.compareUsersByLastActivity(a, b)
+      },
+      workoutsCount: {
+        label: 'Workouts count',
+        compare: (a, b) => this.compareUsersByWorkoutsCount(a, b)
+      },
       authType: {
         label: 'Auth type',
         compare: (a, b) => this.compareUsersByAuthType(a, b)
@@ -163,6 +171,8 @@ class GrippoAdminApp {
       userAuthList: document.getElementById('userAuthList'),
       userCreated: document.getElementById('userCreated'),
       userUpdated: document.getElementById('userUpdated'),
+      userLastActivity: document.getElementById('userLastActivity'),
+      userWorkoutsCount: document.getElementById('userWorkoutsCount'),
       roleDefaultBtn: document.getElementById('roleDefaultBtn'),
       roleAdminBtn: document.getElementById('roleAdminBtn'),
       deleteUserBtn: document.getElementById('deleteUserBtn'),
@@ -673,7 +683,10 @@ class GrippoAdminApp {
     const profile = user?.profile || null;
     const name = user?.name || profile?.name || '';
     const authTypes = this.normalizeAuthTypes(user?.authTypes || (user?.authType ? [user.authType] : []));
-    return { ...user, profileId, profile, name, authTypes };
+    const lastActivity = user?.lastActivity ?? user?.last_activity ?? null;
+    const workoutsCountRaw = user?.workoutsCount ?? user?.workouts_count ?? 0;
+    const workoutsCount = Number.isFinite(workoutsCountRaw) ? workoutsCountRaw : Number(workoutsCountRaw) || 0;
+    return { ...user, profileId, profile, name, authTypes, lastActivity, workoutsCount };
   }
 
   normalizeAuthTypes(authTypes = []) {
@@ -756,6 +769,16 @@ class GrippoAdminApp {
     );
   }
 
+  getUserLastActivityTimestamp(user) {
+    return toTimestamp(user?.lastActivity ?? user?.last_activity ?? 0);
+  }
+
+  getUserWorkoutsCount(user) {
+    const count = user?.workoutsCount ?? user?.workouts_count ?? 0;
+    if (typeof count === 'number' && Number.isFinite(count)) return count;
+    return Number(count) || 0;
+  }
+
   getUserAuthRank(user) {
     const rankForType = (authType) => {
       const type = (authType || '').toLowerCase();
@@ -773,6 +796,18 @@ class GrippoAdminApp {
     const diff = this.getUserCreatedTimestamp(b) - this.getUserCreatedTimestamp(a);
     if (diff !== 0) return diff;
     return compareStrings(a?.email || a?.name || '', b?.email || b?.name || '');
+  }
+
+  compareUsersByLastActivity(a, b) {
+    const diff = this.getUserLastActivityTimestamp(b) - this.getUserLastActivityTimestamp(a);
+    if (diff !== 0) return diff;
+    return this.compareUsersByCreatedAt(a, b);
+  }
+
+  compareUsersByWorkoutsCount(a, b) {
+    const diff = this.getUserWorkoutsCount(b) - this.getUserWorkoutsCount(a);
+    if (diff !== 0) return diff;
+    return this.compareUsersByCreatedAt(a, b);
   }
 
   compareUsersByAuthType(a, b) {
@@ -901,6 +936,8 @@ class GrippoAdminApp {
       if (this.els.userAuthList) this.els.userAuthList.textContent = '';
       if (this.els.userCreated) this.els.userCreated.textContent = '—';
       if (this.els.userUpdated) this.els.userUpdated.textContent = '—';
+      if (this.els.userLastActivity) this.els.userLastActivity.textContent = '—';
+      if (this.els.userWorkoutsCount) this.els.userWorkoutsCount.textContent = '—';
       if (this.els.userSelectionHint) this.els.userSelectionHint.textContent = 'No user selected';
       this.updateUserActionsState();
       return;
@@ -920,6 +957,12 @@ class GrippoAdminApp {
 
     if (this.els.userCreated) this.els.userCreated.textContent = formatIso(user.createdAt) || '—';
     if (this.els.userUpdated) this.els.userUpdated.textContent = formatIso(user.updatedAt) || '—';
+    if (this.els.userLastActivity) {
+      this.els.userLastActivity.textContent = user.lastActivity ? formatIso(user.lastActivity) : '—';
+    }
+    if (this.els.userWorkoutsCount) {
+      this.els.userWorkoutsCount.textContent = String(this.getUserWorkoutsCount(user));
+    }
 
     this.updateUserActionsState();
   }

@@ -250,6 +250,8 @@
         </button>
         <div id="userSortMenu" class="dropdown-menu" role="menu" aria-label="User sorting">
           <button type="button" class="dropdown-item" data-sort="createdAt" role="menuitemradio" aria-checked="true">Creation date</button>
+          <button type="button" class="dropdown-item" data-sort="lastActivity" role="menuitemradio" aria-checked="false">Last activity</button>
+          <button type="button" class="dropdown-item" data-sort="workoutsCount" role="menuitemradio" aria-checked="false">Workouts count</button>
           <button type="button" class="dropdown-item" data-sort="authType" role="menuitemradio" aria-checked="false">Auth type</button>
           <button type="button" class="dropdown-item" data-sort="email" role="menuitemradio" aria-checked="false">Email</button>
         </div>
@@ -309,6 +311,14 @@
             <div class="meta-card">
               <div class="meta-label">Updated</div>
               <div id="userUpdated" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Last activity</div>
+              <div id="userLastActivity" class="meta-value">—</div>
+            </div>
+            <div class="meta-card">
+              <div class="meta-label">Workouts</div>
+              <div id="userWorkoutsCount" class="meta-value">—</div>
             </div>
           </div>
         </div>
