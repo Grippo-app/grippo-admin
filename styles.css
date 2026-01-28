@@ -28,6 +28,7 @@
   --header-h:64px;      /* fallback, JS may update */
   --commandbar-h:56px;  /* fallback, JS may update */
   --sidebar-w:380px;
+  --users-sidebar-w:420px;
   --gpt-a:#00FFA3;  /* neon mint */
   --gpt-b:#7CFF00;  /* acid lime */
   --gpt-glow: rgba(0,255,163,.38);
@@ -515,7 +516,7 @@ main{
   top:calc(var(--header-h) + var(--commandbar-h));
   left:0; right:0; bottom:0;
   display:grid;
-  grid-template-columns:var(--sidebar-w) 1fr;
+  grid-template-columns:var(--users-sidebar-w) 1fr;
   gap:14px;
   padding:14px;
   overflow:hidden;
@@ -804,6 +805,30 @@ body.modal-open{overflow:hidden;}
 }
 .user-detail{display:flex; flex-direction:column; gap:16px; height:100%;}
 .user-header{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; border-bottom:1px solid var(--border); padding-bottom:12px;}
+.user-status-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;}
+.status-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#132641,#0f2238);
+  border:1px solid #20395a;
+  color:#d5e7ff;
+  box-shadow:0 8px 16px rgba(0,0,0,.2);
+  font-size:12px;
+}
+.status-chip .chip-label{
+  text-transform:uppercase;
+  letter-spacing:.3px;
+  font-size:10px;
+  color:#9cb3cf;
+}
+.status-chip .chip-value{
+  font-weight:800;
+  font-size:12px;
+  color:#f1f6ff;
+}
 .user-tags{
   display:grid;
   grid-template-rows:auto auto;
@@ -856,7 +881,6 @@ body.modal-open{overflow:hidden;}
   color:var(--muted);
 }
 .user-meta-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px;}
-.user-activity-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;}
 .meta-card{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:10px;}
 .meta-card.meta-highlight{
   background:linear-gradient(135deg,#16263f 0%, #0f2238 100%);
@@ -870,7 +894,7 @@ body.modal-open{overflow:hidden;}
 .meta-hint{color:var(--muted); font-size:12px; margin-top:4px;}
 .user-actions-row{display:flex; flex-wrap:wrap; gap:10px; justify-content:flex-end;}
 .user-item{grid-template-columns:auto 1fr auto; align-items:center; gap:10px;}
-.user-list .user-item{padding:14px 14px;}
+.user-list .user-item{padding:16px;}
 .user-item .user-copy{
   min-width:0;
 }
