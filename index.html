@@ -285,6 +285,16 @@
               <div class="user-label">Selected user</div>
               <div id="userName" class="user-title"></div>
               <div id="userEmail" class="user-subtitle"></div>
+              <div class="user-status-chips" aria-label="User status">
+                <div class="status-chip" id="userLastActivityChip">
+                  <span class="chip-label">Last activity</span>
+                  <span id="userLastActivity" class="chip-value">—</span>
+                </div>
+                <div class="status-chip" id="userWorkoutsChip">
+                  <span class="chip-label">Workouts</span>
+                  <span id="userWorkoutsCount" class="chip-value">—</span>
+                </div>
+              </div>
             </div>
             <div class="user-tags">
               <div id="userAuthPill" class="user-auth-pill" aria-label="Auth types"></div>
@@ -314,18 +324,6 @@
             </div>
           </div>
 
-          <div class="user-activity-grid">
-            <div class="meta-card meta-highlight">
-              <div class="meta-label">Last activity</div>
-              <div id="userLastActivity" class="meta-value meta-emphasis">—</div>
-              <div class="meta-hint">Most recent usage</div>
-            </div>
-            <div class="meta-card meta-highlight">
-              <div class="meta-label">Workouts</div>
-              <div id="userWorkoutsCount" class="meta-value meta-emphasis">—</div>
-              <div class="meta-hint">Total workouts logged</div>
-            </div>
-          </div>
         </div>
       </section>
     </div>
