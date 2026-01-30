@@ -1987,89 +1987,146 @@ class GrippoAdminApp {
   }
 
   buildGptRulesPrompt() {
-    const entity = this.getEntity();
-    const lines = [];
-    lines.push('You are a strength training domain expert AND a strict JSON validator.');
-    lines.push('');
-    lines.push('Goal:');
-    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
-    lines.push('- You MUST replace `rules` with the best possible values based on the exercise `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
-    lines.push('- The output MUST be valid JSON only (no markdown, no explanations, no extra text).');
-    lines.push('');
-    lines.push('Hard requirements:');
-    lines.push('1) Output must be a SINGLE JSON object.');
-    lines.push('2) You may ONLY change `rules`. Every other field must stay byte-to-byte identical (same strings, same arrays, same ordering if possible).');
-    lines.push('3) `rules` must strictly match this schema:');
-    lines.push('');
-    lines.push('"rules": {');
-    lines.push('  "entry": { "type": ExerciseRulesEntryTypeEnum },');
-    lines.push('  "load": { "type": ExerciseRulesLoadTypeEnum, "multiplier"?: number },');
-    lines.push('  "options": { "canAddExtraWeight": boolean, "canUseAssistance": boolean },');
-    lines.push('  "missingBodyWeightBehavior": ExerciseRulesMissingBodyWeightBehaviorEnum,');
-    lines.push('  "requiresEquipment": boolean');
-    lines.push('}');
-    lines.push('');
-    lines.push('4) Enums:');
-    lines.push('ExerciseRulesEntryTypeEnum:');
-    lines.push('- "RepetitionsAndWeight"');
-    lines.push('- "RepetitionsOnly"');
-    lines.push('- "RepetitionsWithOptionalExtraWeight"');
-    lines.push('- "RepetitionsWithOptionalExtraAndAssistance"');
-    lines.push('');
-    lines.push('ExerciseRulesLoadTypeEnum:');
-    lines.push('- "DirectWeight"');
-    lines.push('- "BodyWeightFull"');
-    lines.push('- "NoWeight"');
-    lines.push('- "BodyWeightMultiplier"');
-    lines.push('');
-    lines.push('ExerciseRulesMissingBodyWeightBehaviorEnum:');
-    lines.push('- "BlockSaving"');
-    lines.push('- "SaveAsRepetitionsOnly"');
-    lines.push('- "SaveWithZeroWeight"');
-    lines.push('');
-    lines.push('5) Strict protocol for multiplier:');
-    lines.push('- If load.type == "BodyWeightMultiplier" then multiplier MUST exist and be a number between 0.05 and 2.0 (inclusive).');
-    lines.push('- If load.type != "BodyWeightMultiplier" then multiplier MUST NOT exist at all.');
-    lines.push('');
-    lines.push('6) Logic constraints (must follow):');
-    lines.push('- If the exercise is clearly bodyweight-based (e.g., push-up, pull-up), prefer:');
-    lines.push('  entry: "RepetitionsWithOptionalExtraWeight" (and optionally assistance if common)');
-    lines.push('  load: "BodyWeightFull" OR "BodyWeightMultiplier" (only if clearly needed)');
-    lines.push('  options.canAddExtraWeight: usually true');
-    lines.push('- If the exercise uses external load (machines, barbell, dumbbells), prefer:');
-    lines.push('  entry: "RepetitionsAndWeight"');
-    lines.push('  load: "DirectWeight"');
-    lines.push('  options.canAddExtraWeight: false (because weight is already the main tracked load)');
-    lines.push('- If the exercise has no meaningful weight to track (e.g., stretching), prefer:');
-    lines.push('  entry: "RepetitionsOnly"');
-    lines.push('  load: "NoWeight"');
-    lines.push('- Assistance is only meaningful for classic bodyweight moves (pull-ups/dips) or machine-assisted variations:');
-    lines.push('  If canUseAssistance == true, entry MUST be "RepetitionsWithOptionalExtraAndAssistance"');
-    lines.push('  Otherwise canUseAssistance must be false.');
-    lines.push('');
-    lines.push('7) requiresEquipment decision:');
-    lines.push('- If equipmentRefs is non-empty OR the exercise name/description clearly requires a machine/bar, set requiresEquipment=true.');
-    lines.push('- If it can be done anywhere without equipment, set requiresEquipment=false.');
-    lines.push('- Do NOT invent equipment. Use only the provided equipmentRefs + name/description cues.');
-    lines.push('');
-    lines.push('8) missingBodyWeightBehavior:');
-    lines.push('- Use "SaveAsRepetitionsOnly" as default for bodyweight situations when bodyweight might be missing.');
-    lines.push('- Use "BlockSaving" only if weight is essential to make the set meaningful.');
-    lines.push('- Use "SaveWithZeroWeight" only if saving should always be allowed and you want charts to include zero.');
-    lines.push('');
-    lines.push('Important:');
-    lines.push('- Consider that iteration `weight` is "the actual effective weight" (already includes bodyweight or assistance if the app decides so). But rules still define UI/UX and interpretation.');
-    lines.push('');
-    lines.push('Output rules:');
-    lines.push('- Return ONLY JSON.');
-    lines.push('- Do NOT add new fields.');
-    lines.push('- Do NOT remove fields.');
-    lines.push('- Do NOT reorder or edit fields except replacing the `rules` object.');
-    lines.push('');
-    lines.push('INPUT JSON (replace this whole block with the real one):');
-    lines.push(pretty(entity));
-    return lines.join('\n');
-  }
+  const entity = this.getEntity();
+  const lines: string[] = [];
+
+  lines.push('You are a strength training domain expert AND a strict JSON validator.');
+  lines.push('');
+  lines.push('GOAL:');
+  lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
+  lines.push('- You MUST replace `rules` with the best possible values based on the exercise `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
+  lines.push('');
+
+  lines.push('OUTPUT FORMAT (MANDATORY):');
+  lines.push('Return EXACTLY one markdown code block with JSON inside, and NOTHING else:');
+  lines.push('```json');
+  lines.push('{ ...final JSON... }');
+  lines.push('```');
+  lines.push('');
+  lines.push('Inside the code block: output must be a SINGLE valid JSON object (no trailing text, no explanations, no extra keys).');
+  lines.push('');
+
+  lines.push('HARD REQUIREMENTS:');
+  lines.push('1) You may ONLY change `rules`. Every other field must remain identical in value.');
+  lines.push('2) Best practice: copy the input JSON and edit only the `rules` object in-place.');
+  lines.push('3) Preserve field order as in the input JSON.');
+  lines.push('4) `rules` must strictly match this schema:');
+  lines.push('');
+  lines.push('"rules": {');
+  lines.push('  "entry": { "type": ExerciseRulesEntryTypeEnum },');
+  lines.push('  "load": { "type": ExerciseRulesLoadTypeEnum, "multiplier"?: number },');
+  lines.push('  "options": { "canAddExtraWeight": boolean, "canUseAssistance": boolean },');
+  lines.push('  "missingBodyWeightBehavior": ExerciseRulesMissingBodyWeightBehaviorEnum,');
+  lines.push('  "requiresEquipment": boolean');
+  lines.push('}');
+  lines.push('');
+
+  lines.push('ENUMS:');
+  lines.push('ExerciseRulesEntryTypeEnum:');
+  lines.push('- "RepetitionsAndWeight"');
+  lines.push('- "RepetitionsOnly"');
+  lines.push('- "RepetitionsWithOptionalExtraWeight"');
+  lines.push('- "RepetitionsWithOptionalExtraAndAssistance"');
+  lines.push('');
+  lines.push('ExerciseRulesLoadTypeEnum:');
+  lines.push('- "DirectWeight"');
+  lines.push('- "BodyWeightFull"');
+  lines.push('- "NoWeight"');
+  lines.push('- "BodyWeightMultiplier"');
+  lines.push('');
+  lines.push('ExerciseRulesMissingBodyWeightBehaviorEnum:');
+  lines.push('- "BlockSaving"');
+  lines.push('- "SaveAsRepetitionsOnly"');
+  lines.push('- "SaveWithZeroWeight"');
+  lines.push('');
+
+  lines.push('STRICT MULTIPLIER PROTOCOL:');
+  lines.push('- If load.type == "BodyWeightMultiplier" then multiplier MUST exist and be a number between 0.05 and 2.0 (inclusive).');
+  lines.push('- If load.type != "BodyWeightMultiplier" then multiplier MUST NOT exist at all (omit the key).');
+  lines.push('');
+
+  lines.push('DECISION PROCEDURE (MUST DO INTERNALLY, DO NOT OUTPUT THESE STEPS):');
+  lines.push('- Step A: Determine exercise archetype using this priority: weightType -> equipmentRefs -> name/description.');
+  lines.push('  Archetypes:');
+  lines.push('  A1) BODYWEIGHT: weightType=="body_weight" AND no clear assistance cues in name/description.');
+  lines.push('  A2) EXTERNAL_LOAD: weightType in ["free","fixed"] OR name/description clearly indicates external load (machine/barbell/dumbbell/cable/etc).');
+  lines.push('  A3) NO_WEIGHT: mobility/stretch/breathing/skill drill where tracking weight is meaningless.');
+  lines.push('  A4) ASSISTED_BODYWEIGHT: name/description contains clear cues like "assisted", "band-assisted", "machine assisted", "gravitron", "counterbalance".');
+  lines.push('');
+  lines.push('- Step B: Propose 2-3 candidate `rules` configurations for the archetype, then choose the best one for UI/UX consistency.');
+  lines.push('- Step C: Run the self-check list. If any check fails, revise rules until all checks pass.');
+  lines.push('');
+
+  lines.push('ARCHETYPE -> RULES MAPPING (BASELINE, THEN REFINE):');
+  lines.push('- BODYWEIGHT (A1):');
+  lines.push('  entry: "RepetitionsWithOptionalExtraWeight"');
+  lines.push('  load: "BodyWeightFull"');
+  lines.push('  options: { canAddExtraWeight: true, canUseAssistance: false }');
+  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
+  lines.push('  requiresEquipment: false (unless equipmentRefs non-empty)');
+  lines.push('');
+  lines.push('- ASSISTED_BODYWEIGHT (A4):');
+  lines.push('  entry: "RepetitionsWithOptionalExtraAndAssistance"');
+  lines.push('  load: "BodyWeightFull"');
+  lines.push('  options: { canAddExtraWeight: true, canUseAssistance: true }');
+  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
+  lines.push('  requiresEquipment: true');
+  lines.push('');
+  lines.push('- EXTERNAL_LOAD (A2):');
+  lines.push('  entry: "RepetitionsAndWeight"');
+  lines.push('  load: "DirectWeight"');
+  lines.push('  options: { canAddExtraWeight: false, canUseAssistance: false }');
+  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
+  lines.push('  requiresEquipment: true if equipmentRefs non-empty OR name/description implies equipment; otherwise false');
+  lines.push('');
+  lines.push('- NO_WEIGHT (A3):');
+  lines.push('  entry: "RepetitionsOnly"');
+  lines.push('  load: "NoWeight"');
+  lines.push('  options: { canAddExtraWeight: false, canUseAssistance: false }');
+  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
+  lines.push('  requiresEquipment: false unless equipmentRefs non-empty');
+  lines.push('');
+
+  lines.push('WHEN TO USE BodyWeightMultiplier (RARE, MUST BE JUSTIFIED INTERNALLY):');
+  lines.push('- Use load.type="BodyWeightMultiplier" ONLY if the effective load is a stable fraction of bodyweight by design.');
+  lines.push('- If uncertain, prefer "BodyWeightFull".');
+  lines.push('');
+
+  lines.push('REQUIRES EQUIPMENT (STRICT):');
+  lines.push('- If equipmentRefs is non-empty => requiresEquipment=true.');
+  lines.push('- Else if name/description clearly requires machine/bar/cable/rack/etc => requiresEquipment=true.');
+  lines.push('- Else => requiresEquipment=false.');
+  lines.push('- Do NOT invent equipment. Use only the given cues.');
+  lines.push('');
+
+  lines.push('MISSING BODY WEIGHT BEHAVIOR:');
+  lines.push('- Default: "SaveAsRepetitionsOnly".');
+  lines.push('- Use "BlockSaving" ONLY if saving without weight would be misleading (very rare).');
+  lines.push('- Use "SaveWithZeroWeight" ONLY if the product explicitly wants saving with zeros (rare).');
+  lines.push('');
+
+  lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
+  lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
+  lines.push('- If load.type != "BodyWeightMultiplier" => multiplier MUST NOT exist.');
+  lines.push('- If load.type == "BodyWeightMultiplier" => multiplier MUST exist and be within 0.05..2.0.');
+  lines.push('- If options.canUseAssistance == true => entry.type MUST be "RepetitionsWithOptionalExtraAndAssistance".');
+  lines.push('- For EXTERNAL_LOAD: entry should be "RepetitionsAndWeight" AND load should be "DirectWeight".');
+  lines.push('- For NO_WEIGHT: entry should be "RepetitionsOnly" AND load should be "NoWeight".');
+  lines.push('');
+
+  lines.push('IMPORTANT PRODUCT NOTE:');
+  lines.push('- Iteration `weight` is the effective weight recorded by the app. Rules define UI/UX and interpretation only.');
+  lines.push('');
+
+  lines.push('FAILSAFE:');
+  lines.push('- If you cannot fully comply with all requirements, output the ORIGINAL input JSON unchanged, still inside the required ```json code block.');
+  lines.push('');
+
+  lines.push('INPUT JSON (copy this and only edit `rules`):');
+  lines.push(pretty(entity));
+
+  return lines.join('\n');
+}
 
   buildGptImagePrompt() {
     const entity = this.getEntity();
