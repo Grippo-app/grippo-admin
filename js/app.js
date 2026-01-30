@@ -121,6 +121,14 @@ class GrippoAdminApp {
       fCategory: document.getElementById('fCategory'),
       fExperience: document.getElementById('fExperience'),
       fForceType: document.getElementById('fForceType'),
+      fRulesEntryType: document.getElementById('fRulesEntryType'),
+      fRulesLoadType: document.getElementById('fRulesLoadType'),
+      fRulesLoadMultiplier: document.getElementById('fRulesLoadMultiplier'),
+      fRulesMissingBodyWeightBehavior: document.getElementById('fRulesMissingBodyWeightBehavior'),
+      fRulesRequiresEquipment: document.getElementById('fRulesRequiresEquipment'),
+      fRulesCanAddExtraWeight: document.getElementById('fRulesCanAddExtraWeight'),
+      fRulesCanUseAssistance: document.getElementById('fRulesCanUseAssistance'),
+      rulesMultiplierField: document.getElementById('rulesMultiplierField'),
       fId: document.getElementById('fId'),
       equipTokens: document.getElementById('equipTokens'),
       equipSingle: document.getElementById('equipSingle'),
@@ -346,6 +354,24 @@ class GrippoAdminApp {
       .forEach((select) => select.addEventListener('change', () => {
         this.setEntity(this.readFormToEntity(this.getEntity()));
       }));
+
+    [
+      this.els.fRulesEntryType,
+      this.els.fRulesLoadType,
+      this.els.fRulesMissingBodyWeightBehavior,
+      this.els.fRulesRequiresEquipment,
+      this.els.fRulesCanAddExtraWeight,
+      this.els.fRulesCanUseAssistance
+    ]
+      .filter(Boolean)
+      .forEach((input) => input.addEventListener('change', () => {
+        this.updateRulesLoadVisibility();
+        this.setEntity(this.readFormToEntity(this.getEntity()));
+      }));
+
+    this.els.fRulesLoadMultiplier?.addEventListener('input', () => {
+      this.setEntity(this.readFormToEntity(this.getEntity()));
+    });
 
     this.els.saveBtn?.addEventListener('click', () => this.saveCurrent());
     this.els.promptBtn?.addEventListener('click', () => this.copyPrompt());
@@ -1350,6 +1376,16 @@ class GrippoAdminApp {
     this.validateAll();
   }
 
+  updateRulesLoadVisibility() {
+    if (!this.els.rulesMultiplierField) return;
+    const type = this.els.fRulesLoadType?.value || '';
+    const show = type === 'BodyWeightMultiplier';
+    this.els.rulesMultiplierField.hidden = !show;
+    if (!show && this.els.fRulesLoadMultiplier) {
+      this.els.fRulesLoadMultiplier.value = '';
+    }
+  }
+
   readFormToEntity(entity) {
     const e = { ...entity };
     const locale = this.activeLocale;
@@ -1366,6 +1402,24 @@ class GrippoAdminApp {
     e.category = this.els.fCategory?.value || '';
     e.experience = this.els.fExperience?.value || '';
     e.forceType = this.els.fForceType?.value || '';
+    const loadType = this.els.fRulesLoadType?.value || '';
+    const multiplierRaw = this.els.fRulesLoadMultiplier?.value;
+    const multiplierValue = multiplierRaw === '' || multiplierRaw == null ? undefined : Number(multiplierRaw);
+    e.rules = {
+      entry: { type: this.els.fRulesEntryType?.value || '' },
+      load: {
+        type: loadType,
+        ...(loadType === 'BodyWeightMultiplier' && Number.isFinite(multiplierValue)
+          ? { multiplier: multiplierValue }
+          : {})
+      },
+      options: {
+        canAddExtraWeight: !!this.els.fRulesCanAddExtraWeight?.checked,
+        canUseAssistance: !!this.els.fRulesCanUseAssistance?.checked
+      },
+      missingBodyWeightBehavior: this.els.fRulesMissingBodyWeightBehavior?.value || '',
+      requiresEquipment: !!this.els.fRulesRequiresEquipment?.checked
+    };
     return e;
   }
 
@@ -1401,6 +1455,31 @@ class GrippoAdminApp {
     if (this.els.fCategory) this.els.fCategory.value = entity?.category || '';
     if (this.els.fExperience) this.els.fExperience.value = entity?.experience || '';
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
+    const rules = entity?.rules || {};
+    const entryType = rules?.entry?.type || '';
+    const loadType = rules?.load?.type || '';
+    const multiplier = rules?.load?.multiplier;
+    if (this.els.fRulesEntryType) this.els.fRulesEntryType.value = entryType;
+    if (this.els.fRulesLoadType) this.els.fRulesLoadType.value = loadType;
+    if (this.els.fRulesLoadMultiplier) {
+      this.els.fRulesLoadMultiplier.value =
+        loadType === 'BodyWeightMultiplier' && multiplier != null && Number.isFinite(Number(multiplier))
+          ? String(multiplier)
+          : '';
+    }
+    if (this.els.fRulesMissingBodyWeightBehavior) {
+      this.els.fRulesMissingBodyWeightBehavior.value = rules?.missingBodyWeightBehavior || '';
+    }
+    if (this.els.fRulesRequiresEquipment) {
+      this.els.fRulesRequiresEquipment.checked = !!rules?.requiresEquipment;
+    }
+    if (this.els.fRulesCanAddExtraWeight) {
+      this.els.fRulesCanAddExtraWeight.checked = !!rules?.options?.canAddExtraWeight;
+    }
+    if (this.els.fRulesCanUseAssistance) {
+      this.els.fRulesCanUseAssistance.checked = !!rules?.options?.canUseAssistance;
+    }
+    this.updateRulesLoadVisibility();
     this.renderEquipmentTokens(entity);
     this.renderBundles(entity);
     this.updatePreviewSize();
@@ -1438,7 +1517,7 @@ class GrippoAdminApp {
   }
 
   updatePreviewSize() {
-    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
+    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain || !this.els.introRow) return;
 
     const introRect = this.els.introMain.getBoundingClientRect();
     const introHeight = Math.round(introRect.height || this.els.introMain.scrollHeight);

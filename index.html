@@ -106,95 +106,171 @@
 
         <!-- FORM BUILDER -->
         <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-          <div class="intro-row">
-            <div class="preview-card" id="exercisePreviewCard">
-              <div class="preview-label">Exercise image</div>
-              <button id="previewFrame" type="button" class="preview-frame" aria-label="Open image preview" aria-disabled="true">
-                <img id="exercisePreview" alt="Exercise image preview" />
-                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
-              </button>
+          <div class="section section-card intro-main">
+            <div class="section-header">
+              <div class="section-title">Exercise basics</div>
+              <div class="section-note">Identity & text</div>
             </div>
-
-            <!-- Identifier on top -->
-            <div class="section intro-main">
-              <div class="section-title">Identifier</div>
+            <div class="basics-row">
+              <div class="preview-card" id="exercisePreviewCard">
+                <div class="preview-label">Exercise image</div>
+                <button id="previewFrame" type="button" class="preview-frame" aria-label="Open image preview" aria-disabled="true">
+                  <img id="exercisePreview" alt="Exercise image preview" />
+                  <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+                </button>
+              </div>
               <div class="intro-stack">
                 <div class="field">
                   <label for="fId">ID (locked for existing)</label>
                   <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
                   <div class="hint">ID cannot be changed for existing items.</div>
                 </div>
-                <div class="field">
-                  <label for="fName">Name *</label>
-                  <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+                <div class="grid two">
+                  <div class="field">
+                    <label for="fName">Name *</label>
+                    <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+                  </div>
+                  <div class="field">
+                    <label for="fImage">Image URL (optional)</label>
+                    <input id="fImage" type="url" placeholder="https://..."/>
+                  </div>
                 </div>
                 <div class="field">
-                  <label for="fImage">Image URL (optional)</label>
-                  <input id="fImage" type="url" placeholder="https://..."/>
+                  <label for="fDescription">Description *</label>
+                  <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
                 </div>
               </div>
             </div>
           </div>
-          
-          <div class="section">
-            <div class="field">
-              <label for="fDescription">Description *</label>
-              <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
-            </div>
-            <hr class="divider"/>
-          </div>
 
-          <!-- Attributes in two rows -->
-          <div class="section">
-            <div class="section-title">Attributes</div>
+          <div class="details-grid">
+            <!-- Attributes in two rows -->
+            <div class="section section-card">
+              <div class="section-header">
+                <div class="section-title">Attributes</div>
+                <div class="section-note">Required</div>
+              </div>
 
-            <div class="grid two">
-              <div class="field">
-                <label for="fWeightType">Weight type *</label>
-                <select id="fWeightType">
-                  <option value="">— select —</option>
-                  <option value="free">free</option>
-                  <option value="fixed">fixed</option>
-                  <option value="body_weight">body_weight</option>
-                </select>
+              <div class="grid two">
+                <div class="field">
+                  <label for="fWeightType">Weight type *</label>
+                  <select id="fWeightType">
+                    <option value="">— select —</option>
+                    <option value="free">free</option>
+                    <option value="fixed">fixed</option>
+                    <option value="body_weight">body_weight</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fCategory">Category *</label>
+                  <select id="fCategory">
+                    <option value="">— select —</option>
+                    <option value="compound">compound</option>
+                    <option value="isolation">isolation</option>
+                  </select>
+                </div>
               </div>
-              <div class="field">
-                <label for="fCategory">Category *</label>
-                <select id="fCategory">
-                  <option value="">— select —</option>
-                  <option value="compound">compound</option>
-                  <option value="isolation">isolation</option>
-                </select>
-              </div>
-            </div>
 
-            <div class="grid two">
-              <div class="field">
-                <label for="fExperience">Experience *</label>
-                <select id="fExperience">
-                  <option value="">— select —</option>
-                  <option value="beginner">beginner</option>
-                  <option value="intermediate">intermediate</option>
-                  <option value="advanced">advanced</option>
-                  <option value="pro">pro</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="fForceType">Force type *</label>
-                <select id="fForceType">
-                  <option value="">— select —</option>
-                  <option value="push">push</option>
-                  <option value="pull">pull</option>
-                  <option value="hinge">hinge</option>
-                </select>
+              <div class="grid two">
+                <div class="field">
+                  <label for="fExperience">Experience *</label>
+                  <select id="fExperience">
+                    <option value="">— select —</option>
+                    <option value="beginner">beginner</option>
+                    <option value="intermediate">intermediate</option>
+                    <option value="advanced">advanced</option>
+                    <option value="pro">pro</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fForceType">Force type *</label>
+                  <select id="fForceType">
+                    <option value="">— select —</option>
+                    <option value="push">push</option>
+                    <option value="pull">pull</option>
+                    <option value="hinge">hinge</option>
+                  </select>
+                </div>
               </div>
             </div>
-            <hr class="divider"/>
+
+            <div class="section section-card">
+              <div class="section-header">
+                <div class="section-title">Exercise rules</div>
+                <div class="section-note">Behavior</div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label for="fRulesEntryType">Entry type *</label>
+                  <select id="fRulesEntryType">
+                    <option value="">— select —</option>
+                    <option value="RepetitionsAndWeight">Repetitions + weight</option>
+                    <option value="RepetitionsOnly">Repetitions only</option>
+                    <option value="RepetitionsWithOptionalExtraWeight">Repetitions + optional extra weight</option>
+                    <option value="RepetitionsWithOptionalExtraAndAssistance">Repetitions + optional extra + assistance</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fRulesLoadType">Load type *</label>
+                  <select id="fRulesLoadType">
+                    <option value="">— select —</option>
+                    <option value="DirectWeight">Direct weight</option>
+                    <option value="BodyWeightFull">Body weight (full)</option>
+                    <option value="NoWeight">No weight</option>
+                    <option value="BodyWeightMultiplier">Body weight multiplier</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field" id="rulesMultiplierField">
+                  <label for="fRulesLoadMultiplier">Body weight multiplier</label>
+                  <input id="fRulesLoadMultiplier" type="number" min="0.05" max="2" step="0.05" placeholder="1.0"/>
+                  <div class="hint">Only used when load type is “Body weight multiplier”.</div>
+                </div>
+                <div class="field">
+                  <label for="fRulesMissingBodyWeightBehavior">Missing body weight behavior *</label>
+                  <select id="fRulesMissingBodyWeightBehavior">
+                    <option value="">— select —</option>
+                    <option value="BlockSaving">Block saving</option>
+                    <option value="SaveAsRepetitionsOnly">Save as repetitions only</option>
+                    <option value="SaveWithZeroWeight">Save with zero weight</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label class="checkbox-row" for="fRulesRequiresEquipment">
+                    <input id="fRulesRequiresEquipment" type="checkbox"/>
+                    <span>Requires equipment</span>
+                  </label>
+                  <div class="hint">Toggle when equipment is mandatory to save the exercise.</div>
+                </div>
+                <div class="field">
+                  <label>Options</label>
+                  <div class="checkbox-stack">
+                    <label class="checkbox-row" for="fRulesCanAddExtraWeight">
+                      <input id="fRulesCanAddExtraWeight" type="checkbox"/>
+                      <span>Can add extra weight</span>
+                    </label>
+                    <label class="checkbox-row" for="fRulesCanUseAssistance">
+                      <input id="fRulesCanUseAssistance" type="checkbox"/>
+                      <span>Can use assistance</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Equipment (reorganized: left chips, right single select + add) -->
-          <div class="section">
-            <div class="section-title">Equipment *</div>
+          <div class="section section-card">
+            <div class="section-header">
+              <div class="section-title">Equipment *</div>
+              <div class="section-note">Required list</div>
+            </div>
 
             <div class="grid two">
               <div class="field">
@@ -216,8 +292,11 @@
           </div>
 
           <!-- Muscles -->
-          <div class="section">
-            <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+          <div class="section section-card">
+            <div class="section-header">
+              <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+              <div class="section-note">Distribution</div>
+            </div>
 
             <div id="bundles" style="display:grid;gap:8px"></div>
 
@@ -328,13 +407,6 @@
       </section>
     </div>
   </section>
-
-  <div id="imageLightbox" class="image-lightbox" hidden>
-    <div class="lightbox-surface" role="dialog" aria-modal="true" aria-label="Full-screen exercise image">
-      <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close image preview">×</button>
-      <img id="lightboxImage" alt="Exercise image enlarged" />
-    </div>
-  </div>
 
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">
