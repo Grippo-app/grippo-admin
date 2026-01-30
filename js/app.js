@@ -1458,7 +1458,12 @@ class GrippoAdminApp {
     const externalEnabled = !!this.els.fRulesExternalWeightEnabled?.checked;
     const bodyEnabled = !!this.els.fRulesBodyWeightEnabled?.checked;
     const bodyMultiplierRaw = this.els.fRulesBodyWeightMultiplier?.value;
-    const bodyMultiplierValue = bodyMultiplierRaw === '' || bodyMultiplierRaw == null ? undefined : Number(bodyMultiplierRaw);
+    const bodyMultiplierNormalized = typeof bodyMultiplierRaw === 'string'
+      ? bodyMultiplierRaw.replace(',', '.')
+      : bodyMultiplierRaw;
+    const bodyMultiplierValue = bodyMultiplierNormalized === '' || bodyMultiplierNormalized == null
+      ? undefined
+      : Number(bodyMultiplierNormalized);
     const extraEnabled = !!this.els.fRulesExtraWeightEnabled?.checked;
     const assistanceEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
 
