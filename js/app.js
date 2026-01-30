@@ -126,6 +126,7 @@ class GrippoAdminApp {
       fRulesExternalWeightRequired: document.getElementById('fRulesExternalWeightRequired'),
       fRulesBodyWeightEnabled: document.getElementById('fRulesBodyWeightEnabled'),
       fRulesBodyWeightMultiplier: document.getElementById('fRulesBodyWeightMultiplier'),
+      fRulesBodyWeightMultiplierValue: document.getElementById('fRulesBodyWeightMultiplierValue'),
       fRulesExtraWeightEnabled: document.getElementById('fRulesExtraWeightEnabled'),
       fRulesExtraWeightRequired: document.getElementById('fRulesExtraWeightRequired'),
       fRulesAssistanceEnabled: document.getElementById('fRulesAssistanceEnabled'),
@@ -383,6 +384,7 @@ class GrippoAdminApp {
       }));
 
     this.els.fRulesBodyWeightMultiplier?.addEventListener('input', () => {
+      this.syncBodyWeightMultiplierLabel();
       this.setEntity(this.readFormToEntity(this.getEntity()));
     });
 
@@ -1413,7 +1415,12 @@ class GrippoAdminApp {
 
     if (this.els.fRulesBodyWeightMultiplier) {
       this.els.fRulesBodyWeightMultiplier.disabled = !finalBody;
-      if (!finalBody) this.els.fRulesBodyWeightMultiplier.value = '';
+      if (!finalBody) {
+        this.els.fRulesBodyWeightMultiplier.value = '';
+      } else if (!this.els.fRulesBodyWeightMultiplier.value) {
+        this.els.fRulesBodyWeightMultiplier.value = '1';
+      }
+      this.syncBodyWeightMultiplierLabel();
     }
 
     if (this.els.fRulesExtraWeightEnabled) {
@@ -1439,6 +1446,17 @@ class GrippoAdminApp {
     }
   }
 
+  syncBodyWeightMultiplierLabel() {
+    if (!this.els.fRulesBodyWeightMultiplierValue || !this.els.fRulesBodyWeightMultiplier) return;
+    const raw = this.els.fRulesBodyWeightMultiplier.value;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) {
+      this.els.fRulesBodyWeightMultiplierValue.textContent = '—';
+      return;
+    }
+    this.els.fRulesBodyWeightMultiplierValue.textContent = `${value.toFixed(2)}×`;
+  }
+
   readFormToEntity(entity) {
     const e = { ...entity };
     const locale = this.activeLocale;
@@ -1458,12 +1476,9 @@ class GrippoAdminApp {
     const externalEnabled = !!this.els.fRulesExternalWeightEnabled?.checked;
     const bodyEnabled = !!this.els.fRulesBodyWeightEnabled?.checked;
     const bodyMultiplierRaw = this.els.fRulesBodyWeightMultiplier?.value;
-    const bodyMultiplierNormalized = typeof bodyMultiplierRaw === 'string'
-      ? bodyMultiplierRaw.replace(',', '.')
-      : bodyMultiplierRaw;
-    const bodyMultiplierValue = bodyMultiplierNormalized === '' || bodyMultiplierNormalized == null
+    const bodyMultiplierValue = bodyMultiplierRaw === '' || bodyMultiplierRaw == null
       ? undefined
-      : Number(bodyMultiplierNormalized);
+      : Number(bodyMultiplierRaw);
     const extraEnabled = !!this.els.fRulesExtraWeightEnabled?.checked;
     const assistanceEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
 
@@ -1540,6 +1555,7 @@ class GrippoAdminApp {
           ? String(bodyWeight.multiplier)
           : '';
     }
+    this.syncBodyWeightMultiplierLabel();
     if (this.els.fRulesExtraWeightEnabled) {
       this.els.fRulesExtraWeightEnabled.checked = !!extraWeight;
     }

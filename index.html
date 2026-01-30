@@ -220,7 +220,10 @@
                   </label>
                   <div class="hint">Mutually exclusive with external weight.</div>
                   <label for="fRulesBodyWeightMultiplier">Body weight multiplier</label>
-                  <input id="fRulesBodyWeightMultiplier" type="text" inputmode="decimal" placeholder="1.0"/>
+                  <div class="range-field">
+                    <input id="fRulesBodyWeightMultiplier" type="range" min="0.05" max="2" step="0.05" value="1"/>
+                    <span id="fRulesBodyWeightMultiplierValue" class="range-value">1.00×</span>
+                  </div>
                   <div class="hint">Required when body weight participates (0.05–2.0).</div>
                 </div>
               </div>
