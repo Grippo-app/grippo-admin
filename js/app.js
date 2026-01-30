@@ -1517,7 +1517,7 @@ class GrippoAdminApp {
   }
 
   updatePreviewSize() {
-    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain) return;
+    if (!this.els.previewCard || !this.els.previewFrame || !this.els.introMain || !this.els.introRow) return;
 
     const introRect = this.els.introMain.getBoundingClientRect();
     const introHeight = Math.round(introRect.height || this.els.introMain.scrollHeight);
