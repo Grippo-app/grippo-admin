@@ -626,6 +626,25 @@ main{
 .hint{font-size:12px; color:var(--muted)}
 .invalid{border-color:#7f1d1d !important; box-shadow:inset 0 0 0 1px #7f1d1d}
 
+.checkbox-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  font-weight:700;
+}
+.checkbox-row input[type="checkbox"]{
+  width:16px;
+  height:16px;
+}
+.checkbox-stack{
+  display:grid;
+  gap:8px;
+  padding:8px 10px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  background:var(--panel-2);
+}
+
 /* Chips and bundles */
 .token-list{
   display:flex; flex-wrap:wrap; gap:8px;

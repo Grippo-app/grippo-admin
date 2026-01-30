@@ -40,6 +40,45 @@ function buildLocalizedEntries(map) {
   return entries.length ? entries : [{ language: DEFAULT_LANGUAGE }];
 }
 
+function toBool(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true';
+  if (typeof value === 'number') return value !== 0;
+  return false;
+}
+
+function normalizeRules(rules, previousRules) {
+  const prev = previousRules && typeof previousRules === 'object' ? previousRules : {};
+  const src = rules && typeof rules === 'object' ? rules : {};
+  const entryType = src?.entry?.type ?? src?.entryType ?? prev?.entry?.type ?? '';
+  const loadType = src?.load?.type ?? src?.loadType ?? prev?.load?.type ?? '';
+  const multiplierRaw = src?.load?.multiplier ?? src?.multiplier ?? prev?.load?.multiplier;
+  const multiplierValue = multiplierRaw === '' || multiplierRaw === null || multiplierRaw === undefined
+    ? undefined
+    : Number(multiplierRaw);
+
+  const optionsSource = src?.options && typeof src.options === 'object' ? src.options : {};
+  const prevOptions = prev?.options && typeof prev.options === 'object' ? prev.options : {};
+  const canAddExtraWeight = toBool(optionsSource.canAddExtraWeight ?? prevOptions.canAddExtraWeight ?? false);
+  const canUseAssistance = toBool(optionsSource.canUseAssistance ?? prevOptions.canUseAssistance ?? false);
+
+  const missingBehavior = src?.missingBodyWeightBehavior ?? prev?.missingBodyWeightBehavior ?? '';
+  const requiresEquipment = toBool(src?.requiresEquipment ?? prev?.requiresEquipment ?? false);
+
+  const load = { type: loadType };
+  if (loadType === 'BodyWeightMultiplier' && Number.isFinite(multiplierValue)) {
+    load.multiplier = multiplierValue;
+  }
+
+  return {
+    entry: { type: entryType },
+    load,
+    options: { canAddExtraWeight, canUseAssistance },
+    missingBodyWeightBehavior: missingBehavior,
+    requiresEquipment
+  };
+}
+
 function emptyTemplate() {
   return {
     id: uuidv4(),
@@ -52,6 +91,7 @@ function emptyTemplate() {
     experience: '',
     forceType: '',
     imageUrl: '',
+    rules: normalizeRules({}, {}),
     [FIELD.bundles]: [],
     [FIELD.equipmentRefs]: []
   };
@@ -149,6 +189,7 @@ function normalizeEntityShape(src, options = {}) {
   delete e.translations;
   if (Array.isArray(e.name)) delete e.name;
   if (Array.isArray(e.description)) delete e.description;
+  e.rules = normalizeRules(e.rules, previous?.rules);
 
   return e;
 }

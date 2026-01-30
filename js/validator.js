@@ -36,6 +36,23 @@ export class EntityValidator {
 
     if (!normalized.imageUrl) warnings.push('imageUrl is empty');
 
+    const rules = normalized.rules || {};
+    const entryType = rules?.entry?.type || '';
+    const loadType = rules?.load?.type || '';
+    const missingBehavior = rules?.missingBodyWeightBehavior || '';
+    if (!entryType) errors.push('Missing: rules.entry.type');
+    if (!loadType) errors.push('Missing: rules.load.type');
+    if (!missingBehavior) errors.push('Missing: rules.missingBodyWeightBehavior');
+
+    if (loadType === 'BodyWeightMultiplier') {
+      const multiplier = Number(rules?.load?.multiplier);
+      if (!Number.isFinite(multiplier)) {
+        errors.push('rules.load.multiplier required for BodyWeightMultiplier');
+      } else if (multiplier < 0.05 || multiplier > 2) {
+        errors.push('rules.load.multiplier must be between 0.05 and 2.0');
+      }
+    }
+
     for (const [key, values] of Object.entries(REQUIRED_ENUMS)) {
       if (normalized[key] && !values.includes(normalized[key])) {
         errors.push(`${key} invalid`);
