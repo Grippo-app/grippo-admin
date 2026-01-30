@@ -2063,198 +2063,236 @@ class GrippoAdminApp {
   }
 
   buildGptRulesPrompt() {
-  const entity = this.getEntity();
-  const lines = [];
+    const entity = this.getEntity();
+    const lines = [];
 
-  lines.push('You are a strength training domain expert AND a strict JSON validator.');
-  lines.push('');
+    const equipmentById = {
+        "9d66ac93-3a48-429d-aeaa-54302856e204": "Dumbbells",
+        "b17ae8af-2d78-4e77-b45b-39253c28247a": "Barbell",
+        "ad130932-4b2f-4e7b-b3a4-c20b4a6b85ae": "EZ Bar",
+        "21aad68b-b21b-4452-9ebf-7407be8e613d": "Trap Bar",
+        "15495639-2adb-41b8-899c-493ac0172f57": "Straight Bar",
+        "331a0c35-f5a5-478d-ba7c-9f14ba2ee0fa": "Cord Handles",
+        "af38ec0a-1465-45a8-99ba-a394224530dc": "Rope",
+        "524da8cf-0303-4c53-8761-832a5fdb54ed": "V Bar",
+        "c7c51826-c595-4ae8-9ac4-4421b2afc4ad": "Close Grip Handle",
+        "dec9f53a-7dac-4199-b4ff-ab0624090b8b": "Wide Grip Handle",
+        "527227fe-8182-4aec-949a-66335c5ce25e": "AB Machines",
+        "3f2fb6e0-df68-4881-a735-f07ea083aaa7": "Butterfly",
+        "526347a3-ee32-473d-9b5d-049f526ae48e": "Butterfly Reverse",
+        "c74a2236-739f-476b-96d9-a11487d4049f": "Leg Extension Machines",
+        "a8a80e95-9165-4200-af80-cd7608099307": "Leg Curl Machines",
+        "79e4532a-afda-421f-9b5f-8c2de5f63ec0": "Chest Press Machines",
+        "0d0f8242-be68-4086-b665-0a11ff6a0dcd": "Biceps Machines",
+        "623e0be7-870a-4bca-b053-76e99c9ea7e0": "Smith Machines",
+        "20e225dd-68d7-409b-9b7d-5ef6d4224d02": "Hack Squat Machines",
+        "6ba064c9-68b3-4b76-af61-6a81eee230c8": "Deadlift Machines",
+        "6c587294-e384-4941-b90d-e6ec64b8731d": "Shoulder Press Machines",
+        "0268b0d7-f8e4-47ea-b9da-969427b43adf": "Lateral Raise Machines",
+        "f3166b1f-125f-4fb9-a443-e1fc2b1c0f8f": "Triceps Machines",
+        "7752a881-139d-4cf4-98b2-e92e9de0e2e5": "Calf Raise Machines",
+        "f3dadde9-6213-4a90-8fc0-12bd7bf7ea6b": "Glute Machines",
+        "9a4df37b-9fdb-4c19-93b3-d99393d9e605": "Adductor Machine",
+        "32bed80a-1512-4945-9654-8d710618ef81": "Abductor Machine",
+        "1959d942-75fb-4ece-b501-b7cf8884d479": "Leg Press Machine",
+        "18995b62-6971-4750-84fe-0c2bc712f352": "Lat Pulldown",
+        "752ee7ba-ae88-46f0-95fb-e0a316212f16": "Cable",
+        "a6628e7c-1488-4268-82ee-5174f3a5a2a5": "Cable Crossover",
+        "373d04ea-8079-439a-82a3-d118da6253b1": "Row Cable",
+        "ddf4299a-fc48-47bd-9bdf-7e3d7692b09f": "Pull Up Bar",
+        "c01e10b9-4ef6-4f23-9b41-7f6d5d4d1e85": "Dip Bars",
+        "afe516f8-6dc9-45ca-b95e-81142c336878": "Romain Chair",
+        "306270ba-834e-461e-81ce-45fd5a77c99f": "Glute Ham Raise Bench",
+        "85dbccf6-454e-4440-8905-50a90d91dbcc": "Flat Bench",
+        "6215cbaf-6065-4534-a9d5-a588c1b3dc28": "Adjustable Bench",
+        "c4d5e6fe-30fd-4f16-8646-634102d1bf1b": "Decline Bench",
+        "e7fc1da0-48df-4338-b03f-1cea01cd12d5": "Flat Bench with Rack",
+        "6345b70f-6e3f-46e2-9d51-3be51250ed99": "Incline Bench with Rack",
+        "9677e942-8a9b-4754-a27f-7e4d945681a1": "Decline Bench with Rack",
+        "a025ec57-670e-45ea-962e-9c9430786666": "Squat Rack",
+        "061ad8e2-77aa-4ba8-9a41-51788e7803c7": "Preacher Curl Bench",
+        "0eda801d-e31d-4943-8a73-68c702f3d3d2": "Row Bench"
+    };
 
-  lines.push('GOAL:');
-  lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
-  lines.push('- You MUST replace `rules` with the best possible values based on the exercise context: `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
-  lines.push('- Think like a coach AND like a product designer: choose the configuration that best matches how users realistically log sets in a gym app.');
-  lines.push('');
+    const rawEquipmentRefs = Array.isArray(entity?.equipmentRefs) ? entity.equipmentRefs : [];
+    const resolvedEquipmentRefs = rawEquipmentRefs
+        .map((ref) => {
+            const id =
+                ref?.equipmentId ??
+                ref?.equipment_id ??
+                ref?.equipment?.id ??
+                ref?.id ??
+                null;
+            if (!id) return null;
+            const name = equipmentById[id] ?? ref?.equipment?.name ?? null;
+            return name ? `${name} — ${id}` : `${id}`;
+        })
+        .filter(Boolean);
 
-  lines.push('OUTPUT FORMAT (MANDATORY):');
-  lines.push('- Return EXACTLY one markdown code block with JSON inside, and NOTHING else.');
-  lines.push('- The very first characters of your answer MUST be: ```json');
-  lines.push('- The very last characters of your answer MUST be: ```');
-  lines.push('- Do not add any text before or after the code block.');
-  lines.push('');
-  lines.push('Example wrapper (do NOT copy the placeholder):');
-  lines.push('```json');
-  lines.push('{ "...": "..." }');
-  lines.push('```');
-  lines.push('');
+    lines.push('You are a strength training domain expert AND a strict JSON validator.');
+    lines.push('');
+    lines.push('GOAL:');
+    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
+    lines.push('- You MUST replace `rules` with the best possible values based on the exercise context: `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
+    lines.push('- Think like a coach AND like a product designer: choose rules that match how users realistically log sets in a gym app.');
+    lines.push('');
 
-  lines.push('HARD REQUIREMENTS:');
-  lines.push('1) Inside the code block you must output a SINGLE valid JSON object.');
-  lines.push('2) You may ONLY change `rules`. Every other field must remain identical in value.');
-  lines.push('3) Best practice: copy the input JSON and edit only the `rules` object in-place.');
-  lines.push('4) Preserve field order as in the input JSON.');
-  lines.push('5) No extra keys anywhere. No explanations. No comments. No trailing commas.');
-  lines.push('');
+    lines.push('OUTPUT FORMAT (MANDATORY):');
+    lines.push('- Return EXACTLY one markdown code block with JSON inside, and NOTHING else.');
+    lines.push('- The very first characters of your answer MUST be: ```json');
+    lines.push('- The very last characters of your answer MUST be: ```');
+    lines.push('- Do not add any text before or after the code block.');
+    lines.push('- Before sending, verify you complied with the wrapper exactly.');
+    lines.push('');
 
-  lines.push('RULES SCHEMA (STRICT):');
-  lines.push('"rules": {');
-  lines.push('  "components": {');
-  lines.push('    "externalWeight": { "required": boolean } | null,');
-  lines.push('    "bodyWeight": { "required": boolean, "multiplier": number } | null,');
-  lines.push('    "extraWeight": { "required": boolean } | null,');
-  lines.push('    "assistWeight": { "required": boolean } | null');
-  lines.push('  }');
-  lines.push('}');
-  lines.push('');
+    lines.push('HARD REQUIREMENTS:');
+    lines.push('1) Inside the code block you must output a SINGLE valid JSON object.');
+    lines.push('2) You may ONLY change `rules`. Every other field must remain identical in value.');
+    lines.push('3) Best practice: copy the input JSON and edit only the `rules` object in-place.');
+    lines.push('4) Preserve field order as in the input JSON.');
+    lines.push('5) No extra keys anywhere. No explanations. No trailing commas.');
+    lines.push('');
 
-  lines.push('SEMANTICS (WHAT EACH COMPONENT MEANS):');
-  lines.push('- externalWeight: the set is logged with an external numeric load as the main load (dumbbells, barbell, machines, cable stacks, plate-loaded, etc).');
-  lines.push('- bodyWeight: the set is fundamentally bodyweight-based (push-up, pull-up, dip, pistol squat, etc).');
-  lines.push('- bodyWeight.multiplier: a constant coefficient applied to bodyweight-based effective load. Default 1.0. Must be 0.05..2.0.');
-  lines.push('- extraWeight: additional load on top of bodyweight (belt/vest/dumbbell between legs). Only meaningful if bodyWeight exists.');
-  lines.push('- assistWeight: assistance that reduces effective bodyweight load (band assistance, assisted machine, counterbalance). Only meaningful if bodyWeight exists.');
-  lines.push('');
+    lines.push('RULES SCHEMA (STRICT):');
+    lines.push('"rules": {');
+    lines.push('  "components": {');
+    lines.push('    "externalWeight": { "required": boolean } | null,');
+    lines.push('    "bodyWeight": { "required": boolean, "multiplier": number } | null,');
+    lines.push('    "extraWeight": { "required": boolean } | null,');
+    lines.push('    "assistWeight": { "required": boolean } | null');
+    lines.push('  }');
+    lines.push('}');
+    lines.push('');
 
-  lines.push('INVARIANTS (MUST ALWAYS HOLD):');
-  lines.push('- externalWeight and bodyWeight are mutually exclusive (never both non-null).');
-  lines.push('- If bodyWeight is non-null, it MUST include `multiplier` between 0.05 and 2.0 (inclusive).');
-  lines.push('- extraWeight and assistWeight are ONLY allowed when bodyWeight exists.');
-  lines.push('- If externalWeight exists, extraWeight and assistWeight MUST be null.');
-  lines.push('- If bodyWeight is null, then extraWeight and assistWeight MUST be null.');
-  lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
-  lines.push('');
+    lines.push('SEMANTICS:');
+    lines.push('- externalWeight: main numeric load is external (dumbbells, barbell, machine stacks, cable, plate-loaded machines).');
+    lines.push('- bodyWeight: the movement is fundamentally bodyweight-based (push-up, pull-up, dip, pistol squat).');
+    lines.push('- bodyWeight.multiplier: estimated average fraction of body mass that acts as effective load for this movement. Range 0.05..2.0.');
+    lines.push('- extraWeight: additional load added on top of bodyweight (belt/vest/dumbbell/plate on body). Only when bodyWeight exists.');
+    lines.push('- assistWeight: assistance that reduces effective bodyweight load (band, assisted machine, counterbalance). Only when bodyWeight exists.');
+    lines.push('');
 
-  lines.push('EQUIPMENT DICTIONARY (name -> id) FOR INTERPRETATION:');
-  lines.push('- Dumbbells — 9d66ac93-3a48-429d-aeaa-54302856e204');
-  lines.push('- Barbell — b17ae8af-2d78-4e77-b45b-39253c28247a');
-  lines.push('- EZ Bar — ad130932-4b2f-4e7b-b3a4-c20b4a6b85ae');
-  lines.push('- Trap Bar — 21aad68b-b21b-4452-9ebf-7407be8e613d');
-  lines.push('- Straight Bar — 15495639-2adb-41b8-899c-493ac0172f57');
-  lines.push('- Cord Handles — 331a0c35-f5a5-478d-ba7c-9f14ba2ee0fa');
-  lines.push('- Rope — af38ec0a-1465-45a8-99ba-a394224530dc');
-  lines.push('- V Bar — 524da8cf-0303-4c53-8761-832a5fdb54ed');
-  lines.push('- Close Grip Handle — c7c51826-c595-4ae8-9ac4-4421b2afc4ad');
-  lines.push('- Wide Grip Handle — dec9f53a-7dac-4199-b4ff-ab0624090b8b');
-  lines.push('- AB Machines — 527227fe-8182-4aec-949a-66335c5ce25e');
-  lines.push('- Butterfly — 3f2fb6e0-df68-4881-a735-f07ea083aaa7');
-  lines.push('- Butterfly Reverse — 526347a3-ee32-473d-9b5d-049f526ae48e');
-  lines.push('- Leg Extension Machines — c74a2236-739f-476b-96d9-a11487d4049f');
-  lines.push('- Leg Curl Machines — a8a80e95-9165-4200-af80-cd7608099307');
-  lines.push('- Chest Press Machines — 79e4532a-afda-421f-9b5f-8c2de5f63ec0');
-  lines.push('- Biceps Machines — 0d0f8242-be68-4086-b665-0a11ff6a0dcd');
-  lines.push('- Smith Machines — 623e0be7-870a-4bca-b053-76e99c9ea7e0');
-  lines.push('- Hack Squat Machines — 20e225dd-68d7-409b-9b7d-5ef6d4224d02');
-  lines.push('- Deadlift Machines — 6ba064c9-68b3-4b76-af61-6a81eee230c8');
-  lines.push('- Shoulder Press Machines — 6c587294-e384-4941-b90d-e6ec64b8731d');
-  lines.push('- Lateral Raise Machines — 0268b0d7-f8e4-47ea-b9da-969427b43adf');
-  lines.push('- Triceps Machines — f3166b1f-125f-4fb9-a443-e1fc2b1c0f8f');
-  lines.push('- Calf Raise Machines — 7752a881-139d-4cf4-98b2-e92e9de0e2e5');
-  lines.push('- Glute Machines — f3dadde9-6213-4a90-8fc0-12bd7bf7ea6b');
-  lines.push('- Adductor Machine — 9a4df37b-9fdb-4c19-93b3-d99393d9e605');
-  lines.push('- Abductor Machine — 32bed80a-1512-4945-9654-8d710618ef81');
-  lines.push('- Leg Press Machine — 1959d942-75fb-4ece-b501-b7cf8884d479');
-  lines.push('- Lat Pulldown — 18995b62-6971-4750-84fe-0c2bc712f352');
-  lines.push('- Cable — 752ee7ba-ae88-46f0-95fb-e0a316212f16');
-  lines.push('- Cable Crossover — a6628e7c-1488-4268-82ee-5174f3a5a2a5');
-  lines.push('- Row Cable — 373d04ea-8079-439a-82a3-d118da6253b1');
-  lines.push('- Pull Up Bar — ddf4299a-fc48-47bd-9bdf-7e3d7692b09f');
-  lines.push('- Dip Bars — c01e10b9-4ef6-4f23-9b41-7f6d5d4d1e85');
-  lines.push('- Romain Chair — afe516f8-6dc9-45ca-b95e-81142c336878');
-  lines.push('- Glute Ham Raise Bench — 306270ba-834e-461e-81ce-45fd5a77c99f');
-  lines.push('- Flat Bench — 85dbccf6-454e-4440-8905-50a90d91dbcc');
-  lines.push('- Adjustable Bench — 6215cbaf-6065-4534-a9d5-a588c1b3dc28');
-  lines.push('- Decline Bench — c4d5e6fe-30fd-4f16-8646-634102d1bf1b');
-  lines.push('- Flat Bench with Rack — e7fc1da0-48df-4338-b03f-1cea01cd12d5');
-  lines.push('- Incline Bench with Rack — 6345b70f-6e3f-46e2-9d51-3be51250ed99');
-  lines.push('- Decline Bench with Rack — 9677e942-8a9b-4754-a27f-7e4d945681a1');
-  lines.push('- Squat Rack — a025ec57-670e-45ea-962e-9c9430786666');
-  lines.push('- Preacher Curl Bench — 061ad8e2-77aa-4ba8-9a41-51788e7803c7');
-  lines.push('- Row Bench — 0eda801d-e31d-4943-8a73-68c702f3d3d2');
-  lines.push('');
+    lines.push('INVARIANTS (MUST ALWAYS HOLD):');
+    lines.push('- externalWeight and bodyWeight are mutually exclusive (never both non-null).');
+    lines.push('- If bodyWeight is non-null, it MUST include multiplier in range 0.05..2.0.');
+    lines.push('- extraWeight and assistWeight are ONLY allowed when bodyWeight exists.');
+    lines.push('- If externalWeight exists, extraWeight and assistWeight MUST be null.');
+    lines.push('- If bodyWeight is null, extraWeight and assistWeight MUST be null.');
+    lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
+    lines.push('');
 
-  lines.push('DECISION PROCEDURE (DO THIS INTERNALLY; DO NOT OUTPUT THESE STEPS):');
-  lines.push('Step 1: Identify the logging archetype using strict priority:');
-  lines.push('  (a) weightType field');
-  lines.push('  (b) equipmentRefs (ids and any embedded equipment names if present)');
-  lines.push('  (c) name/description keywords');
-  lines.push('');
-  lines.push('Archetypes:');
-  lines.push('A1) BODYWEIGHT: main load is bodyweight (push-up, pull-up, dip, pistol squat, etc).');
-  lines.push('A2) EXTERNAL_LOAD: main load is external and numeric per set (barbell, dumbbell, machine, cable, leg press, smith, etc).');
-  lines.push('A3) NO_WEIGHT: tracking weight is meaningless (mobility, stretching, breathing, skill drill).');
-  lines.push('A4) ASSISTED_BODYWEIGHT: bodyweight movement with meaningful assistance (assisted machine, band-assisted, counterbalance).');
-  lines.push('');
-  lines.push('Step 2: Generate 2-3 candidate `rules` configurations for the chosen archetype.');
-  lines.push('  - For each candidate, consider what the user must input per set to make the set meaningful.');
-  lines.push('  - Prefer the option that minimizes friction while keeping data quality high.');
-  lines.push('');
-  lines.push('Step 3: Choose `required` flags as a saving constraint:');
-  lines.push('- required=true  => the set cannot be saved without this input.');
-  lines.push('- required=false => optional input (nice-to-have).');
-  lines.push('');
-  lines.push('Step 4: Run the SELF-CHECK. If any check fails, revise rules until all checks pass.');
-  lines.push('');
+    if (resolvedEquipmentRefs.length > 0) {
+        lines.push('EQUIPMENT REFS (RESOLVED FOR THIS EXERCISE):');
+        resolvedEquipmentRefs.forEach((s) => lines.push(`- ${s}`));
+        lines.push('');
+    }
 
-  lines.push('BASELINE MAPPINGS (START HERE, THEN REFINE):');
-  lines.push('- If weightType == "body_weight": start from BODYWEIGHT (A1), unless name/description indicates assistance (A4).');
-  lines.push('- If weightType in ["free","fixed"]: start from EXTERNAL_LOAD (A2), unless it is clearly a non-numeric drill (A3).');
-  lines.push('');
+    lines.push('DECISION PROCEDURE (DO THIS INTERNALLY; DO NOT OUTPUT THESE STEPS):');
+    lines.push('Step 1: Identify the logging archetype using strict priority:');
+    lines.push('  (a) weightType field');
+    lines.push('  (b) equipmentRefs (resolved names above if present)');
+    lines.push('  (c) name/description keywords');
+    lines.push('');
+    lines.push('Primary archetypes:');
+    lines.push('A1) BODYWEIGHT: main load is bodyweight-based.');
+    lines.push('A2) EXTERNAL_LOAD: main load is external numeric per set.');
+    lines.push('A3) NO_WEIGHT: tracking load is meaningless (mobility/stretch/holds/breathing/skill).');
+    lines.push('');
+    lines.push('Bodyweight subtypes (ONLY if A1):');
+    lines.push('B1) SUPPORTED_BODYWEIGHT: part of bodyweight is supported by contact points (e.g., push-up, incline push-up, knee push-up, inverted row). multiplier < 1.0');
+    lines.push('B2) SUSPENDED_BODYWEIGHT: body mass is mostly suspended (e.g., pull-up/chin-up, dip). multiplier ~ 1.0');
+    lines.push('B3) ASSISTED_BODYWEIGHT: assisted version of suspended bodyweight (assisted machine, band-assisted, counterbalance).');
+    lines.push('');
+    lines.push('Step 2: Propose 2-3 candidate rules configs, then choose the one that minimizes friction while preserving data quality.');
+    lines.push('Step 3: Decide required flags as saving constraints: required=true blocks saving without this component input.');
+    lines.push('Step 4: Choose bodyWeight.multiplier using the calibration table + description cues.');
+    lines.push('Step 5: Run SELF-CHECK; if anything fails, revise before output.');
+    lines.push('');
 
-  lines.push('A1) BODYWEIGHT baseline:');
-  lines.push('  externalWeight: null');
-  lines.push('  bodyWeight: { required: true, multiplier: 1.0 }');
-  lines.push('  extraWeight: { required: false }');
-  lines.push('  assistWeight: null');
-  lines.push('');
+    lines.push('BASELINE MAPPINGS (START HERE, THEN REFINE):');
+    lines.push('- If weightType == "body_weight": start from BODYWEIGHT (A1).');
+    lines.push('- If weightType in ["free","fixed"]: start from EXTERNAL_LOAD (A2), unless it is clearly NO_WEIGHT (A3).');
+    lines.push('- If name/description indicates assisted bodyweight: pick B3 + assistWeight.');
+    lines.push('');
 
-  lines.push('A4) ASSISTED_BODYWEIGHT baseline:');
-  lines.push('  externalWeight: null');
-  lines.push('  bodyWeight: { required: true, multiplier: 1.0 }');
-  lines.push('  extraWeight: { required: false }');
-  lines.push('  assistWeight: { required: false }');
-  lines.push('');
+    lines.push('A2) EXTERNAL_LOAD baseline:');
+    lines.push('  externalWeight: { required: true }');
+    lines.push('  bodyWeight: null');
+    lines.push('  extraWeight: null');
+    lines.push('  assistWeight: null');
+    lines.push('');
 
-  lines.push('A2) EXTERNAL_LOAD baseline:');
-  lines.push('  externalWeight: { required: true }');
-  lines.push('  bodyWeight: null');
-  lines.push('  extraWeight: null');
-  lines.push('  assistWeight: null');
-  lines.push('');
+    lines.push('A3) NO_WEIGHT baseline:');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: null');
+    lines.push('  extraWeight: null');
+    lines.push('  assistWeight: null');
+    lines.push('');
 
-  lines.push('A3) NO_WEIGHT baseline:');
-  lines.push('  externalWeight: null');
-  lines.push('  bodyWeight: null');
-  lines.push('  extraWeight: null');
-  lines.push('  assistWeight: null');
-  lines.push('');
+    lines.push('A1) BODYWEIGHT baselines (pick subtype):');
+    lines.push('B2) SUSPENDED_BODYWEIGHT baseline (pull-up, chin-up, dip):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: { required: false, multiplier: 1.0 }');
+    lines.push('  extraWeight: { required: false }');
+    lines.push('  assistWeight: null');
+    lines.push('');
+    lines.push('B3) ASSISTED_BODYWEIGHT baseline (assisted pull-up/dip machine, band-assisted):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: { required: false, multiplier: 1.0 }');
+    lines.push('  extraWeight: { required: false }');
+    lines.push('  assistWeight: { required: false }');
+    lines.push('');
+    lines.push('B1) SUPPORTED_BODYWEIGHT baseline (push-up, incline/decline/knee push-up, inverted row):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: { required: false, multiplier: <choose via table> }');
+    lines.push('  extraWeight: { required: false }');
+    lines.push('  assistWeight: null');
+    lines.push('');
 
-  lines.push('MULTIPLIER GUIDANCE:');
-  lines.push('- Use multiplier 1.0 by default.');
-  lines.push('- Only change it if the exercise clearly scales by a fixed fraction of body weight in a stable way.');
-  lines.push('- If uncertain, keep 1.0.');
-  lines.push('');
+    lines.push('BODYWEIGHT MULTIPLIER CALIBRATION TABLE (DEFAULTS):');
+    lines.push('- Standard Push Up (hands on floor): 0.72');
+    lines.push('- Knee Push Up: 0.58');
+    lines.push('- Incline Push Up / hands elevated: 0.55 (if height unknown)');
+    lines.push('- Wall Push Up: 0.25');
+    lines.push('- Decline Push Up / feet elevated: 0.85');
+    lines.push('- Inverted Row / Australian Pull Up (bar height unknown): 0.65');
+    lines.push('- Pull Up / Chin Up: 1.00');
+    lines.push('- Dip: 1.00');
+    lines.push('');
+    lines.push('MULTIPLIER SELECTION RULES (SUPPORTED_BODYWEIGHT):');
+    lines.push('- If name/description contains "knee" or "on knees": use 0.58.');
+    lines.push('- If contains "wall": use 0.25.');
+    lines.push('- If contains "incline" or "hands elevated" or "bench" or "box" (hands higher): use 0.55.');
+    lines.push('- If contains "decline" or "feet elevated": use 0.85.');
+    lines.push('- If contains "inverted row" or "australian pull-up" or "body row": use 0.65.');
+    lines.push('- Otherwise for generic "push up": use 0.72.');
+    lines.push('- If uncertain, choose the closest conservative default rather than 1.0.');
+    lines.push('');
 
-  lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
-  lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
-  lines.push('- `rules` contains ONLY the allowed schema.');
-  lines.push('- externalWeight and bodyWeight are mutually exclusive.');
-  lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
-  lines.push('- If externalWeight exists => extraWeight and assistWeight are null.');
-  lines.push('- If bodyWeight is null => extraWeight and assistWeight are null.');
-  lines.push('');
+    lines.push('NO_WEIGHT OVERRIDES (IMPORTANT):');
+    lines.push('- If name/description suggests isometric holds or mobility where load tracking is meaningless (e.g., "plank", "hold", "stretch", "mobility", "breathing"), choose A3 (all null).');
+    lines.push('');
 
-  lines.push('IMPORTANT PRODUCT NOTE:');
-  lines.push('- Iteration `weight` is the effective weight recorded by the app. Rules define UI/UX and interpretation only.');
-  lines.push('');
+    lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
+    lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
+    lines.push('- `rules` contains ONLY the allowed schema.');
+    lines.push('- externalWeight and bodyWeight are mutually exclusive.');
+    lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
+    lines.push('- If externalWeight exists => extraWeight and assistWeight are null.');
+    lines.push('- If bodyWeight is null => extraWeight and assistWeight are null.');
+    lines.push('- Output wrapper must be exactly one ```json code block with no extra text.');
+    lines.push('');
 
-  lines.push('FAILSAFE:');
-  lines.push('- If you cannot fully comply with ALL requirements (including exact one-code-block output), output the ORIGINAL input JSON unchanged, still wrapped in the required ```json code block.');
-  lines.push('');
+    lines.push('FAILSAFE:');
+    lines.push('- If you cannot fully comply with ALL requirements, output the ORIGINAL input JSON unchanged, still wrapped in the required ```json code block.');
+    lines.push('');
 
-  lines.push('INPUT JSON (copy this and only edit `rules`):');
-  lines.push(pretty(entity));
+    lines.push('INPUT JSON (copy this and only edit `rules`):');
+    lines.push(pretty(entity));
 
-  return lines.join('\\n');
+    return lines.join('\n');
 }
+
 
   buildGptImagePrompt() {
     const entity = this.getEntity();
