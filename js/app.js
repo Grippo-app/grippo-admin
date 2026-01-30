@@ -1988,7 +1988,7 @@ class GrippoAdminApp {
 
   buildGptRulesPrompt() {
   const entity = this.getEntity();
-  const lines: string[] = [];
+  const lines = [];
 
   lines.push('You are a strength training domain expert AND a strict JSON validator.');
   lines.push('');
