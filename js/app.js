@@ -106,6 +106,7 @@ class GrippoAdminApp {
       saveBtn: document.getElementById('saveBtn'),
       promptBtn: document.getElementById('promptBtn'),
       promptImgBtn: document.getElementById('promptImgBtn'),
+      promptRulesBtn: document.getElementById('promptRulesBtn'),
       viewForm: document.getElementById('viewForm'),
       viewJson: document.getElementById('viewJson'),
       builder: document.getElementById('builder'),
@@ -376,6 +377,7 @@ class GrippoAdminApp {
     this.els.saveBtn?.addEventListener('click', () => this.saveCurrent());
     this.els.promptBtn?.addEventListener('click', () => this.copyPrompt());
     this.els.promptImgBtn?.addEventListener('click', () => this.copyImagePrompt());
+    this.els.promptRulesBtn?.addEventListener('click', () => this.copyRulesPrompt());
   }
 
   attachAuthHandlers() {
@@ -676,6 +678,7 @@ class GrippoAdminApp {
     const viewToggle = document.querySelector('.view-toggle');
     this.toggleElement(this.els.promptBtn, active);
     this.toggleElement(this.els.promptImgBtn, active);
+    this.toggleElement(this.els.promptRulesBtn, active);
     this.toggleElement(this.els.saveBtn, active);
     this.toggleElement(viewToggle, active);
     this.toggleElement(this.els.jsonStatus, active);
@@ -1983,6 +1986,91 @@ class GrippoAdminApp {
     return lines.join('\n');
   }
 
+  buildGptRulesPrompt() {
+    const entity = this.getEntity();
+    const lines = [];
+    lines.push('You are a strength training domain expert AND a strict JSON validator.');
+    lines.push('');
+    lines.push('Goal:');
+    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
+    lines.push('- You MUST replace `rules` with the best possible values based on the exercise `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
+    lines.push('- The output MUST be valid JSON only (no markdown, no explanations, no extra text).');
+    lines.push('');
+    lines.push('Hard requirements:');
+    lines.push('1) Output must be a SINGLE JSON object.');
+    lines.push('2) You may ONLY change `rules`. Every other field must stay byte-to-byte identical (same strings, same arrays, same ordering if possible).');
+    lines.push('3) `rules` must strictly match this schema:');
+    lines.push('');
+    lines.push('"rules": {');
+    lines.push('  "entry": { "type": ExerciseRulesEntryTypeEnum },');
+    lines.push('  "load": { "type": ExerciseRulesLoadTypeEnum, "multiplier"?: number },');
+    lines.push('  "options": { "canAddExtraWeight": boolean, "canUseAssistance": boolean },');
+    lines.push('  "missingBodyWeightBehavior": ExerciseRulesMissingBodyWeightBehaviorEnum,');
+    lines.push('  "requiresEquipment": boolean');
+    lines.push('}');
+    lines.push('');
+    lines.push('4) Enums:');
+    lines.push('ExerciseRulesEntryTypeEnum:');
+    lines.push('- "RepetitionsAndWeight"');
+    lines.push('- "RepetitionsOnly"');
+    lines.push('- "RepetitionsWithOptionalExtraWeight"');
+    lines.push('- "RepetitionsWithOptionalExtraAndAssistance"');
+    lines.push('');
+    lines.push('ExerciseRulesLoadTypeEnum:');
+    lines.push('- "DirectWeight"');
+    lines.push('- "BodyWeightFull"');
+    lines.push('- "NoWeight"');
+    lines.push('- "BodyWeightMultiplier"');
+    lines.push('');
+    lines.push('ExerciseRulesMissingBodyWeightBehaviorEnum:');
+    lines.push('- "BlockSaving"');
+    lines.push('- "SaveAsRepetitionsOnly"');
+    lines.push('- "SaveWithZeroWeight"');
+    lines.push('');
+    lines.push('5) Strict protocol for multiplier:');
+    lines.push('- If load.type == "BodyWeightMultiplier" then multiplier MUST exist and be a number between 0.05 and 2.0 (inclusive).');
+    lines.push('- If load.type != "BodyWeightMultiplier" then multiplier MUST NOT exist at all.');
+    lines.push('');
+    lines.push('6) Logic constraints (must follow):');
+    lines.push('- If the exercise is clearly bodyweight-based (e.g., push-up, pull-up), prefer:');
+    lines.push('  entry: "RepetitionsWithOptionalExtraWeight" (and optionally assistance if common)');
+    lines.push('  load: "BodyWeightFull" OR "BodyWeightMultiplier" (only if clearly needed)');
+    lines.push('  options.canAddExtraWeight: usually true');
+    lines.push('- If the exercise uses external load (machines, barbell, dumbbells), prefer:');
+    lines.push('  entry: "RepetitionsAndWeight"');
+    lines.push('  load: "DirectWeight"');
+    lines.push('  options.canAddExtraWeight: false (because weight is already the main tracked load)');
+    lines.push('- If the exercise has no meaningful weight to track (e.g., stretching), prefer:');
+    lines.push('  entry: "RepetitionsOnly"');
+    lines.push('  load: "NoWeight"');
+    lines.push('- Assistance is only meaningful for classic bodyweight moves (pull-ups/dips) or machine-assisted variations:');
+    lines.push('  If canUseAssistance == true, entry MUST be "RepetitionsWithOptionalExtraAndAssistance"');
+    lines.push('  Otherwise canUseAssistance must be false.');
+    lines.push('');
+    lines.push('7) requiresEquipment decision:');
+    lines.push('- If equipmentRefs is non-empty OR the exercise name/description clearly requires a machine/bar, set requiresEquipment=true.');
+    lines.push('- If it can be done anywhere without equipment, set requiresEquipment=false.');
+    lines.push('- Do NOT invent equipment. Use only the provided equipmentRefs + name/description cues.');
+    lines.push('');
+    lines.push('8) missingBodyWeightBehavior:');
+    lines.push('- Use "SaveAsRepetitionsOnly" as default for bodyweight situations when bodyweight might be missing.');
+    lines.push('- Use "BlockSaving" only if weight is essential to make the set meaningful.');
+    lines.push('- Use "SaveWithZeroWeight" only if saving should always be allowed and you want charts to include zero.');
+    lines.push('');
+    lines.push('Important:');
+    lines.push('- Consider that iteration `weight` is "the actual effective weight" (already includes bodyweight or assistance if the app decides so). But rules still define UI/UX and interpretation.');
+    lines.push('');
+    lines.push('Output rules:');
+    lines.push('- Return ONLY JSON.');
+    lines.push('- Do NOT add new fields.');
+    lines.push('- Do NOT remove fields.');
+    lines.push('- Do NOT reorder or edit fields except replacing the `rules` object.');
+    lines.push('');
+    lines.push('INPUT JSON (replace this whole block with the real one):');
+    lines.push(pretty(entity));
+    return lines.join('\n');
+  }
+
   buildGptImagePrompt() {
     const entity = this.getEntity();
     const eqArr = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
@@ -2087,6 +2175,22 @@ class GrippoAdminApp {
       document.execCommand('copy');
       ta.remove();
       toast({ title: 'Image prompt copied' });
+    }
+  }
+
+  async copyRulesPrompt() {
+    const prompt = this.buildGptRulesPrompt();
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast({ title: 'Rules prompt copied' });
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = prompt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast({ title: 'Rules prompt copied' });
     }
   }
 }
