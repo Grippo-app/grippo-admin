@@ -106,24 +106,18 @@
 
         <!-- FORM BUILDER -->
         <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-          <div class="intro-row">
-            <div class="preview-card" id="exercisePreviewCard">
-              <div class="preview-label">Exercise image</div>
-              <button id="previewFrame" type="button" class="preview-frame" aria-label="Open image preview" aria-disabled="true">
-                <img id="exercisePreview" alt="Exercise image preview" />
-                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
-              </button>
+          <div class="section section-card intro-main">
+            <div class="section-header">
+              <div class="section-title">Exercise basics</div>
+              <div class="section-note">Identity & text</div>
             </div>
-
-            <!-- Identifier on top -->
-            <div class="section intro-main">
-              <div class="section-title">Identifier</div>
-              <div class="intro-stack">
-                <div class="field">
-                  <label for="fId">ID (locked for existing)</label>
-                  <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-                  <div class="hint">ID cannot be changed for existing items.</div>
-                </div>
+            <div class="intro-stack">
+              <div class="field">
+                <label for="fId">ID (locked for existing)</label>
+                <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+                <div class="hint">ID cannot be changed for existing items.</div>
+              </div>
+              <div class="grid two">
                 <div class="field">
                   <label for="fName">Name *</label>
                   <input id="fName" type="text" placeholder="e.g., Bench Press"/>
@@ -133,15 +127,11 @@
                   <input id="fImage" type="url" placeholder="https://..."/>
                 </div>
               </div>
+              <div class="field">
+                <label for="fDescription">Description *</label>
+                <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
+              </div>
             </div>
-          </div>
-          
-          <div class="section">
-            <div class="field">
-              <label for="fDescription">Description *</label>
-              <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
-            </div>
-            <hr class="divider"/>
           </div>
 
           <div class="details-grid">
@@ -408,13 +398,6 @@
       </section>
     </div>
   </section>
-
-  <div id="imageLightbox" class="image-lightbox" hidden>
-    <div class="lightbox-surface" role="dialog" aria-modal="true" aria-label="Full-screen exercise image">
-      <button id="lightboxClose" class="lightbox-close" type="button" aria-label="Close image preview">×</button>
-      <img id="lightboxImage" alt="Exercise image enlarged" />
-    </div>
-  </div>
 
   <template id="itemTemplate">
     <div class="item" role="option" tabindex="0">
