@@ -272,7 +272,7 @@ class GrippoAdminApp {
       const handler = () => this.positionSortMenu();
       try {
         commandBar.addEventListener('scroll', handler, { passive: true });
-      } catch {
+      } catch (error) {
         commandBar.addEventListener('scroll', handler);
       }
     }
@@ -281,7 +281,7 @@ class GrippoAdminApp {
       const handler = () => this.positionUserSortMenu();
       try {
         usersCommandBar.addEventListener('scroll', handler, { passive: true });
-      } catch {
+      } catch (error) {
         usersCommandBar.addEventListener('scroll', handler);
       }
     }
@@ -448,7 +448,7 @@ class GrippoAdminApp {
         });
         this.writeEntityToForm(this.canonical);
         this.validateAll();
-      } catch {
+      } catch (error) {
         this.setStatus('bad', 'Invalid JSON');
         if (this.els.saveBtn) this.els.saveBtn.disabled = true;
       }
@@ -2208,7 +2208,7 @@ class GrippoAdminApp {
     try {
       await navigator.clipboard.writeText(prompt);
       toast({ title: 'Prompt copied' });
-    } catch {
+    } catch (error) {
       const ta = document.createElement('textarea');
       ta.value = prompt;
       document.body.appendChild(ta);
@@ -2224,7 +2224,7 @@ class GrippoAdminApp {
     try {
       await navigator.clipboard.writeText(prompt);
       toast({ title: 'Image prompt copied' });
-    } catch {
+    } catch (error) {
       const ta = document.createElement('textarea');
       ta.value = prompt;
       document.body.appendChild(ta);
@@ -2240,7 +2240,7 @@ class GrippoAdminApp {
     try {
       await navigator.clipboard.writeText(prompt);
       toast({ title: 'Rules prompt copied' });
-    } catch {
+    } catch (error) {
       const ta = document.createElement('textarea');
       ta.value = prompt;
       document.body.appendChild(ta);
