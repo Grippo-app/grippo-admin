@@ -144,126 +144,134 @@
             <hr class="divider"/>
           </div>
 
-          <!-- Attributes in two rows -->
-          <div class="section">
-            <div class="section-title">Attributes</div>
+          <div class="details-grid">
+            <!-- Attributes in two rows -->
+            <div class="section section-card">
+              <div class="section-header">
+                <div class="section-title">Attributes</div>
+                <div class="section-note">Required</div>
+              </div>
 
-            <div class="grid two">
-              <div class="field">
-                <label for="fWeightType">Weight type *</label>
-                <select id="fWeightType">
-                  <option value="">— select —</option>
-                  <option value="free">free</option>
-                  <option value="fixed">fixed</option>
-                  <option value="body_weight">body_weight</option>
-                </select>
+              <div class="grid two">
+                <div class="field">
+                  <label for="fWeightType">Weight type *</label>
+                  <select id="fWeightType">
+                    <option value="">— select —</option>
+                    <option value="free">free</option>
+                    <option value="fixed">fixed</option>
+                    <option value="body_weight">body_weight</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fCategory">Category *</label>
+                  <select id="fCategory">
+                    <option value="">— select —</option>
+                    <option value="compound">compound</option>
+                    <option value="isolation">isolation</option>
+                  </select>
+                </div>
               </div>
-              <div class="field">
-                <label for="fCategory">Category *</label>
-                <select id="fCategory">
-                  <option value="">— select —</option>
-                  <option value="compound">compound</option>
-                  <option value="isolation">isolation</option>
-                </select>
-              </div>
-            </div>
 
-            <div class="grid two">
-              <div class="field">
-                <label for="fExperience">Experience *</label>
-                <select id="fExperience">
-                  <option value="">— select —</option>
-                  <option value="beginner">beginner</option>
-                  <option value="intermediate">intermediate</option>
-                  <option value="advanced">advanced</option>
-                  <option value="pro">pro</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="fForceType">Force type *</label>
-                <select id="fForceType">
-                  <option value="">— select —</option>
-                  <option value="push">push</option>
-                  <option value="pull">pull</option>
-                  <option value="hinge">hinge</option>
-                </select>
-              </div>
-            </div>
-            <hr class="divider"/>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Exercise rules</div>
-
-            <div class="grid two">
-              <div class="field">
-                <label for="fRulesEntryType">Entry type *</label>
-                <select id="fRulesEntryType">
-                  <option value="">— select —</option>
-                  <option value="RepetitionsAndWeight">Repetitions + weight</option>
-                  <option value="RepetitionsOnly">Repetitions only</option>
-                  <option value="RepetitionsWithOptionalExtraWeight">Repetitions + optional extra weight</option>
-                  <option value="RepetitionsWithOptionalExtraAndAssistance">Repetitions + optional extra + assistance</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="fRulesLoadType">Load type *</label>
-                <select id="fRulesLoadType">
-                  <option value="">— select —</option>
-                  <option value="DirectWeight">Direct weight</option>
-                  <option value="BodyWeightFull">Body weight (full)</option>
-                  <option value="NoWeight">No weight</option>
-                  <option value="BodyWeightMultiplier">Body weight multiplier</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid two">
-              <div class="field" id="rulesMultiplierField">
-                <label for="fRulesLoadMultiplier">Body weight multiplier</label>
-                <input id="fRulesLoadMultiplier" type="number" min="0.05" max="2" step="0.05" placeholder="1.0"/>
-                <div class="hint">Only used when load type is “Body weight multiplier”.</div>
-              </div>
-              <div class="field">
-                <label for="fRulesMissingBodyWeightBehavior">Missing body weight behavior *</label>
-                <select id="fRulesMissingBodyWeightBehavior">
-                  <option value="">— select —</option>
-                  <option value="BlockSaving">Block saving</option>
-                  <option value="SaveAsRepetitionsOnly">Save as repetitions only</option>
-                  <option value="SaveWithZeroWeight">Save with zero weight</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid two">
-              <div class="field">
-                <label class="checkbox-row" for="fRulesRequiresEquipment">
-                  <input id="fRulesRequiresEquipment" type="checkbox"/>
-                  <span>Requires equipment</span>
-                </label>
-                <div class="hint">Toggle when equipment is mandatory to save the exercise.</div>
-              </div>
-              <div class="field">
-                <label>Options</label>
-                <div class="checkbox-stack">
-                  <label class="checkbox-row" for="fRulesCanAddExtraWeight">
-                    <input id="fRulesCanAddExtraWeight" type="checkbox"/>
-                    <span>Can add extra weight</span>
-                  </label>
-                  <label class="checkbox-row" for="fRulesCanUseAssistance">
-                    <input id="fRulesCanUseAssistance" type="checkbox"/>
-                    <span>Can use assistance</span>
-                  </label>
+              <div class="grid two">
+                <div class="field">
+                  <label for="fExperience">Experience *</label>
+                  <select id="fExperience">
+                    <option value="">— select —</option>
+                    <option value="beginner">beginner</option>
+                    <option value="intermediate">intermediate</option>
+                    <option value="advanced">advanced</option>
+                    <option value="pro">pro</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fForceType">Force type *</label>
+                  <select id="fForceType">
+                    <option value="">— select —</option>
+                    <option value="push">push</option>
+                    <option value="pull">pull</option>
+                    <option value="hinge">hinge</option>
+                  </select>
                 </div>
               </div>
             </div>
 
-            <hr class="divider"/>
+            <div class="section section-card">
+              <div class="section-header">
+                <div class="section-title">Exercise rules</div>
+                <div class="section-note">Behavior</div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label for="fRulesEntryType">Entry type *</label>
+                  <select id="fRulesEntryType">
+                    <option value="">— select —</option>
+                    <option value="RepetitionsAndWeight">Repetitions + weight</option>
+                    <option value="RepetitionsOnly">Repetitions only</option>
+                    <option value="RepetitionsWithOptionalExtraWeight">Repetitions + optional extra weight</option>
+                    <option value="RepetitionsWithOptionalExtraAndAssistance">Repetitions + optional extra + assistance</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="fRulesLoadType">Load type *</label>
+                  <select id="fRulesLoadType">
+                    <option value="">— select —</option>
+                    <option value="DirectWeight">Direct weight</option>
+                    <option value="BodyWeightFull">Body weight (full)</option>
+                    <option value="NoWeight">No weight</option>
+                    <option value="BodyWeightMultiplier">Body weight multiplier</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field" id="rulesMultiplierField">
+                  <label for="fRulesLoadMultiplier">Body weight multiplier</label>
+                  <input id="fRulesLoadMultiplier" type="number" min="0.05" max="2" step="0.05" placeholder="1.0"/>
+                  <div class="hint">Only used when load type is “Body weight multiplier”.</div>
+                </div>
+                <div class="field">
+                  <label for="fRulesMissingBodyWeightBehavior">Missing body weight behavior *</label>
+                  <select id="fRulesMissingBodyWeightBehavior">
+                    <option value="">— select —</option>
+                    <option value="BlockSaving">Block saving</option>
+                    <option value="SaveAsRepetitionsOnly">Save as repetitions only</option>
+                    <option value="SaveWithZeroWeight">Save with zero weight</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label class="checkbox-row" for="fRulesRequiresEquipment">
+                    <input id="fRulesRequiresEquipment" type="checkbox"/>
+                    <span>Requires equipment</span>
+                  </label>
+                  <div class="hint">Toggle when equipment is mandatory to save the exercise.</div>
+                </div>
+                <div class="field">
+                  <label>Options</label>
+                  <div class="checkbox-stack">
+                    <label class="checkbox-row" for="fRulesCanAddExtraWeight">
+                      <input id="fRulesCanAddExtraWeight" type="checkbox"/>
+                      <span>Can add extra weight</span>
+                    </label>
+                    <label class="checkbox-row" for="fRulesCanUseAssistance">
+                      <input id="fRulesCanUseAssistance" type="checkbox"/>
+                      <span>Can use assistance</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Equipment (reorganized: left chips, right single select + add) -->
-          <div class="section">
-            <div class="section-title">Equipment *</div>
+          <div class="section section-card">
+            <div class="section-header">
+              <div class="section-title">Equipment *</div>
+              <div class="section-note">Required list</div>
+            </div>
 
             <div class="grid two">
               <div class="field">
@@ -285,8 +293,11 @@
           </div>
 
           <!-- Muscles -->
-          <div class="section">
-            <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+          <div class="section section-card">
+            <div class="section-header">
+              <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+              <div class="section-note">Distribution</div>
+            </div>
 
             <div id="bundles" style="display:grid;gap:8px"></div>
 
