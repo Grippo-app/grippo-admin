@@ -64,6 +64,7 @@ class GrippoAdminApp {
     this.localeButtons = [];
     this.defaultNamePlaceholder = '';
     this.defaultDescriptionPlaceholder = '';
+    this.bodyWeightMultiplier = 1;
   }
 
   getListName(item) {
@@ -384,6 +385,11 @@ class GrippoAdminApp {
       }));
 
     this.els.fRulesBodyWeightMultiplier?.addEventListener('input', () => {
+      const raw = this.els.fRulesBodyWeightMultiplier?.value;
+      const value = Number(raw);
+      if (Number.isFinite(value)) {
+        this.bodyWeightMultiplier = value;
+      }
       this.syncBodyWeightMultiplierLabel();
       this.setEntity(this.readFormToEntity(this.getEntity()));
     });
@@ -1415,11 +1421,7 @@ class GrippoAdminApp {
 
     if (this.els.fRulesBodyWeightMultiplier) {
       this.els.fRulesBodyWeightMultiplier.disabled = !finalBody;
-      if (!finalBody) {
-        this.els.fRulesBodyWeightMultiplier.value = '';
-      } else if (!this.els.fRulesBodyWeightMultiplier.value) {
-        this.els.fRulesBodyWeightMultiplier.value = '1';
-      }
+      this.els.fRulesBodyWeightMultiplier.value = String(this.bodyWeightMultiplier);
       this.syncBodyWeightMultiplierLabel();
     }
 
@@ -1541,7 +1543,7 @@ class GrippoAdminApp {
       this.els.fRulesBodyWeightEnabled.checked = !!bodyWeight;
     }
     if (this.els.fRulesBodyWeightMultiplier) {
-      this.els.fRulesBodyWeightMultiplier.value = '';
+      this.els.fRulesBodyWeightMultiplier.value = String(this.bodyWeightMultiplier);
     }
     this.syncBodyWeightMultiplierLabel();
     if (this.els.fRulesExtraWeightEnabled) {
