@@ -51,54 +51,68 @@ function normalizeRules(rules, previousRules) {
   const prev = previousRules && typeof previousRules === 'object' ? previousRules : {};
   const src = rules && typeof rules === 'object' ? rules : {};
 
-  const normalizeRequiredInput = (value) => {
+  const normalizeRequiredComponent = (value) => {
     if (!value || typeof value !== 'object') return null;
     const required = toBool(value.required);
     return { required };
   };
 
-  const normalizeBodyWeightInput = (value) => {
+  const normalizeBodyWeight = (value) => {
     if (!value || typeof value !== 'object') return null;
-    const multiplierRaw = value.multiplier;
-    const multiplierValue = multiplierRaw === '' || multiplierRaw === null || multiplierRaw === undefined
-      ? undefined
-      : Number(multiplierRaw);
-    return {
-      participates: true,
-      ...(Number.isFinite(multiplierValue) ? { multiplier: multiplierValue } : {})
-    };
+    if (typeof value.required === 'boolean') return { required: value.required };
+    return { required: true };
   };
 
-  const baseInputs = src.inputs || prev.inputs;
-  if (baseInputs && typeof baseInputs === 'object') {
-    let externalWeight = normalizeRequiredInput(baseInputs.externalWeight);
-    let bodyWeight = normalizeBodyWeightInput(baseInputs.bodyWeight);
-    let extraWeight = normalizeRequiredInput(baseInputs.extraWeight);
-    let assistance = normalizeRequiredInput(baseInputs.assistance);
+  const baseComponents = src.components || prev.components;
+  if (baseComponents && typeof baseComponents === 'object') {
+    let externalWeight = normalizeRequiredComponent(baseComponents.externalWeight);
+    let bodyWeight = normalizeBodyWeight(baseComponents.bodyWeight);
+    let extraWeight = normalizeRequiredComponent(baseComponents.extraWeight);
+    let assistWeight = normalizeRequiredComponent(baseComponents.assistWeight);
 
     if (bodyWeight) {
       externalWeight = null;
     } else {
       extraWeight = null;
-      assistance = null;
+      assistWeight = null;
     }
 
     if (externalWeight) {
       extraWeight = null;
-      assistance = null;
+      assistWeight = null;
     }
 
     return {
-      inputs: { externalWeight, bodyWeight, extraWeight, assistance }
+      components: { externalWeight, bodyWeight, extraWeight, assistWeight }
+    };
+  }
+
+  const baseInputs = src.inputs || prev.inputs;
+  if (baseInputs && typeof baseInputs === 'object') {
+    let externalWeight = normalizeRequiredComponent(baseInputs.externalWeight);
+    let bodyWeight = baseInputs.bodyWeight ? { required: true } : null;
+    let extraWeight = normalizeRequiredComponent(baseInputs.extraWeight);
+    let assistWeight = normalizeRequiredComponent(baseInputs.assistance);
+
+    if (bodyWeight) {
+      externalWeight = null;
+    } else {
+      extraWeight = null;
+      assistWeight = null;
+    }
+
+    if (externalWeight) {
+      extraWeight = null;
+      assistWeight = null;
+    }
+
+    return {
+      components: { externalWeight, bodyWeight, extraWeight, assistWeight }
     };
   }
 
   const entryType = src?.entry?.type ?? src?.entryType ?? prev?.entry?.type ?? '';
   const loadType = src?.load?.type ?? src?.loadType ?? prev?.load?.type ?? '';
-  const multiplierRaw = src?.load?.multiplier ?? src?.multiplier ?? prev?.load?.multiplier;
-  const multiplierValue = multiplierRaw === '' || multiplierRaw === null || multiplierRaw === undefined
-    ? undefined
-    : Number(multiplierRaw);
 
   const optionsSource = src?.options && typeof src.options === 'object' ? src.options : {};
   const prevOptions = prev?.options && typeof prev.options === 'object' ? prev.options : {};
@@ -108,45 +122,45 @@ function normalizeRules(rules, previousRules) {
   let externalWeight = null;
   let bodyWeight = null;
   let extraWeight = null;
-  let assistance = null;
+  let assistWeight = null;
 
   if (entryType === 'RepetitionsAndWeight') {
     externalWeight = { required: true };
   } else if (entryType === 'RepetitionsWithOptionalExtraWeight') {
-    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+    bodyWeight = { required: true };
     extraWeight = { required: false };
   } else if (entryType === 'RepetitionsWithOptionalExtraAndAssistance') {
-    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+    bodyWeight = { required: true };
     extraWeight = { required: false };
-    assistance = { required: false };
+    assistWeight = { required: false };
   } else if (entryType === 'RepetitionsOnly') {
     externalWeight = null;
   } else if (loadType === 'DirectWeight') {
     externalWeight = { required: true };
   } else if (loadType === 'BodyWeightFull' || loadType === 'BodyWeightMultiplier') {
-    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+    bodyWeight = { required: true };
   }
 
   if (bodyWeight && !extraWeight && canAddExtraWeight) {
     extraWeight = { required: false };
   }
-  if (bodyWeight && !assistance && canUseAssistance) {
-    assistance = { required: false };
+  if (bodyWeight && !assistWeight && canUseAssistance) {
+    assistWeight = { required: false };
   }
 
   if (!bodyWeight) {
     extraWeight = null;
-    assistance = null;
+    assistWeight = null;
   }
 
   if (externalWeight && bodyWeight) {
     bodyWeight = null;
     extraWeight = null;
-    assistance = null;
+    assistWeight = null;
   }
 
   return {
-    inputs: { externalWeight, bodyWeight, extraWeight, assistance }
+    components: { externalWeight, bodyWeight, extraWeight, assistWeight }
   };
 }
 

@@ -64,6 +64,7 @@ class GrippoAdminApp {
     this.localeButtons = [];
     this.defaultNamePlaceholder = '';
     this.defaultDescriptionPlaceholder = '';
+    this.bodyWeightMultiplier = 1;
   }
 
   getListName(item) {
@@ -384,6 +385,11 @@ class GrippoAdminApp {
       }));
 
     this.els.fRulesBodyWeightMultiplier?.addEventListener('input', () => {
+      const raw = this.els.fRulesBodyWeightMultiplier?.value;
+      const value = Number(raw);
+      if (Number.isFinite(value)) {
+        this.bodyWeightMultiplier = value;
+      }
       this.syncBodyWeightMultiplierLabel();
       this.setEntity(this.readFormToEntity(this.getEntity()));
     });
@@ -1415,11 +1421,7 @@ class GrippoAdminApp {
 
     if (this.els.fRulesBodyWeightMultiplier) {
       this.els.fRulesBodyWeightMultiplier.disabled = !finalBody;
-      if (!finalBody) {
-        this.els.fRulesBodyWeightMultiplier.value = '';
-      } else if (!this.els.fRulesBodyWeightMultiplier.value) {
-        this.els.fRulesBodyWeightMultiplier.value = '1';
-      }
+      this.els.fRulesBodyWeightMultiplier.value = String(this.bodyWeightMultiplier);
       this.syncBodyWeightMultiplierLabel();
     }
 
@@ -1475,26 +1477,17 @@ class GrippoAdminApp {
     e.forceType = this.els.fForceType?.value || '';
     const externalEnabled = !!this.els.fRulesExternalWeightEnabled?.checked;
     const bodyEnabled = !!this.els.fRulesBodyWeightEnabled?.checked;
-    const bodyMultiplierRaw = this.els.fRulesBodyWeightMultiplier?.value;
-    const bodyMultiplierValue = bodyMultiplierRaw === '' || bodyMultiplierRaw == null
-      ? undefined
-      : Number(bodyMultiplierRaw);
     const extraEnabled = !!this.els.fRulesExtraWeightEnabled?.checked;
-    const assistanceEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
+    const assistEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
 
     e.rules = {
-      inputs: {
+      components: {
         externalWeight: externalEnabled ? { required: !!this.els.fRulesExternalWeightRequired?.checked } : null,
-        bodyWeight: bodyEnabled
-          ? {
-            participates: true,
-            ...(Number.isFinite(bodyMultiplierValue) ? { multiplier: bodyMultiplierValue } : {})
-          }
-          : null,
+        bodyWeight: bodyEnabled ? { required: true } : null,
         extraWeight: bodyEnabled && extraEnabled
           ? { required: !!this.els.fRulesExtraWeightRequired?.checked }
           : null,
-        assistance: bodyEnabled && assistanceEnabled
+        assistWeight: bodyEnabled && assistEnabled
           ? { required: !!this.els.fRulesAssistanceRequired?.checked }
           : null
       }
@@ -1534,11 +1527,11 @@ class GrippoAdminApp {
     if (this.els.fCategory) this.els.fCategory.value = entity?.category || '';
     if (this.els.fExperience) this.els.fExperience.value = entity?.experience || '';
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
-    const inputs = entity?.rules?.inputs || {};
-    const externalWeight = inputs?.externalWeight;
-    const bodyWeight = inputs?.bodyWeight;
-    const extraWeight = inputs?.extraWeight;
-    const assistance = inputs?.assistance;
+    const components = entity?.rules?.components || {};
+    const externalWeight = components?.externalWeight;
+    const bodyWeight = components?.bodyWeight;
+    const extraWeight = components?.extraWeight;
+    const assistWeight = components?.assistWeight;
 
     if (this.els.fRulesExternalWeightEnabled) {
       this.els.fRulesExternalWeightEnabled.checked = !!externalWeight;
@@ -1550,10 +1543,7 @@ class GrippoAdminApp {
       this.els.fRulesBodyWeightEnabled.checked = !!bodyWeight;
     }
     if (this.els.fRulesBodyWeightMultiplier) {
-      this.els.fRulesBodyWeightMultiplier.value =
-        bodyWeight?.multiplier != null && Number.isFinite(Number(bodyWeight?.multiplier))
-          ? String(bodyWeight.multiplier)
-          : '';
+      this.els.fRulesBodyWeightMultiplier.value = String(this.bodyWeightMultiplier);
     }
     this.syncBodyWeightMultiplierLabel();
     if (this.els.fRulesExtraWeightEnabled) {
@@ -1563,10 +1553,10 @@ class GrippoAdminApp {
       this.els.fRulesExtraWeightRequired.checked = !!extraWeight?.required;
     }
     if (this.els.fRulesAssistanceEnabled) {
-      this.els.fRulesAssistanceEnabled.checked = !!assistance;
+      this.els.fRulesAssistanceEnabled.checked = !!assistWeight;
     }
     if (this.els.fRulesAssistanceRequired) {
-      this.els.fRulesAssistanceRequired.checked = !!assistance?.required;
+      this.els.fRulesAssistanceRequired.checked = !!assistWeight?.required;
     }
     this.updateRulesInputsVisibility();
     this.renderEquipmentTokens(entity);
@@ -2099,28 +2089,27 @@ class GrippoAdminApp {
     lines.push('4) `rules` must strictly match this schema (no other fields allowed inside `rules`):');
     lines.push('');
     lines.push('"rules": {');
-    lines.push('  "inputs": {');
+    lines.push('  "components": {');
     lines.push('    "externalWeight": { "required": boolean } | null,');
-    lines.push('    "bodyWeight": { "participates": true, "multiplier": number } | null,');
+    lines.push('    "bodyWeight": { "required": boolean } | null,');
     lines.push('    "extraWeight": { "required": boolean } | null,');
-    lines.push('    "assistance": { "required": boolean } | null');
+    lines.push('    "assistWeight": { "required": boolean } | null');
     lines.push('  }');
     lines.push('}');
     lines.push('');
 
     lines.push('INVARIANTS (MUST ALWAYS HOLD):');
     lines.push('- externalWeight and bodyWeight are mutually exclusive.');
-    lines.push('- extraWeight and assistance are ONLY allowed when bodyWeight exists.');
-    lines.push('- If externalWeight exists, extraWeight and assistance MUST be null.');
-    lines.push('- If bodyWeight exists, it MUST include participates:true and multiplier between 0.05 and 2.0.');
-    lines.push('- If bodyWeight is null, then extraWeight and assistance MUST be null.');
+    lines.push('- extraWeight and assistWeight are ONLY allowed when bodyWeight exists.');
+    lines.push('- If externalWeight exists, extraWeight and assistWeight MUST be null.');
+    lines.push('- If bodyWeight is null, then extraWeight and assistWeight MUST be null.');
     lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
     lines.push('');
 
     lines.push('DECISION PROCEDURE (MUST DO INTERNALLY, DO NOT OUTPUT THESE STEPS):');
     lines.push('- Step A: Determine exercise archetype using this priority: weightType -> equipmentRefs -> name/description.');
     lines.push('  Archetypes:');
-    lines.push('  A1) BODYWEIGHT: weightType=="body_weight" AND no clear assistance cues in name/description.');
+    lines.push('  A1) BODYWEIGHT: weightType=="body_weight" AND no clear assist cues in name/description.');
     lines.push('  A2) EXTERNAL_LOAD: weightType in ["free","fixed"] OR name/description clearly indicates external load (machine/barbell/dumbbell/cable/etc).');
     lines.push('  A3) NO_WEIGHT: mobility/stretch/breathing/skill drill where tracking weight is meaningless.');
     lines.push('  A4) ASSISTED_BODYWEIGHT: name/description contains clear cues like "assisted", "band-assisted", "machine assisted", "gravitron", "counterbalance".');
@@ -2132,40 +2121,34 @@ class GrippoAdminApp {
     lines.push('ARCHETYPE -> RULES MAPPING (BASELINE, THEN REFINE):');
     lines.push('- BODYWEIGHT (A1):');
     lines.push('  externalWeight: null');
-    lines.push('  bodyWeight: { participates: true, multiplier: 1.0 }');
+    lines.push('  bodyWeight: { required: true }');
     lines.push('  extraWeight: { required: false }');
-    lines.push('  assistance: null');
+    lines.push('  assistWeight: null');
     lines.push('');
     lines.push('- ASSISTED_BODYWEIGHT (A4):');
     lines.push('  externalWeight: null');
-    lines.push('  bodyWeight: { participates: true, multiplier: 1.0 }');
+    lines.push('  bodyWeight: { required: true }');
     lines.push('  extraWeight: { required: false }');
-    lines.push('  assistance: { required: false }');
+    lines.push('  assistWeight: { required: false }');
     lines.push('');
     lines.push('- EXTERNAL_LOAD (A2):');
     lines.push('  externalWeight: { required: true }');
     lines.push('  bodyWeight: null');
     lines.push('  extraWeight: null');
-    lines.push('  assistance: null');
+    lines.push('  assistWeight: null');
     lines.push('');
     lines.push('- NO_WEIGHT (A3):');
     lines.push('  externalWeight: null');
     lines.push('  bodyWeight: null');
     lines.push('  extraWeight: null');
-    lines.push('  assistance: null');
-    lines.push('');
-
-    lines.push('MULTIPLIER GUIDANCE:');
-    lines.push('- Use multiplier 1.0 by default unless the exercise clearly scales by a fixed fraction of body weight.');
-    lines.push('- If uncertain, keep 1.0.');
+    lines.push('  assistWeight: null');
     lines.push('');
 
     lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
     lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
     lines.push('- externalWeight and bodyWeight are mutually exclusive.');
-    lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
-    lines.push('- If externalWeight exists => extraWeight and assistance must be null.');
-    lines.push('- If bodyWeight does not exist => extraWeight and assistance must be null.');
+    lines.push('- If externalWeight exists => extraWeight and assistWeight must be null.');
+    lines.push('- If bodyWeight does not exist => extraWeight and assistWeight must be null.');
     lines.push('');
 
     lines.push('IMPORTANT PRODUCT NOTE:');
