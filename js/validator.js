@@ -37,51 +37,43 @@ export class EntityValidator {
     if (!normalized.imageUrl) warnings.push('imageUrl is empty');
 
     const rules = normalized.rules || {};
-    const inputs = rules?.inputs;
-    if (!inputs || typeof inputs !== 'object') {
-      errors.push('Missing: rules.inputs');
+    const components = rules?.components;
+    if (!components || typeof components !== 'object') {
+      errors.push('Missing: rules.components');
     } else {
-      const externalWeight = inputs.externalWeight;
-      const bodyWeight = inputs.bodyWeight;
-      const extraWeight = inputs.extraWeight;
-      const assistance = inputs.assistance;
+      const externalWeight = components.externalWeight;
+      const bodyWeight = components.bodyWeight;
+      const extraWeight = components.extraWeight;
+      const assistWeight = components.assistWeight;
 
       const isRequiredInput = (value) => value && typeof value === 'object' && typeof value.required === 'boolean';
 
       if (externalWeight && bodyWeight) {
-        errors.push('rules.inputs.externalWeight and rules.inputs.bodyWeight are mutually exclusive');
+        errors.push('rules.components.externalWeight and rules.components.bodyWeight are mutually exclusive');
       }
 
       if (externalWeight && !isRequiredInput(externalWeight)) {
-        errors.push('rules.inputs.externalWeight.required must be boolean');
+        errors.push('rules.components.externalWeight.required must be boolean');
       }
 
-      if (bodyWeight) {
-        if (bodyWeight.participates !== true) {
-          errors.push('rules.inputs.bodyWeight.participates must be true');
-        }
-        const multiplier = Number(bodyWeight.multiplier);
-        if (!Number.isFinite(multiplier)) {
-          errors.push('rules.inputs.bodyWeight.multiplier required');
-        } else if (multiplier < 0.05 || multiplier > 2) {
-          errors.push('rules.inputs.bodyWeight.multiplier must be between 0.05 and 2.0');
-        }
+      if (bodyWeight && !isRequiredInput(bodyWeight)) {
+        errors.push('rules.components.bodyWeight.required must be boolean');
       }
 
-      if (!bodyWeight && (extraWeight || assistance)) {
-        errors.push('rules.inputs.extraWeight and rules.inputs.assistance require bodyWeight');
+      if (!bodyWeight && (extraWeight || assistWeight)) {
+        errors.push('rules.components.extraWeight and rules.components.assistWeight require bodyWeight');
       }
 
-      if (externalWeight && (extraWeight || assistance)) {
-        errors.push('rules.inputs.extraWeight and rules.inputs.assistance must be null when externalWeight is set');
+      if (externalWeight && (extraWeight || assistWeight)) {
+        errors.push('rules.components.extraWeight and rules.components.assistWeight must be null when externalWeight is set');
       }
 
       if (extraWeight && !isRequiredInput(extraWeight)) {
-        errors.push('rules.inputs.extraWeight.required must be boolean');
+        errors.push('rules.components.extraWeight.required must be boolean');
       }
 
-      if (assistance && !isRequiredInput(assistance)) {
-        errors.push('rules.inputs.assistance.required must be boolean');
+      if (assistWeight && !isRequiredInput(assistWeight)) {
+        errors.push('rules.components.assistWeight.required must be boolean');
       }
     }
 
