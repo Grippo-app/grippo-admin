@@ -2075,7 +2075,7 @@ class GrippoAdminApp {
     lines.push('1) You may ONLY change `rules`. Every other field must remain identical in value.');
     lines.push('2) Best practice: copy the input JSON and edit only the `rules` object in-place.');
     lines.push('3) Preserve field order as in the input JSON.');
-    lines.push('4) `rules` must strictly match this schema:');
+    lines.push('4) `rules` must strictly match this schema (no other fields allowed inside `rules`):');
     lines.push('');
     lines.push('"rules": {');
     lines.push('  "inputs": {');
@@ -2092,6 +2092,8 @@ class GrippoAdminApp {
     lines.push('- extraWeight and assistance are ONLY allowed when bodyWeight exists.');
     lines.push('- If externalWeight exists, extraWeight and assistance MUST be null.');
     lines.push('- If bodyWeight exists, it MUST include participates:true and multiplier between 0.05 and 2.0.');
+    lines.push('- If bodyWeight is null, then extraWeight and assistance MUST be null.');
+    lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
     lines.push('');
 
     lines.push('DECISION PROCEDURE (MUST DO INTERNALLY, DO NOT OUTPUT THESE STEPS):');
