@@ -198,69 +198,55 @@
             <div class="section section-card">
               <div class="section-header">
                 <div class="section-title">Exercise rules</div>
-                <div class="section-note">Behavior</div>
+                <div class="section-note">Inputs</div>
               </div>
 
               <div class="grid two">
                 <div class="field">
-                  <label for="fRulesEntryType">Entry type *</label>
-                  <select id="fRulesEntryType">
-                    <option value="">— select —</option>
-                    <option value="RepetitionsAndWeight">Repetitions + weight</option>
-                    <option value="RepetitionsOnly">Repetitions only</option>
-                    <option value="RepetitionsWithOptionalExtraWeight">Repetitions + optional extra weight</option>
-                    <option value="RepetitionsWithOptionalExtraAndAssistance">Repetitions + optional extra + assistance</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="fRulesLoadType">Load type *</label>
-                  <select id="fRulesLoadType">
-                    <option value="">— select —</option>
-                    <option value="DirectWeight">Direct weight</option>
-                    <option value="BodyWeightFull">Body weight (full)</option>
-                    <option value="NoWeight">No weight</option>
-                    <option value="BodyWeightMultiplier">Body weight multiplier</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="grid two">
-                <div class="field" id="rulesMultiplierField">
-                  <label for="fRulesLoadMultiplier">Body weight multiplier</label>
-                  <input id="fRulesLoadMultiplier" type="number" min="0.05" max="2" step="0.05" placeholder="1.0"/>
-                  <div class="hint">Only used when load type is “Body weight multiplier”.</div>
-                </div>
-                <div class="field">
-                  <label for="fRulesMissingBodyWeightBehavior">Missing body weight behavior *</label>
-                  <select id="fRulesMissingBodyWeightBehavior">
-                    <option value="">— select —</option>
-                    <option value="BlockSaving">Block saving</option>
-                    <option value="SaveAsRepetitionsOnly">Save as repetitions only</option>
-                    <option value="SaveWithZeroWeight">Save with zero weight</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="grid two">
-                <div class="field">
-                  <label class="checkbox-row" for="fRulesRequiresEquipment">
-                    <input id="fRulesRequiresEquipment" type="checkbox"/>
-                    <span>Requires equipment</span>
+                  <label class="checkbox-row" for="fRulesExternalWeightEnabled">
+                    <input id="fRulesExternalWeightEnabled" type="checkbox"/>
+                    <span>External weight input</span>
                   </label>
-                  <div class="hint">Toggle when equipment is mandatory to save the exercise.</div>
+                  <div class="hint">Adds a “weight” field for barbell, dumbbell, machine, etc.</div>
+                  <label class="checkbox-row" for="fRulesExternalWeightRequired">
+                    <input id="fRulesExternalWeightRequired" type="checkbox"/>
+                    <span>External weight required</span>
+                  </label>
                 </div>
                 <div class="field">
-                  <label>Options</label>
-                  <div class="checkbox-stack">
-                    <label class="checkbox-row" for="fRulesCanAddExtraWeight">
-                      <input id="fRulesCanAddExtraWeight" type="checkbox"/>
-                      <span>Can add extra weight</span>
-                    </label>
-                    <label class="checkbox-row" for="fRulesCanUseAssistance">
-                      <input id="fRulesCanUseAssistance" type="checkbox"/>
-                      <span>Can use assistance</span>
-                    </label>
-                  </div>
+                  <label class="checkbox-row" for="fRulesBodyWeightEnabled">
+                    <input id="fRulesBodyWeightEnabled" type="checkbox"/>
+                    <span>Body weight participates</span>
+                  </label>
+                  <div class="hint">Mutually exclusive with external weight.</div>
+                  <label for="fRulesBodyWeightMultiplier">Body weight multiplier</label>
+                  <input id="fRulesBodyWeightMultiplier" type="number" min="0.05" max="2" step="0.05" placeholder="1.0"/>
+                  <div class="hint">Required when body weight participates (0.05–2.0).</div>
+                </div>
+              </div>
+
+              <div class="grid two">
+                <div class="field">
+                  <label class="checkbox-row" for="fRulesExtraWeightEnabled">
+                    <input id="fRulesExtraWeightEnabled" type="checkbox"/>
+                    <span>Extra weight input (bodyweight only)</span>
+                  </label>
+                  <div class="hint">Use for weighted bodyweight (belt, plates, vest).</div>
+                  <label class="checkbox-row" for="fRulesExtraWeightRequired">
+                    <input id="fRulesExtraWeightRequired" type="checkbox"/>
+                    <span>Extra weight required</span>
+                  </label>
+                </div>
+                <div class="field">
+                  <label class="checkbox-row" for="fRulesAssistanceEnabled">
+                    <input id="fRulesAssistanceEnabled" type="checkbox"/>
+                    <span>Assistance input (bodyweight only)</span>
+                  </label>
+                  <div class="hint">Use for gravitron, bands, or counterbalance.</div>
+                  <label class="checkbox-row" for="fRulesAssistanceRequired">
+                    <input id="fRulesAssistanceRequired" type="checkbox"/>
+                    <span>Assistance required</span>
+                  </label>
                 </div>
               </div>
             </div>

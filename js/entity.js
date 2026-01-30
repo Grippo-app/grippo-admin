@@ -50,6 +50,49 @@ function toBool(value) {
 function normalizeRules(rules, previousRules) {
   const prev = previousRules && typeof previousRules === 'object' ? previousRules : {};
   const src = rules && typeof rules === 'object' ? rules : {};
+
+  const normalizeRequiredInput = (value) => {
+    if (!value || typeof value !== 'object') return null;
+    const required = toBool(value.required);
+    return { required };
+  };
+
+  const normalizeBodyWeightInput = (value) => {
+    if (!value || typeof value !== 'object') return null;
+    const multiplierRaw = value.multiplier;
+    const multiplierValue = multiplierRaw === '' || multiplierRaw === null || multiplierRaw === undefined
+      ? undefined
+      : Number(multiplierRaw);
+    return {
+      participates: true,
+      ...(Number.isFinite(multiplierValue) ? { multiplier: multiplierValue } : {})
+    };
+  };
+
+  const baseInputs = src.inputs || prev.inputs;
+  if (baseInputs && typeof baseInputs === 'object') {
+    let externalWeight = normalizeRequiredInput(baseInputs.externalWeight);
+    let bodyWeight = normalizeBodyWeightInput(baseInputs.bodyWeight);
+    let extraWeight = normalizeRequiredInput(baseInputs.extraWeight);
+    let assistance = normalizeRequiredInput(baseInputs.assistance);
+
+    if (bodyWeight) {
+      externalWeight = null;
+    } else {
+      extraWeight = null;
+      assistance = null;
+    }
+
+    if (externalWeight) {
+      extraWeight = null;
+      assistance = null;
+    }
+
+    return {
+      inputs: { externalWeight, bodyWeight, extraWeight, assistance }
+    };
+  }
+
   const entryType = src?.entry?.type ?? src?.entryType ?? prev?.entry?.type ?? '';
   const loadType = src?.load?.type ?? src?.loadType ?? prev?.load?.type ?? '';
   const multiplierRaw = src?.load?.multiplier ?? src?.multiplier ?? prev?.load?.multiplier;
@@ -62,20 +105,48 @@ function normalizeRules(rules, previousRules) {
   const canAddExtraWeight = toBool(optionsSource.canAddExtraWeight ?? prevOptions.canAddExtraWeight ?? false);
   const canUseAssistance = toBool(optionsSource.canUseAssistance ?? prevOptions.canUseAssistance ?? false);
 
-  const missingBehavior = src?.missingBodyWeightBehavior ?? prev?.missingBodyWeightBehavior ?? '';
-  const requiresEquipment = toBool(src?.requiresEquipment ?? prev?.requiresEquipment ?? false);
+  let externalWeight = null;
+  let bodyWeight = null;
+  let extraWeight = null;
+  let assistance = null;
 
-  const load = { type: loadType };
-  if (loadType === 'BodyWeightMultiplier' && Number.isFinite(multiplierValue)) {
-    load.multiplier = multiplierValue;
+  if (entryType === 'RepetitionsAndWeight') {
+    externalWeight = { required: true };
+  } else if (entryType === 'RepetitionsWithOptionalExtraWeight') {
+    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+    extraWeight = { required: false };
+  } else if (entryType === 'RepetitionsWithOptionalExtraAndAssistance') {
+    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+    extraWeight = { required: false };
+    assistance = { required: false };
+  } else if (entryType === 'RepetitionsOnly') {
+    externalWeight = null;
+  } else if (loadType === 'DirectWeight') {
+    externalWeight = { required: true };
+  } else if (loadType === 'BodyWeightFull' || loadType === 'BodyWeightMultiplier') {
+    bodyWeight = { participates: true, multiplier: Number.isFinite(multiplierValue) ? multiplierValue : 1 };
+  }
+
+  if (bodyWeight && !extraWeight && canAddExtraWeight) {
+    extraWeight = { required: false };
+  }
+  if (bodyWeight && !assistance && canUseAssistance) {
+    assistance = { required: false };
+  }
+
+  if (!bodyWeight) {
+    extraWeight = null;
+    assistance = null;
+  }
+
+  if (externalWeight && bodyWeight) {
+    bodyWeight = null;
+    extraWeight = null;
+    assistance = null;
   }
 
   return {
-    entry: { type: entryType },
-    load,
-    options: { canAddExtraWeight, canUseAssistance },
-    missingBodyWeightBehavior: missingBehavior,
-    requiresEquipment
+    inputs: { externalWeight, bodyWeight, extraWeight, assistance }
   };
 }
 
