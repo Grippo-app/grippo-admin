@@ -37,19 +37,51 @@ export class EntityValidator {
     if (!normalized.imageUrl) warnings.push('imageUrl is empty');
 
     const rules = normalized.rules || {};
-    const entryType = rules?.entry?.type || '';
-    const loadType = rules?.load?.type || '';
-    const missingBehavior = rules?.missingBodyWeightBehavior || '';
-    if (!entryType) errors.push('Missing: rules.entry.type');
-    if (!loadType) errors.push('Missing: rules.load.type');
-    if (!missingBehavior) errors.push('Missing: rules.missingBodyWeightBehavior');
+    const inputs = rules?.inputs;
+    if (!inputs || typeof inputs !== 'object') {
+      errors.push('Missing: rules.inputs');
+    } else {
+      const externalWeight = inputs.externalWeight;
+      const bodyWeight = inputs.bodyWeight;
+      const extraWeight = inputs.extraWeight;
+      const assistance = inputs.assistance;
 
-    if (loadType === 'BodyWeightMultiplier') {
-      const multiplier = Number(rules?.load?.multiplier);
-      if (!Number.isFinite(multiplier)) {
-        errors.push('rules.load.multiplier required for BodyWeightMultiplier');
-      } else if (multiplier < 0.05 || multiplier > 2) {
-        errors.push('rules.load.multiplier must be between 0.05 and 2.0');
+      const isRequiredInput = (value) => value && typeof value === 'object' && typeof value.required === 'boolean';
+
+      if (externalWeight && bodyWeight) {
+        errors.push('rules.inputs.externalWeight and rules.inputs.bodyWeight are mutually exclusive');
+      }
+
+      if (externalWeight && !isRequiredInput(externalWeight)) {
+        errors.push('rules.inputs.externalWeight.required must be boolean');
+      }
+
+      if (bodyWeight) {
+        if (bodyWeight.participates !== true) {
+          errors.push('rules.inputs.bodyWeight.participates must be true');
+        }
+        const multiplier = Number(bodyWeight.multiplier);
+        if (!Number.isFinite(multiplier)) {
+          errors.push('rules.inputs.bodyWeight.multiplier required');
+        } else if (multiplier < 0.05 || multiplier > 2) {
+          errors.push('rules.inputs.bodyWeight.multiplier must be between 0.05 and 2.0');
+        }
+      }
+
+      if (!bodyWeight && (extraWeight || assistance)) {
+        errors.push('rules.inputs.extraWeight and rules.inputs.assistance require bodyWeight');
+      }
+
+      if (externalWeight && (extraWeight || assistance)) {
+        errors.push('rules.inputs.extraWeight and rules.inputs.assistance must be null when externalWeight is set');
+      }
+
+      if (extraWeight && !isRequiredInput(extraWeight)) {
+        errors.push('rules.inputs.extraWeight.required must be boolean');
+      }
+
+      if (assistance && !isRequiredInput(assistance)) {
+        errors.push('rules.inputs.assistance.required must be boolean');
       }
     }
 

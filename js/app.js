@@ -122,14 +122,15 @@ class GrippoAdminApp {
       fCategory: document.getElementById('fCategory'),
       fExperience: document.getElementById('fExperience'),
       fForceType: document.getElementById('fForceType'),
-      fRulesEntryType: document.getElementById('fRulesEntryType'),
-      fRulesLoadType: document.getElementById('fRulesLoadType'),
-      fRulesLoadMultiplier: document.getElementById('fRulesLoadMultiplier'),
-      fRulesMissingBodyWeightBehavior: document.getElementById('fRulesMissingBodyWeightBehavior'),
-      fRulesRequiresEquipment: document.getElementById('fRulesRequiresEquipment'),
-      fRulesCanAddExtraWeight: document.getElementById('fRulesCanAddExtraWeight'),
-      fRulesCanUseAssistance: document.getElementById('fRulesCanUseAssistance'),
-      rulesMultiplierField: document.getElementById('rulesMultiplierField'),
+      fRulesExternalWeightEnabled: document.getElementById('fRulesExternalWeightEnabled'),
+      fRulesExternalWeightRequired: document.getElementById('fRulesExternalWeightRequired'),
+      fRulesBodyWeightEnabled: document.getElementById('fRulesBodyWeightEnabled'),
+      fRulesBodyWeightMultiplier: document.getElementById('fRulesBodyWeightMultiplier'),
+      fRulesBodyWeightMultiplierValue: document.getElementById('fRulesBodyWeightMultiplierValue'),
+      fRulesExtraWeightEnabled: document.getElementById('fRulesExtraWeightEnabled'),
+      fRulesExtraWeightRequired: document.getElementById('fRulesExtraWeightRequired'),
+      fRulesAssistanceEnabled: document.getElementById('fRulesAssistanceEnabled'),
+      fRulesAssistanceRequired: document.getElementById('fRulesAssistanceRequired'),
       fId: document.getElementById('fId'),
       equipTokens: document.getElementById('equipTokens'),
       equipSingle: document.getElementById('equipSingle'),
@@ -357,20 +358,33 @@ class GrippoAdminApp {
       }));
 
     [
-      this.els.fRulesEntryType,
-      this.els.fRulesLoadType,
-      this.els.fRulesMissingBodyWeightBehavior,
-      this.els.fRulesRequiresEquipment,
-      this.els.fRulesCanAddExtraWeight,
-      this.els.fRulesCanUseAssistance
+      this.els.fRulesExternalWeightEnabled,
+      this.els.fRulesExternalWeightRequired,
+      this.els.fRulesBodyWeightEnabled,
+      this.els.fRulesExtraWeightEnabled,
+      this.els.fRulesExtraWeightRequired,
+      this.els.fRulesAssistanceEnabled,
+      this.els.fRulesAssistanceRequired
     ]
       .filter(Boolean)
-      .forEach((input) => input.addEventListener('change', () => {
-        this.updateRulesLoadVisibility();
+      .forEach((input) => input.addEventListener('change', (event) => {
+        const id = event?.target?.id;
+        const preferred = id === 'fRulesExternalWeightEnabled' ? 'external' : id === 'fRulesBodyWeightEnabled' ? 'body' : '';
+        if (id === 'fRulesExtraWeightRequired' && this.els.fRulesExtraWeightEnabled) {
+          this.els.fRulesExtraWeightEnabled.checked = true;
+        }
+        if (id === 'fRulesAssistanceRequired' && this.els.fRulesAssistanceEnabled) {
+          this.els.fRulesAssistanceEnabled.checked = true;
+        }
+        if (id === 'fRulesExternalWeightRequired' && this.els.fRulesExternalWeightEnabled) {
+          this.els.fRulesExternalWeightEnabled.checked = true;
+        }
+        this.updateRulesInputsVisibility(preferred);
         this.setEntity(this.readFormToEntity(this.getEntity()));
       }));
 
-    this.els.fRulesLoadMultiplier?.addEventListener('input', () => {
+    this.els.fRulesBodyWeightMultiplier?.addEventListener('input', () => {
+      this.syncBodyWeightMultiplierLabel();
       this.setEntity(this.readFormToEntity(this.getEntity()));
     });
 
@@ -1379,14 +1393,68 @@ class GrippoAdminApp {
     this.validateAll();
   }
 
-  updateRulesLoadVisibility() {
-    if (!this.els.rulesMultiplierField) return;
-    const type = this.els.fRulesLoadType?.value || '';
-    const show = type === 'BodyWeightMultiplier';
-    this.els.rulesMultiplierField.hidden = !show;
-    if (!show && this.els.fRulesLoadMultiplier) {
-      this.els.fRulesLoadMultiplier.value = '';
+  updateRulesInputsVisibility(preferred) {
+    const externalEnabled = !!this.els.fRulesExternalWeightEnabled?.checked;
+    const bodyEnabled = !!this.els.fRulesBodyWeightEnabled?.checked;
+
+    if (externalEnabled && bodyEnabled) {
+      if (preferred === 'body') {
+        if (this.els.fRulesExternalWeightEnabled) this.els.fRulesExternalWeightEnabled.checked = false;
+      } else {
+        if (this.els.fRulesBodyWeightEnabled) this.els.fRulesBodyWeightEnabled.checked = false;
+      }
     }
+
+    const finalExternal = !!this.els.fRulesExternalWeightEnabled?.checked;
+    const finalBody = !!this.els.fRulesBodyWeightEnabled?.checked;
+
+    if (this.els.fRulesExternalWeightRequired) {
+      this.els.fRulesExternalWeightRequired.disabled = !finalExternal;
+      if (!finalExternal) this.els.fRulesExternalWeightRequired.checked = false;
+    }
+
+    if (this.els.fRulesBodyWeightMultiplier) {
+      this.els.fRulesBodyWeightMultiplier.disabled = !finalBody;
+      if (!finalBody) {
+        this.els.fRulesBodyWeightMultiplier.value = '';
+      } else if (!this.els.fRulesBodyWeightMultiplier.value) {
+        this.els.fRulesBodyWeightMultiplier.value = '1';
+      }
+      this.syncBodyWeightMultiplierLabel();
+    }
+
+    if (this.els.fRulesExtraWeightEnabled) {
+      this.els.fRulesExtraWeightEnabled.disabled = !finalBody;
+      if (!finalBody) this.els.fRulesExtraWeightEnabled.checked = false;
+    }
+
+    if (this.els.fRulesExtraWeightRequired) {
+      const enabled = finalBody && !!this.els.fRulesExtraWeightEnabled?.checked;
+      this.els.fRulesExtraWeightRequired.disabled = !enabled;
+      if (!enabled) this.els.fRulesExtraWeightRequired.checked = false;
+    }
+
+    if (this.els.fRulesAssistanceEnabled) {
+      this.els.fRulesAssistanceEnabled.disabled = !finalBody;
+      if (!finalBody) this.els.fRulesAssistanceEnabled.checked = false;
+    }
+
+    if (this.els.fRulesAssistanceRequired) {
+      const enabled = finalBody && !!this.els.fRulesAssistanceEnabled?.checked;
+      this.els.fRulesAssistanceRequired.disabled = !enabled;
+      if (!enabled) this.els.fRulesAssistanceRequired.checked = false;
+    }
+  }
+
+  syncBodyWeightMultiplierLabel() {
+    if (!this.els.fRulesBodyWeightMultiplierValue || !this.els.fRulesBodyWeightMultiplier) return;
+    const raw = this.els.fRulesBodyWeightMultiplier.value;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) {
+      this.els.fRulesBodyWeightMultiplierValue.textContent = '—';
+      return;
+    }
+    this.els.fRulesBodyWeightMultiplierValue.textContent = `${value.toFixed(2)}×`;
   }
 
   readFormToEntity(entity) {
@@ -1405,23 +1473,31 @@ class GrippoAdminApp {
     e.category = this.els.fCategory?.value || '';
     e.experience = this.els.fExperience?.value || '';
     e.forceType = this.els.fForceType?.value || '';
-    const loadType = this.els.fRulesLoadType?.value || '';
-    const multiplierRaw = this.els.fRulesLoadMultiplier?.value;
-    const multiplierValue = multiplierRaw === '' || multiplierRaw == null ? undefined : Number(multiplierRaw);
+    const externalEnabled = !!this.els.fRulesExternalWeightEnabled?.checked;
+    const bodyEnabled = !!this.els.fRulesBodyWeightEnabled?.checked;
+    const bodyMultiplierRaw = this.els.fRulesBodyWeightMultiplier?.value;
+    const bodyMultiplierValue = bodyMultiplierRaw === '' || bodyMultiplierRaw == null
+      ? undefined
+      : Number(bodyMultiplierRaw);
+    const extraEnabled = !!this.els.fRulesExtraWeightEnabled?.checked;
+    const assistanceEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
+
     e.rules = {
-      entry: { type: this.els.fRulesEntryType?.value || '' },
-      load: {
-        type: loadType,
-        ...(loadType === 'BodyWeightMultiplier' && Number.isFinite(multiplierValue)
-          ? { multiplier: multiplierValue }
-          : {})
-      },
-      options: {
-        canAddExtraWeight: !!this.els.fRulesCanAddExtraWeight?.checked,
-        canUseAssistance: !!this.els.fRulesCanUseAssistance?.checked
-      },
-      missingBodyWeightBehavior: this.els.fRulesMissingBodyWeightBehavior?.value || '',
-      requiresEquipment: !!this.els.fRulesRequiresEquipment?.checked
+      inputs: {
+        externalWeight: externalEnabled ? { required: !!this.els.fRulesExternalWeightRequired?.checked } : null,
+        bodyWeight: bodyEnabled
+          ? {
+            participates: true,
+            ...(Number.isFinite(bodyMultiplierValue) ? { multiplier: bodyMultiplierValue } : {})
+          }
+          : null,
+        extraWeight: bodyEnabled && extraEnabled
+          ? { required: !!this.els.fRulesExtraWeightRequired?.checked }
+          : null,
+        assistance: bodyEnabled && assistanceEnabled
+          ? { required: !!this.els.fRulesAssistanceRequired?.checked }
+          : null
+      }
     };
     return e;
   }
@@ -1458,31 +1534,41 @@ class GrippoAdminApp {
     if (this.els.fCategory) this.els.fCategory.value = entity?.category || '';
     if (this.els.fExperience) this.els.fExperience.value = entity?.experience || '';
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
-    const rules = entity?.rules || {};
-    const entryType = rules?.entry?.type || '';
-    const loadType = rules?.load?.type || '';
-    const multiplier = rules?.load?.multiplier;
-    if (this.els.fRulesEntryType) this.els.fRulesEntryType.value = entryType;
-    if (this.els.fRulesLoadType) this.els.fRulesLoadType.value = loadType;
-    if (this.els.fRulesLoadMultiplier) {
-      this.els.fRulesLoadMultiplier.value =
-        loadType === 'BodyWeightMultiplier' && multiplier != null && Number.isFinite(Number(multiplier))
-          ? String(multiplier)
+    const inputs = entity?.rules?.inputs || {};
+    const externalWeight = inputs?.externalWeight;
+    const bodyWeight = inputs?.bodyWeight;
+    const extraWeight = inputs?.extraWeight;
+    const assistance = inputs?.assistance;
+
+    if (this.els.fRulesExternalWeightEnabled) {
+      this.els.fRulesExternalWeightEnabled.checked = !!externalWeight;
+    }
+    if (this.els.fRulesExternalWeightRequired) {
+      this.els.fRulesExternalWeightRequired.checked = !!externalWeight?.required;
+    }
+    if (this.els.fRulesBodyWeightEnabled) {
+      this.els.fRulesBodyWeightEnabled.checked = !!bodyWeight;
+    }
+    if (this.els.fRulesBodyWeightMultiplier) {
+      this.els.fRulesBodyWeightMultiplier.value =
+        bodyWeight?.multiplier != null && Number.isFinite(Number(bodyWeight?.multiplier))
+          ? String(bodyWeight.multiplier)
           : '';
     }
-    if (this.els.fRulesMissingBodyWeightBehavior) {
-      this.els.fRulesMissingBodyWeightBehavior.value = rules?.missingBodyWeightBehavior || '';
+    this.syncBodyWeightMultiplierLabel();
+    if (this.els.fRulesExtraWeightEnabled) {
+      this.els.fRulesExtraWeightEnabled.checked = !!extraWeight;
     }
-    if (this.els.fRulesRequiresEquipment) {
-      this.els.fRulesRequiresEquipment.checked = !!rules?.requiresEquipment;
+    if (this.els.fRulesExtraWeightRequired) {
+      this.els.fRulesExtraWeightRequired.checked = !!extraWeight?.required;
     }
-    if (this.els.fRulesCanAddExtraWeight) {
-      this.els.fRulesCanAddExtraWeight.checked = !!rules?.options?.canAddExtraWeight;
+    if (this.els.fRulesAssistanceEnabled) {
+      this.els.fRulesAssistanceEnabled.checked = !!assistance;
     }
-    if (this.els.fRulesCanUseAssistance) {
-      this.els.fRulesCanUseAssistance.checked = !!rules?.options?.canUseAssistance;
+    if (this.els.fRulesAssistanceRequired) {
+      this.els.fRulesAssistanceRequired.checked = !!assistance?.required;
     }
-    this.updateRulesLoadVisibility();
+    this.updateRulesInputsVisibility();
     this.renderEquipmentTokens(entity);
     this.renderBundles(entity);
     this.updatePreviewSize();
@@ -1987,146 +2073,114 @@ class GrippoAdminApp {
   }
 
   buildGptRulesPrompt() {
-  const entity = this.getEntity();
-  const lines = [];
+    const entity = this.getEntity();
+    const lines = [];
 
-  lines.push('You are a strength training domain expert AND a strict JSON validator.');
-  lines.push('');
-  lines.push('GOAL:');
-  lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
-  lines.push('- You MUST replace `rules` with the best possible values based on the exercise `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
-  lines.push('');
+    lines.push('You are a strength training domain expert AND a strict JSON validator.');
+    lines.push('');
+    lines.push('GOAL:');
+    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
+    lines.push('- You MUST replace `rules` with the best possible values based on the exercise `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
+    lines.push('');
 
-  lines.push('OUTPUT FORMAT (MANDATORY):');
-  lines.push('Return EXACTLY one markdown code block with JSON inside, and NOTHING else:');
-  lines.push('```json');
-  lines.push('{ ...final JSON... }');
-  lines.push('```');
-  lines.push('');
-  lines.push('Inside the code block: output must be a SINGLE valid JSON object (no trailing text, no explanations, no extra keys).');
-  lines.push('');
+    lines.push('OUTPUT FORMAT (MANDATORY):');
+    lines.push('Return EXACTLY one markdown code block with JSON inside, and NOTHING else:');
+    lines.push('```json');
+    lines.push('{ ...final JSON... }');
+    lines.push('```');
+    lines.push('');
+    lines.push('Inside the code block: output must be a SINGLE valid JSON object (no trailing text, no explanations, no extra keys).');
+    lines.push('');
 
-  lines.push('HARD REQUIREMENTS:');
-  lines.push('1) You may ONLY change `rules`. Every other field must remain identical in value.');
-  lines.push('2) Best practice: copy the input JSON and edit only the `rules` object in-place.');
-  lines.push('3) Preserve field order as in the input JSON.');
-  lines.push('4) `rules` must strictly match this schema:');
-  lines.push('');
-  lines.push('"rules": {');
-  lines.push('  "entry": { "type": ExerciseRulesEntryTypeEnum },');
-  lines.push('  "load": { "type": ExerciseRulesLoadTypeEnum, "multiplier"?: number },');
-  lines.push('  "options": { "canAddExtraWeight": boolean, "canUseAssistance": boolean },');
-  lines.push('  "missingBodyWeightBehavior": ExerciseRulesMissingBodyWeightBehaviorEnum,');
-  lines.push('  "requiresEquipment": boolean');
-  lines.push('}');
-  lines.push('');
+    lines.push('HARD REQUIREMENTS:');
+    lines.push('1) You may ONLY change `rules`. Every other field must remain identical in value.');
+    lines.push('2) Best practice: copy the input JSON and edit only the `rules` object in-place.');
+    lines.push('3) Preserve field order as in the input JSON.');
+    lines.push('4) `rules` must strictly match this schema (no other fields allowed inside `rules`):');
+    lines.push('');
+    lines.push('"rules": {');
+    lines.push('  "inputs": {');
+    lines.push('    "externalWeight": { "required": boolean } | null,');
+    lines.push('    "bodyWeight": { "participates": true, "multiplier": number } | null,');
+    lines.push('    "extraWeight": { "required": boolean } | null,');
+    lines.push('    "assistance": { "required": boolean } | null');
+    lines.push('  }');
+    lines.push('}');
+    lines.push('');
 
-  lines.push('ENUMS:');
-  lines.push('ExerciseRulesEntryTypeEnum:');
-  lines.push('- "RepetitionsAndWeight"');
-  lines.push('- "RepetitionsOnly"');
-  lines.push('- "RepetitionsWithOptionalExtraWeight"');
-  lines.push('- "RepetitionsWithOptionalExtraAndAssistance"');
-  lines.push('');
-  lines.push('ExerciseRulesLoadTypeEnum:');
-  lines.push('- "DirectWeight"');
-  lines.push('- "BodyWeightFull"');
-  lines.push('- "NoWeight"');
-  lines.push('- "BodyWeightMultiplier"');
-  lines.push('');
-  lines.push('ExerciseRulesMissingBodyWeightBehaviorEnum:');
-  lines.push('- "BlockSaving"');
-  lines.push('- "SaveAsRepetitionsOnly"');
-  lines.push('- "SaveWithZeroWeight"');
-  lines.push('');
+    lines.push('INVARIANTS (MUST ALWAYS HOLD):');
+    lines.push('- externalWeight and bodyWeight are mutually exclusive.');
+    lines.push('- extraWeight and assistance are ONLY allowed when bodyWeight exists.');
+    lines.push('- If externalWeight exists, extraWeight and assistance MUST be null.');
+    lines.push('- If bodyWeight exists, it MUST include participates:true and multiplier between 0.05 and 2.0.');
+    lines.push('- If bodyWeight is null, then extraWeight and assistance MUST be null.');
+    lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
+    lines.push('');
 
-  lines.push('STRICT MULTIPLIER PROTOCOL:');
-  lines.push('- If load.type == "BodyWeightMultiplier" then multiplier MUST exist and be a number between 0.05 and 2.0 (inclusive).');
-  lines.push('- If load.type != "BodyWeightMultiplier" then multiplier MUST NOT exist at all (omit the key).');
-  lines.push('');
+    lines.push('DECISION PROCEDURE (MUST DO INTERNALLY, DO NOT OUTPUT THESE STEPS):');
+    lines.push('- Step A: Determine exercise archetype using this priority: weightType -> equipmentRefs -> name/description.');
+    lines.push('  Archetypes:');
+    lines.push('  A1) BODYWEIGHT: weightType=="body_weight" AND no clear assistance cues in name/description.');
+    lines.push('  A2) EXTERNAL_LOAD: weightType in ["free","fixed"] OR name/description clearly indicates external load (machine/barbell/dumbbell/cable/etc).');
+    lines.push('  A3) NO_WEIGHT: mobility/stretch/breathing/skill drill where tracking weight is meaningless.');
+    lines.push('  A4) ASSISTED_BODYWEIGHT: name/description contains clear cues like "assisted", "band-assisted", "machine assisted", "gravitron", "counterbalance".');
+    lines.push('');
+    lines.push('- Step B: Propose 2-3 candidate `rules` configurations for the archetype, then choose the best one for UI/UX consistency.');
+    lines.push('- Step C: Run the self-check list. If any check fails, revise rules until all checks pass.');
+    lines.push('');
 
-  lines.push('DECISION PROCEDURE (MUST DO INTERNALLY, DO NOT OUTPUT THESE STEPS):');
-  lines.push('- Step A: Determine exercise archetype using this priority: weightType -> equipmentRefs -> name/description.');
-  lines.push('  Archetypes:');
-  lines.push('  A1) BODYWEIGHT: weightType=="body_weight" AND no clear assistance cues in name/description.');
-  lines.push('  A2) EXTERNAL_LOAD: weightType in ["free","fixed"] OR name/description clearly indicates external load (machine/barbell/dumbbell/cable/etc).');
-  lines.push('  A3) NO_WEIGHT: mobility/stretch/breathing/skill drill where tracking weight is meaningless.');
-  lines.push('  A4) ASSISTED_BODYWEIGHT: name/description contains clear cues like "assisted", "band-assisted", "machine assisted", "gravitron", "counterbalance".');
-  lines.push('');
-  lines.push('- Step B: Propose 2-3 candidate `rules` configurations for the archetype, then choose the best one for UI/UX consistency.');
-  lines.push('- Step C: Run the self-check list. If any check fails, revise rules until all checks pass.');
-  lines.push('');
+    lines.push('ARCHETYPE -> RULES MAPPING (BASELINE, THEN REFINE):');
+    lines.push('- BODYWEIGHT (A1):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: { participates: true, multiplier: 1.0 }');
+    lines.push('  extraWeight: { required: false }');
+    lines.push('  assistance: null');
+    lines.push('');
+    lines.push('- ASSISTED_BODYWEIGHT (A4):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: { participates: true, multiplier: 1.0 }');
+    lines.push('  extraWeight: { required: false }');
+    lines.push('  assistance: { required: false }');
+    lines.push('');
+    lines.push('- EXTERNAL_LOAD (A2):');
+    lines.push('  externalWeight: { required: true }');
+    lines.push('  bodyWeight: null');
+    lines.push('  extraWeight: null');
+    lines.push('  assistance: null');
+    lines.push('');
+    lines.push('- NO_WEIGHT (A3):');
+    lines.push('  externalWeight: null');
+    lines.push('  bodyWeight: null');
+    lines.push('  extraWeight: null');
+    lines.push('  assistance: null');
+    lines.push('');
 
-  lines.push('ARCHETYPE -> RULES MAPPING (BASELINE, THEN REFINE):');
-  lines.push('- BODYWEIGHT (A1):');
-  lines.push('  entry: "RepetitionsWithOptionalExtraWeight"');
-  lines.push('  load: "BodyWeightFull"');
-  lines.push('  options: { canAddExtraWeight: true, canUseAssistance: false }');
-  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
-  lines.push('  requiresEquipment: false (unless equipmentRefs non-empty)');
-  lines.push('');
-  lines.push('- ASSISTED_BODYWEIGHT (A4):');
-  lines.push('  entry: "RepetitionsWithOptionalExtraAndAssistance"');
-  lines.push('  load: "BodyWeightFull"');
-  lines.push('  options: { canAddExtraWeight: true, canUseAssistance: true }');
-  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
-  lines.push('  requiresEquipment: true');
-  lines.push('');
-  lines.push('- EXTERNAL_LOAD (A2):');
-  lines.push('  entry: "RepetitionsAndWeight"');
-  lines.push('  load: "DirectWeight"');
-  lines.push('  options: { canAddExtraWeight: false, canUseAssistance: false }');
-  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
-  lines.push('  requiresEquipment: true if equipmentRefs non-empty OR name/description implies equipment; otherwise false');
-  lines.push('');
-  lines.push('- NO_WEIGHT (A3):');
-  lines.push('  entry: "RepetitionsOnly"');
-  lines.push('  load: "NoWeight"');
-  lines.push('  options: { canAddExtraWeight: false, canUseAssistance: false }');
-  lines.push('  missingBodyWeightBehavior: "SaveAsRepetitionsOnly"');
-  lines.push('  requiresEquipment: false unless equipmentRefs non-empty');
-  lines.push('');
+    lines.push('MULTIPLIER GUIDANCE:');
+    lines.push('- Use multiplier 1.0 by default unless the exercise clearly scales by a fixed fraction of body weight.');
+    lines.push('- If uncertain, keep 1.0.');
+    lines.push('');
 
-  lines.push('WHEN TO USE BodyWeightMultiplier (RARE, MUST BE JUSTIFIED INTERNALLY):');
-  lines.push('- Use load.type="BodyWeightMultiplier" ONLY if the effective load is a stable fraction of bodyweight by design.');
-  lines.push('- If uncertain, prefer "BodyWeightFull".');
-  lines.push('');
+    lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
+    lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
+    lines.push('- externalWeight and bodyWeight are mutually exclusive.');
+    lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
+    lines.push('- If externalWeight exists => extraWeight and assistance must be null.');
+    lines.push('- If bodyWeight does not exist => extraWeight and assistance must be null.');
+    lines.push('');
 
-  lines.push('REQUIRES EQUIPMENT (STRICT):');
-  lines.push('- If equipmentRefs is non-empty => requiresEquipment=true.');
-  lines.push('- Else if name/description clearly requires machine/bar/cable/rack/etc => requiresEquipment=true.');
-  lines.push('- Else => requiresEquipment=false.');
-  lines.push('- Do NOT invent equipment. Use only the given cues.');
-  lines.push('');
+    lines.push('IMPORTANT PRODUCT NOTE:');
+    lines.push('- Iteration `weight` is the effective weight recorded by the app. Rules define UI/UX and interpretation only.');
+    lines.push('');
 
-  lines.push('MISSING BODY WEIGHT BEHAVIOR:');
-  lines.push('- Default: "SaveAsRepetitionsOnly".');
-  lines.push('- Use "BlockSaving" ONLY if saving without weight would be misleading (very rare).');
-  lines.push('- Use "SaveWithZeroWeight" ONLY if the product explicitly wants saving with zeros (rare).');
-  lines.push('');
+    lines.push('FAILSAFE:');
+    lines.push('- If you cannot fully comply with all requirements, output the ORIGINAL input JSON unchanged, still inside the required ```json code block.');
+    lines.push('');
 
-  lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
-  lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
-  lines.push('- If load.type != "BodyWeightMultiplier" => multiplier MUST NOT exist.');
-  lines.push('- If load.type == "BodyWeightMultiplier" => multiplier MUST exist and be within 0.05..2.0.');
-  lines.push('- If options.canUseAssistance == true => entry.type MUST be "RepetitionsWithOptionalExtraAndAssistance".');
-  lines.push('- For EXTERNAL_LOAD: entry should be "RepetitionsAndWeight" AND load should be "DirectWeight".');
-  lines.push('- For NO_WEIGHT: entry should be "RepetitionsOnly" AND load should be "NoWeight".');
-  lines.push('');
+    lines.push('INPUT JSON (copy this and only edit `rules`):');
+    lines.push(pretty(entity));
 
-  lines.push('IMPORTANT PRODUCT NOTE:');
-  lines.push('- Iteration `weight` is the effective weight recorded by the app. Rules define UI/UX and interpretation only.');
-  lines.push('');
-
-  lines.push('FAILSAFE:');
-  lines.push('- If you cannot fully comply with all requirements, output the ORIGINAL input JSON unchanged, still inside the required ```json code block.');
-  lines.push('');
-
-  lines.push('INPUT JSON (copy this and only edit `rules`):');
-  lines.push(pretty(entity));
-
-  return lines.join('\n');
-}
+    return lines.join('\n');
+  }
 
   buildGptImagePrompt() {
     const entity = this.getEntity();
