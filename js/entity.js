@@ -47,9 +47,11 @@ function toBool(value) {
   return false;
 }
 
-function normalizeRules(rules, previousRules) {
-  const prev = previousRules && typeof previousRules === 'object' ? previousRules : {};
-  const src = rules && typeof rules === 'object' ? rules : {};
+function normalizeComponents(source, previousEntity) {
+  const prevEntity = previousEntity && typeof previousEntity === 'object' ? previousEntity : {};
+  const prevRules = prevEntity?.rules && typeof prevEntity.rules === 'object' ? prevEntity.rules : {};
+  const prev = prevEntity?.components ? { components: prevEntity.components } : prevRules;
+  const src = source && typeof source === 'object' ? source : {};
 
   const clampMultiplier = (value, fallback) => {
     const parsed = Number(value);
@@ -195,7 +197,7 @@ function emptyTemplate() {
     experience: '',
     forceType: '',
     imageUrl: '',
-    rules: normalizeRules({}, {}),
+    components: normalizeComponents({}, {}).components,
     [FIELD.bundles]: [],
     [FIELD.equipmentRefs]: []
   };
@@ -293,7 +295,14 @@ function normalizeEntityShape(src, options = {}) {
   delete e.translations;
   if (Array.isArray(e.name)) delete e.name;
   if (Array.isArray(e.description)) delete e.description;
-  e.rules = normalizeRules(e.rules, previous?.rules);
+  const source = e?.components && typeof e.components === 'object'
+    ? { components: e.components }
+    : e?.rules && typeof e.rules === 'object'
+      ? e.rules
+      : {};
+  const normalizedComponents = normalizeComponents(source, previous);
+  e.components = normalizedComponents.components;
+  delete e.rules;
 
   return e;
 }
@@ -353,6 +362,7 @@ function buildPersistencePayload(entity) {
   delete payload.locales;
   delete payload.nameTranslations;
   delete payload.descriptionTranslations;
+  delete payload.rules;
   return payload;
 }
 
