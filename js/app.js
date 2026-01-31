@@ -1483,7 +1483,7 @@ class GrippoAdminApp {
     e.rules = {
       components: {
         externalWeight: externalEnabled ? { required: !!this.els.fRulesExternalWeightRequired?.checked } : null,
-        bodyWeight: bodyEnabled ? { required: true } : null,
+        bodyWeight: bodyEnabled ? { required: true, multiplier: this.bodyWeightMultiplier } : null,
         extraWeight: bodyEnabled && extraEnabled
           ? { required: !!this.els.fRulesExtraWeightRequired?.checked }
           : null,
@@ -1532,6 +1532,8 @@ class GrippoAdminApp {
     const bodyWeight = components?.bodyWeight;
     const extraWeight = components?.extraWeight;
     const assistWeight = components?.assistWeight;
+    const bodyWeightMultiplier = Number(bodyWeight?.multiplier);
+    this.bodyWeightMultiplier = Number.isFinite(bodyWeightMultiplier) ? bodyWeightMultiplier : 1;
 
     if (this.els.fRulesExternalWeightEnabled) {
       this.els.fRulesExternalWeightEnabled.checked = !!externalWeight;

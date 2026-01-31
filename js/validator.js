@@ -47,6 +47,7 @@ export class EntityValidator {
       const assistWeight = components.assistWeight;
 
       const isRequiredInput = (value) => value && typeof value === 'object' && typeof value.required === 'boolean';
+      const isValidMultiplier = (value) => Number.isFinite(value) && value >= 0.05 && value <= 2;
 
       if (externalWeight && bodyWeight) {
         errors.push('rules.components.externalWeight and rules.components.bodyWeight are mutually exclusive');
@@ -58,6 +59,9 @@ export class EntityValidator {
 
       if (bodyWeight && !isRequiredInput(bodyWeight)) {
         errors.push('rules.components.bodyWeight.required must be boolean');
+      }
+      if (bodyWeight && !isValidMultiplier(bodyWeight.multiplier)) {
+        errors.push('rules.components.bodyWeight.multiplier must be a number between 0.05 and 2.0');
       }
 
       if (!bodyWeight && (extraWeight || assistWeight)) {
