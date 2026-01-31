@@ -36,10 +36,9 @@ export class EntityValidator {
 
     if (!normalized.imageUrl) warnings.push('imageUrl is empty');
 
-    const rules = normalized.rules || {};
-    const components = rules?.components;
+    const components = normalized.components || normalized.rules?.components;
     if (!components || typeof components !== 'object') {
-      errors.push('Missing: rules.components');
+      errors.push('Missing: components');
     } else {
       const externalWeight = components.externalWeight;
       const bodyWeight = components.bodyWeight;
@@ -50,34 +49,34 @@ export class EntityValidator {
       const isValidMultiplier = (value) => Number.isFinite(value) && value >= 0.05 && value <= 2;
 
       if (externalWeight && bodyWeight) {
-        errors.push('rules.components.externalWeight and rules.components.bodyWeight are mutually exclusive');
+        errors.push('components.externalWeight and components.bodyWeight are mutually exclusive');
       }
 
       if (externalWeight && !isRequiredInput(externalWeight)) {
-        errors.push('rules.components.externalWeight.required must be boolean');
+        errors.push('components.externalWeight.required must be boolean');
       }
 
       if (bodyWeight && !isRequiredInput(bodyWeight)) {
-        errors.push('rules.components.bodyWeight.required must be boolean');
+        errors.push('components.bodyWeight.required must be boolean');
       }
       if (bodyWeight && !isValidMultiplier(bodyWeight.multiplier)) {
-        errors.push('rules.components.bodyWeight.multiplier must be a number between 0.05 and 2.0');
+        errors.push('components.bodyWeight.multiplier must be a number between 0.05 and 2.0');
       }
 
       if (!bodyWeight && (extraWeight || assistWeight)) {
-        errors.push('rules.components.extraWeight and rules.components.assistWeight require bodyWeight');
+        errors.push('components.extraWeight and components.assistWeight require bodyWeight');
       }
 
       if (externalWeight && (extraWeight || assistWeight)) {
-        errors.push('rules.components.extraWeight and rules.components.assistWeight must be null when externalWeight is set');
+        errors.push('components.extraWeight and components.assistWeight must be null when externalWeight is set');
       }
 
       if (extraWeight && !isRequiredInput(extraWeight)) {
-        errors.push('rules.components.extraWeight.required must be boolean');
+        errors.push('components.extraWeight.required must be boolean');
       }
 
       if (assistWeight && !isRequiredInput(assistWeight)) {
-        errors.push('rules.components.assistWeight.required must be boolean');
+        errors.push('components.assistWeight.required must be boolean');
       }
     }
 

@@ -1480,17 +1480,15 @@ class GrippoAdminApp {
     const extraEnabled = !!this.els.fRulesExtraWeightEnabled?.checked;
     const assistEnabled = !!this.els.fRulesAssistanceEnabled?.checked;
 
-    e.rules = {
-      components: {
-        externalWeight: externalEnabled ? { required: !!this.els.fRulesExternalWeightRequired?.checked } : null,
-        bodyWeight: bodyEnabled ? { required: true, multiplier: this.bodyWeightMultiplier } : null,
-        extraWeight: bodyEnabled && extraEnabled
-          ? { required: !!this.els.fRulesExtraWeightRequired?.checked }
-          : null,
-        assistWeight: bodyEnabled && assistEnabled
-          ? { required: !!this.els.fRulesAssistanceRequired?.checked }
-          : null
-      }
+    e.components = {
+      externalWeight: externalEnabled ? { required: !!this.els.fRulesExternalWeightRequired?.checked } : null,
+      bodyWeight: bodyEnabled ? { required: true, multiplier: this.bodyWeightMultiplier } : null,
+      extraWeight: bodyEnabled && extraEnabled
+        ? { required: !!this.els.fRulesExtraWeightRequired?.checked }
+        : null,
+      assistWeight: bodyEnabled && assistEnabled
+        ? { required: !!this.els.fRulesAssistanceRequired?.checked }
+        : null
     };
     return e;
   }
@@ -1527,7 +1525,7 @@ class GrippoAdminApp {
     if (this.els.fCategory) this.els.fCategory.value = entity?.category || '';
     if (this.els.fExperience) this.els.fExperience.value = entity?.experience || '';
     if (this.els.fForceType) this.els.fForceType.value = entity?.forceType || '';
-    const components = entity?.rules?.components || {};
+    const components = entity?.components || entity?.rules?.components || {};
     const externalWeight = components?.externalWeight;
     const bodyWeight = components?.bodyWeight;
     const extraWeight = components?.extraWeight;
@@ -2134,9 +2132,9 @@ class GrippoAdminApp {
     lines.push('You are a strength training domain expert AND a strict JSON validator.');
     lines.push('');
     lines.push('GOAL:');
-    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `rules`.');
-    lines.push('- You MUST replace `rules` with the best possible values based on the exercise context: `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
-    lines.push('- Think like a coach AND like a product designer: choose rules that match how users realistically log sets in a gym app.');
+    lines.push('- You MUST keep the entire input JSON unchanged EXCEPT the field `components`.');
+    lines.push('- You MUST replace `components` with the best possible values based on the exercise context: `name`, `description`, `weightType`, `category`, `forceType`, and `equipmentRefs`.');
+    lines.push('- Think like a coach AND like a product designer: choose components that match how users realistically log sets in a gym app.');
     lines.push('');
 
     lines.push('OUTPUT FORMAT (MANDATORY):');
@@ -2149,20 +2147,19 @@ class GrippoAdminApp {
 
     lines.push('HARD REQUIREMENTS:');
     lines.push('1) Inside the code block you must output a SINGLE valid JSON object.');
-    lines.push('2) You may ONLY change `rules`. Every other field must remain identical in value.');
-    lines.push('3) Best practice: copy the input JSON and edit only the `rules` object in-place.');
+    lines.push('2) You may ONLY change `components`. Every other field must remain identical in value.');
+    lines.push('3) Best practice: copy the input JSON and edit only the `components` object in-place.');
     lines.push('4) Preserve field order as in the input JSON.');
     lines.push('5) No extra keys anywhere. No explanations. No trailing commas.');
+    lines.push('6) `components` is a TOP-LEVEL field. Do NOT nest it inside `rules` or add `rules`.');
     lines.push('');
 
-    lines.push('RULES SCHEMA (STRICT):');
-    lines.push('"rules": {');
-    lines.push('  "components": {');
-    lines.push('    "externalWeight": { "required": boolean } | null,');
-    lines.push('    "bodyWeight": { "required": boolean, "multiplier": number } | null,');
-    lines.push('    "extraWeight": { "required": boolean } | null,');
-    lines.push('    "assistWeight": { "required": boolean } | null');
-    lines.push('  }');
+    lines.push('COMPONENTS SCHEMA (STRICT):');
+    lines.push('"components": {');
+    lines.push('  "externalWeight": { "required": boolean } | null,');
+    lines.push('  "bodyWeight": { "required": boolean, "multiplier": number } | null,');
+    lines.push('  "extraWeight": { "required": boolean } | null,');
+    lines.push('  "assistWeight": { "required": boolean } | null');
     lines.push('}');
     lines.push('');
 
@@ -2180,7 +2177,7 @@ class GrippoAdminApp {
     lines.push('- extraWeight and assistWeight are ONLY allowed when bodyWeight exists.');
     lines.push('- If externalWeight exists, extraWeight and assistWeight MUST be null.');
     lines.push('- If bodyWeight is null, extraWeight and assistWeight MUST be null.');
-    lines.push('- Do NOT include legacy fields like entry/load/options/requiresEquipment/requirements.');
+    lines.push('- Do NOT include legacy fields like rules/entry/load/options/requiresEquipment/requirements.');
     lines.push('');
 
     if (resolvedEquipmentRefs.length > 0) {
@@ -2205,7 +2202,7 @@ class GrippoAdminApp {
     lines.push('B2) SUSPENDED_BODYWEIGHT: body mass is mostly suspended (e.g., pull-up/chin-up, dip). multiplier ~ 1.0');
     lines.push('B3) ASSISTED_BODYWEIGHT: assisted version of suspended bodyweight (assisted machine, band-assisted, counterbalance).');
     lines.push('');
-    lines.push('Step 2: Propose 2-3 candidate rules configs, then choose the one that minimizes friction while preserving data quality.');
+    lines.push('Step 2: Propose 2-3 candidate components configs, then choose the one that minimizes friction while preserving data quality.');
 lines.push('Step 3: Decide required flags based on load calculation: required=true means the component MUST be present to compute effective load (BODYWEIGHT => bodyWeight.required MUST be true; EXTERNAL_LOAD => externalWeight.required MUST be true).');
     lines.push('Step 4: Choose bodyWeight.multiplier using the calibration table + description cues.');
     lines.push('Step 5: Run SELF-CHECK; if anything fails, revise before output.');
@@ -2281,8 +2278,8 @@ lines.push('');
     lines.push('');
 
     lines.push('SELF-CHECK (MUST PASS BEFORE OUTPUT):');
-    lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
-    lines.push('- `rules` contains ONLY the allowed schema.');
+    lines.push('- The final JSON must match the input JSON in all fields except `components`.');
+    lines.push('- `components` contains ONLY the allowed schema.');
     lines.push('- externalWeight and bodyWeight are mutually exclusive.');
 lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
 lines.push('- If bodyWeight exists => bodyWeight.required is true.');
@@ -2296,7 +2293,7 @@ lines.push('- If bodyWeight is null => extraWeight and assistWeight are null.');
     lines.push('- If you cannot fully comply with ALL requirements, output the ORIGINAL input JSON unchanged, still wrapped in the required ```json code block.');
     lines.push('');
 
-    lines.push('INPUT JSON (copy this and only edit `rules`):');
+    lines.push('INPUT JSON (copy this and only edit `components`):');
     lines.push(pretty(entity));
 
     return lines.join('\n');
