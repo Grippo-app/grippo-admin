@@ -51,22 +51,36 @@ function normalizeRules(rules, previousRules) {
   const prev = previousRules && typeof previousRules === 'object' ? previousRules : {};
   const src = rules && typeof rules === 'object' ? rules : {};
 
+  const clampMultiplier = (value, fallback) => {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.min(2, Math.max(0.05, parsed));
+    }
+    const fallbackValue = Number(fallback);
+    if (Number.isFinite(fallbackValue)) {
+      return Math.min(2, Math.max(0.05, fallbackValue));
+    }
+    return 1;
+  };
+
   const normalizeRequiredComponent = (value) => {
     if (!value || typeof value !== 'object') return null;
     const required = toBool(value.required);
     return { required };
   };
 
-  const normalizeBodyWeight = (value) => {
+  const normalizeBodyWeight = (value, previousValue) => {
     if (!value || typeof value !== 'object') return null;
-    if (typeof value.required === 'boolean') return { required: value.required };
-    return { required: true };
+    const required = typeof value.required === 'boolean' ? value.required : true;
+    const multiplier = clampMultiplier(value.multiplier, previousValue?.multiplier);
+    return { required, multiplier };
   };
 
+  const prevComponents = prev?.components && typeof prev.components === 'object' ? prev.components : null;
   const baseComponents = src.components || prev.components;
   if (baseComponents && typeof baseComponents === 'object') {
     let externalWeight = normalizeRequiredComponent(baseComponents.externalWeight);
-    let bodyWeight = normalizeBodyWeight(baseComponents.bodyWeight);
+    let bodyWeight = normalizeBodyWeight(baseComponents.bodyWeight, prevComponents?.bodyWeight);
     let extraWeight = normalizeRequiredComponent(baseComponents.extraWeight);
     let assistWeight = normalizeRequiredComponent(baseComponents.assistWeight);
 
@@ -90,7 +104,12 @@ function normalizeRules(rules, previousRules) {
   const baseInputs = src.inputs || prev.inputs;
   if (baseInputs && typeof baseInputs === 'object') {
     let externalWeight = normalizeRequiredComponent(baseInputs.externalWeight);
-    let bodyWeight = baseInputs.bodyWeight ? { required: true } : null;
+    let bodyWeight = baseInputs.bodyWeight
+      ? normalizeBodyWeight(
+        typeof baseInputs.bodyWeight === 'object' ? baseInputs.bodyWeight : { required: true },
+        prevComponents?.bodyWeight
+      )
+      : null;
     let extraWeight = normalizeRequiredComponent(baseInputs.extraWeight);
     let assistWeight = normalizeRequiredComponent(baseInputs.assistance);
 
@@ -127,10 +146,10 @@ function normalizeRules(rules, previousRules) {
   if (entryType === 'RepetitionsAndWeight') {
     externalWeight = { required: true };
   } else if (entryType === 'RepetitionsWithOptionalExtraWeight') {
-    bodyWeight = { required: true };
+    bodyWeight = normalizeBodyWeight({ required: true }, prevComponents?.bodyWeight);
     extraWeight = { required: false };
   } else if (entryType === 'RepetitionsWithOptionalExtraAndAssistance') {
-    bodyWeight = { required: true };
+    bodyWeight = normalizeBodyWeight({ required: true }, prevComponents?.bodyWeight);
     extraWeight = { required: false };
     assistWeight = { required: false };
   } else if (entryType === 'RepetitionsOnly') {
@@ -138,7 +157,7 @@ function normalizeRules(rules, previousRules) {
   } else if (loadType === 'DirectWeight') {
     externalWeight = { required: true };
   } else if (loadType === 'BodyWeightFull' || loadType === 'BodyWeightMultiplier') {
-    bodyWeight = { required: true };
+    bodyWeight = normalizeBodyWeight({ required: true }, prevComponents?.bodyWeight);
   }
 
   if (bodyWeight && !extraWeight && canAddExtraWeight) {
