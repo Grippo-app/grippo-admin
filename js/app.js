@@ -2204,16 +2204,21 @@ class GrippoAdminApp {
     lines.push('B3) ASSISTED_BODYWEIGHT: assisted version of suspended bodyweight (assisted machine, band-assisted, counterbalance).');
     lines.push('');
     lines.push('Step 2: Propose 2-3 candidate rules configs, then choose the one that minimizes friction while preserving data quality.');
-    lines.push('Step 3: Decide required flags as saving constraints: required=true blocks saving without this component input.');
+lines.push('Step 3: Decide required flags based on load calculation: required=true means the component MUST be present to compute effective load (BODYWEIGHT => bodyWeight.required MUST be true; EXTERNAL_LOAD => externalWeight.required MUST be true).');
     lines.push('Step 4: Choose bodyWeight.multiplier using the calibration table + description cues.');
     lines.push('Step 5: Run SELF-CHECK; if anything fails, revise before output.');
     lines.push('');
 
-    lines.push('BASELINE MAPPINGS (START HERE, THEN REFINE):');
-    lines.push('- If weightType == "body_weight": start from BODYWEIGHT (A1).');
-    lines.push('- If weightType in ["free","fixed"]: start from EXTERNAL_LOAD (A2), unless it is clearly NO_WEIGHT (A3).');
-    lines.push('- If name/description indicates assisted bodyweight: pick B3 + assistWeight.');
-    lines.push('');
+   lines.push('BASELINE MAPPINGS (START HERE, THEN REFINE):');
+lines.push('- If weightType == "body_weight": start from BODYWEIGHT (A1).');
+lines.push('- If weightType in ["free","fixed"]: start from EXTERNAL_LOAD (A2), unless it is clearly NO_WEIGHT (A3).');
+lines.push('- If name/description indicates assisted bodyweight: pick B3 + assistWeight.');
+lines.push('- REQUIRED FLAGS POLICY (MUST FOLLOW):');
+lines.push('  - If bodyWeight is non-null => bodyWeight.required MUST be true.');
+lines.push('  - If externalWeight is non-null => externalWeight.required MUST be true.');
+lines.push('  - extraWeight and assistWeight are optional by default (required=false).');
+lines.push('');
+
 
     lines.push('A2) EXTERNAL_LOAD baseline:');
     lines.push('  externalWeight: { required: true }');
@@ -2231,23 +2236,23 @@ class GrippoAdminApp {
 
     lines.push('A1) BODYWEIGHT baselines (pick subtype):');
     lines.push('B2) SUSPENDED_BODYWEIGHT baseline (pull-up, chin-up, dip):');
-    lines.push('  externalWeight: null');
-    lines.push('  bodyWeight: { required: false, multiplier: 1.0 }');
-    lines.push('  extraWeight: { required: false }');
-    lines.push('  assistWeight: null');
-    lines.push('');
-    lines.push('B3) ASSISTED_BODYWEIGHT baseline (assisted pull-up/dip machine, band-assisted):');
-    lines.push('  externalWeight: null');
-    lines.push('  bodyWeight: { required: false, multiplier: 1.0 }');
-    lines.push('  extraWeight: { required: false }');
-    lines.push('  assistWeight: { required: false }');
-    lines.push('');
-    lines.push('B1) SUPPORTED_BODYWEIGHT baseline (push-up, incline/decline/knee push-up, inverted row):');
-    lines.push('  externalWeight: null');
-    lines.push('  bodyWeight: { required: false, multiplier: <choose via table> }');
-    lines.push('  extraWeight: { required: false }');
-    lines.push('  assistWeight: null');
-    lines.push('');
+lines.push('  externalWeight: null');
+lines.push('  bodyWeight: { required: true, multiplier: 1.0 }');
+lines.push('  extraWeight: { required: false }');
+lines.push('  assistWeight: null');
+lines.push('');
+lines.push('B3) ASSISTED_BODYWEIGHT baseline (assisted pull-up/dip machine, band-assisted):');
+lines.push('  externalWeight: null');
+lines.push('  bodyWeight: { required: true, multiplier: 1.0 }');
+lines.push('  extraWeight: { required: false }');
+lines.push('  assistWeight: { required: false }');
+lines.push('');
+lines.push('B1) SUPPORTED_BODYWEIGHT baseline (push-up, incline/decline/knee push-up, inverted row):');
+lines.push('  externalWeight: null');
+lines.push('  bodyWeight: { required: true, multiplier: <choose via table> }');
+lines.push('  extraWeight: { required: false }');
+lines.push('  assistWeight: null');
+lines.push('');
 
     lines.push('BODYWEIGHT MULTIPLIER CALIBRATION TABLE (DEFAULTS):');
     lines.push('- Standard Push Up (hands on floor): 0.72');
@@ -2277,9 +2282,11 @@ class GrippoAdminApp {
     lines.push('- The final JSON must match the input JSON in all fields except `rules`.');
     lines.push('- `rules` contains ONLY the allowed schema.');
     lines.push('- externalWeight and bodyWeight are mutually exclusive.');
-    lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
-    lines.push('- If externalWeight exists => extraWeight and assistWeight are null.');
-    lines.push('- If bodyWeight is null => extraWeight and assistWeight are null.');
+lines.push('- If bodyWeight exists => multiplier exists and is within 0.05..2.0.');
+lines.push('- If bodyWeight exists => bodyWeight.required is true.');
+lines.push('- If externalWeight exists => externalWeight.required is true.');
+lines.push('- If externalWeight exists => extraWeight and assistWeight are null.');
+lines.push('- If bodyWeight is null => extraWeight and assistWeight are null.');
     lines.push('- Output wrapper must be exactly one ```json code block with no extra text.');
     lines.push('');
 
