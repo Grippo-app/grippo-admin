@@ -1,10 +1,23 @@
 import { STORAGE_KEYS, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from './constants.js';
 
+/**
+ * StorageManager — handles ONLY non-sensitive preferences in Web Storage.
+ *
+ * Auth tokens are NO LONGER stored here.
+ * - Access token → held in memory only (see ApiClient).
+ * - Refresh token → managed via HttpOnly cookie set by the backend.
+ */
 export class StorageManager {
   constructor({ local = window.localStorage, session = window.sessionStorage } = {}) {
     this.local = local;
     this.session = session;
+
+    // ── One-time migration: wipe legacy token keys left by previous versions ──
+    this._purge('grippo_admin_token');
+    this._purge('grippo_admin_refresh');
   }
+
+  /* ── Locale ── */
 
   getLocale() {
     try {
@@ -24,6 +37,8 @@ export class StorageManager {
     }
   }
 
+  /* ── View mode ── */
+
   getViewMode() {
     try {
       return this.local.getItem(STORAGE_KEYS.viewMode) || 'form';
@@ -40,30 +55,7 @@ export class StorageManager {
     }
   }
 
-  getToken() {
-    try {
-      return this.local.getItem(STORAGE_KEYS.token) || '';
-    } catch {
-      return '';
-    }
-  }
-
-  setToken(token) {
-    try {
-      this.local.setItem(STORAGE_KEYS.token, token || '');
-    } catch {
-      /* ignore */
-    }
-  }
-
-  clearToken() {
-    this.setToken('');
-    try {
-      this.local.removeItem(STORAGE_KEYS.refresh);
-    } catch {
-      /* ignore */
-    }
-  }
+  /* ── User info (non-sensitive IDs for UI) ── */
 
   getUserId() {
     try {
@@ -109,13 +101,7 @@ export class StorageManager {
     };
   }
 
-  setRefreshToken(token) {
-    try {
-      this.local.setItem(STORAGE_KEYS.refresh, token || '');
-    } catch {
-      /* ignore */
-    }
-  }
+  /* ── Edited-IDs session set ── */
 
   loadEditedSet() {
     try {
@@ -135,5 +121,13 @@ export class StorageManager {
     } catch {
       /* ignore */
     }
+  }
+
+  /* ── Helpers ── */
+
+  /** Remove a key from both storages (used for migration cleanup). */
+  _purge(key) {
+    try { this.local.removeItem(key); } catch { /* ignore */ }
+    try { this.session.removeItem(key); } catch { /* ignore */ }
   }
 }

@@ -7,6 +7,8 @@ export const ENDPOINTS = {
   update: (id) => `${API_BASE}/admin/exercise-examples?id=${encodeURIComponent(id)}`,
   remove: (id) => `${API_BASE}/admin/exercise-examples/${encodeURIComponent(id)}`,
   login: `${API_BASE}/auth/login`,
+  refresh: `${API_BASE}/auth/refresh`,
+  logout: `${API_BASE}/auth/logout`,
   currentUser: `${API_BASE}/user`,
   equipmentGroups: `${API_BASE}/equipments`,
   muscleGroups: `${API_BASE}/muscles`,
@@ -30,9 +32,10 @@ export const DEFAULT_LANGUAGE = 'en';
 export const STORAGE_KEYS = {
   locale: 'grippo_admin_locale',
   viewMode: 'grippo_view_mode',
-  token: 'grippo_admin_token',
-  refresh: 'grippo_admin_refresh',
   edited: 'grippo_edited_ids',
   userId: 'grippo_admin_user_id',
   profileId: 'grippo_admin_profile_id'
 };
+
+/** Short-lived access token TTL (ms). Used to schedule silent refresh. */
+export const ACCESS_TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes

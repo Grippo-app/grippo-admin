@@ -16,7 +16,8 @@ class GrippoAdminApp {
 
     this.api = new ApiClient({
       storage: this.storage,
-      getLocale: () => this.activeLocale
+      getLocale: () => this.activeLocale,
+      onSessionExpired: () => this.onSessionExpired()
     });
 
     this.dictionaries = new DictionaryStore(this.api);
@@ -214,12 +215,31 @@ class GrippoAdminApp {
     this.userInfo = this.storage.loadUserInfo();
     this.renderUserInfo();
 
-    if (this.api.authToken) {
+    // No in-memory token after reload → attempt silent refresh via HttpOnly cookie.
+    this._tryRestoreSession();
+  }
+
+  /**
+   * On page load there is no access token in memory.
+   * Try to obtain one via the HttpOnly refresh cookie.
+   */
+  async _tryRestoreSession() {
+    const ok = await this.api.silentRefresh();
+    if (ok) {
       this.hideLoginOverlay();
       this.refreshCurrentUser();
     } else {
       this.showLoginOverlay();
     }
+  }
+
+  /** Called by ApiClient when refresh token is also invalid. */
+  onSessionExpired() {
+    this.api.clearAuthToken();
+    this.storage.clearUserInfo();
+    this.setUserInfo({ id: '', profileId: '' });
+    this.showLoginOverlay();
+    toast({ title: 'Session expired', message: 'Please sign in again.', type: 'error', ms: 4000 });
   }
 
   attachEventHandlers() {
@@ -416,8 +436,8 @@ class GrippoAdminApp {
       }
       try {
         const data = await this.api.login({ email, password });
+        // Access token → memory only. Refresh token → HttpOnly cookie (set by backend).
         this.api.setAuthToken(data.accessToken || '');
-        this.storage.setRefreshToken(data.refreshToken || '');
         const info = this.extractUserInfo(data);
         this.setUserInfo(info);
         if (!info.id) this.refreshCurrentUser();
@@ -586,8 +606,8 @@ class GrippoAdminApp {
     return false;
   }
 
-  logout() {
-    this.api.clearAuthToken();
+  async logout() {
+    await this.api.serverLogout();          // invalidate refresh cookie on server
     this.storage.clearUserInfo();
     this.setUserInfo({ id: '', profileId: '' });
     this.showLoginOverlay();
