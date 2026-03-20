@@ -8,8 +8,7 @@ export const ENDPOINTS = {
   remove: (id) => `${API_BASE}/admin/exercise-examples/${encodeURIComponent(id)}`,
   login: `${API_BASE}/auth/login`,
   refresh: `${API_BASE}/auth/refresh`,
-  logout: `${API_BASE}/auth/logout`,
-  currentUser: `${API_BASE}/user`,
+  currentUser: `${API_BASE}/users`,
   equipmentGroups: `${API_BASE}/equipments`,
   muscleGroups: `${API_BASE}/muscles`,
 

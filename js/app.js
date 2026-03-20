@@ -436,8 +436,8 @@ class GrippoAdminApp {
       }
       try {
         const data = await this.api.login({ email, password });
-        // Access token → memory only. Refresh token → HttpOnly cookie (set by backend).
-        this.api.setAuthToken(data.accessToken || '');
+        // Both tokens kept in memory only.
+        this.api.setTokens(data.accessToken || '', data.refreshToken || '');
         const info = this.extractUserInfo(data);
         this.setUserInfo(info);
         if (!info.id) this.refreshCurrentUser();

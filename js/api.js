@@ -6,11 +6,10 @@ import { DEFAULT_LANGUAGE, ENDPOINTS, ACCESS_TOKEN_TTL_MS } from './constants.js
  * Security model:
  *   • Access token is kept ONLY in memory (`this._accessToken`).
  *     It is short-lived (≈10 min) and never written to Web Storage.
- *   • Refresh token lives in an HttpOnly, Secure, SameSite=Strict cookie
- *     set by the backend. The browser sends it automatically when
- *     `credentials: 'include'` is used.
- *   • On 401 the client tries a single silent refresh via POST /auth/refresh
- *     (cookie-based). If that also fails the user is logged out.
+ *   • Refresh token is kept in memory (`this._refreshToken`).
+ *     It is sent in the request body to POST /auth/refresh.
+ *   • On 401 the client tries a single silent refresh via POST /auth/refresh.
+ *     If that also fails the user is logged out.
  */
 export class ApiClient {
   constructor({ storage, getLocale, onSessionExpired }) {
@@ -21,6 +20,9 @@ export class ApiClient {
 
     /** In-memory only — never persisted to disk / Web Storage. */
     this._accessToken = '';
+
+    /** In-memory only — sent in body for refresh requests. */
+    this._refreshToken = '';
 
     /** Prevents multiple concurrent refresh calls. */
     this._refreshPromise = null;
@@ -36,7 +38,16 @@ export class ApiClient {
   }
 
   /**
-   * Store a new access token in memory and schedule a proactive refresh.
+   * Store new tokens in memory and schedule a proactive refresh.
+   */
+  setTokens(accessToken, refreshToken) {
+    this._accessToken = accessToken || '';
+    if (refreshToken !== undefined) this._refreshToken = refreshToken || '';
+    this._scheduleRefresh();
+  }
+
+  /**
+   * @deprecated Use setTokens() instead.
    */
   setAuthToken(token) {
     this._accessToken = token || '';
@@ -45,6 +56,7 @@ export class ApiClient {
 
   clearAuthToken() {
     this._accessToken = '';
+    this._refreshToken = '';
     this._cancelRefresh();
   }
 
@@ -71,10 +83,12 @@ export class ApiClient {
   }
 
   /**
-   * Ask the backend for a new access token using the HttpOnly refresh cookie.
-   * Returns `true` on success, `false` on failure.
+   * Ask the backend for a new access token by sending the refresh token
+   * in the request body. Returns `true` on success, `false` on failure.
    */
   async silentRefresh() {
+    if (!this._refreshToken) return false;
+
     // Deduplicate concurrent calls.
     if (this._refreshPromise) return this._refreshPromise;
 
@@ -82,13 +96,16 @@ export class ApiClient {
       try {
         const resp = await fetch(ENDPOINTS.refresh, {
           method: 'POST',
-          credentials: 'include',                 // sends HttpOnly cookie
-          headers: { accept: 'application/json' }
+          headers: {
+            'content-type': 'application/json',
+            accept: 'application/json'
+          },
+          body: JSON.stringify({ refreshToken: this._refreshToken })
         });
         if (!resp.ok) throw new Error(`refresh ${resp.status}`);
 
         const data = await resp.json();
-        this.setAuthToken(data.accessToken || '');
+        this.setTokens(data.accessToken, data.refreshToken);
         return true;
       } catch {
         this.clearAuthToken();
@@ -118,20 +135,18 @@ export class ApiClient {
   }
 
   /**
-   * Wrapper around fetch that adds `credentials: 'include'` (so the
-   * HttpOnly refresh cookie travels with every request) and automatically
-   * retries once on 401 after a silent refresh.
+   * Wrapper around fetch that automatically retries once on 401
+   * after a silent refresh.
    */
   async _fetch(url, options = {}) {
-    const opts = { ...options, credentials: 'include' };
-    let resp = await fetch(url, opts);
+    let resp = await fetch(url, options);
 
     if (resp.status === 401 && this._accessToken) {
       const refreshed = await this.silentRefresh();
       if (refreshed) {
         // Rebuild Authorization header with new token.
-        const updatedHeaders = { ...opts.headers, ...this.bearer() };
-        resp = await fetch(url, { ...opts, headers: updatedHeaders });
+        const updatedHeaders = { ...options.headers, ...this.bearer() };
+        resp = await fetch(url, { ...options, headers: updatedHeaders });
       }
     }
     return resp;
@@ -219,14 +234,11 @@ export class ApiClient {
 
   /**
    * Log in with email + password.
-   * Backend is expected to:
-   *   1. Return { accessToken, user? } in the JSON body.
-   *   2. Set the refresh token as a HttpOnly, Secure, SameSite cookie.
+   * Backend returns { id, accessToken, refreshToken }.
    */
   async login(credentials) {
     const resp = await fetch(ENDPOINTS.login, {
       method: 'POST',
-      credentials: 'include',                     // receive Set-Cookie
       headers: this.buildHeaders({ json: true, auth: false }),
       body: JSON.stringify(credentials)
     });
@@ -235,18 +247,10 @@ export class ApiClient {
   }
 
   /**
-   * Invalidate refresh cookie on the server side.
+   * Clear tokens locally. Backend has no dedicated logout endpoint —
+   * tokens will simply expire.
    */
   async serverLogout() {
-    try {
-      await fetch(ENDPOINTS.logout, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { accept: 'application/json' }
-      });
-    } catch {
-      /* best-effort — token will expire anyway */
-    }
     this.clearAuthToken();
   }
 
