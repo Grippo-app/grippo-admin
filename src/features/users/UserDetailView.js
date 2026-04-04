@@ -6,7 +6,7 @@ export class UserDetailView {
      * @param {{
      *   store: UserStore,
      *   els: {
-     *     userIdEl, userEmailEl, userCreatedEl, userActivityEl, userWorkoutsEl,
+     *     userNameEl, userIdEl, userEmailEl, userCreatedEl, userActivityEl, userWorkoutsEl,
      *     userAuthPill, userAuthList,
      *     roleSegments, deleteUserBtn
      *   },
@@ -31,7 +31,8 @@ export class UserDetailView {
             return;
         }
 
-        // User ID, email, dates, workout count
+        // User name, ID, email, dates, workout count
+        this._setText(this._els.userNameEl, active.name || active.email || active.id);
         this._setText(this._els.userIdEl, active.id);
         this._setText(this._els.userEmailEl, active.email);
         this._setText(this._els.userCreatedEl, formatIso(UserEntity.createdAt(active)));
@@ -127,6 +128,7 @@ export class UserDetailView {
 
     _showEmpty() {
         // Hide detail or show placeholder
+        if (this._els.userNameEl) this._setText(this._els.userNameEl, '');
         if (this._els.userIdEl) this._setText(this._els.userIdEl, '');
         if (this._els.userEmailEl) this._setText(this._els.userEmailEl, '');
         if (this._els.userCreatedEl) this._setText(this._els.userCreatedEl, '');

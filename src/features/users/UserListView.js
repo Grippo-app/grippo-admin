@@ -84,10 +84,16 @@ export class UserListView {
                 ? `<div class="user-meta">${metaParts.join('<span class="user-meta-sep">·</span>')}</div>`
                 : '';
 
+            const displayName = user.name || user.email || user.id;
+            const emailLine = user.name && user.email
+                ? `<div class="user-email">${user.email}</div>`
+                : '';
+
             el.innerHTML = `
                 <div class="user-badge" style="background:${bg};color:${color};border-color:${color}33" aria-hidden="true">${badge}</div>
                 <div class="user-copy">
-                    <div class="user-name">${user.email || user.id}</div>
+                    <div class="user-name">${displayName}</div>
+                    ${emailLine}
                     ${metaHtml}
                 </div>
                 <div class="user-tags">

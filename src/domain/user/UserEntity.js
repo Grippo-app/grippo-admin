@@ -7,6 +7,7 @@ export class UserEntity {
         return {
             id: raw.id ? String(raw.id) : '',
             email: raw.email || '',
+            name: raw.name || raw.profile?.name || raw.displayName || '',
             role: raw.role || 'user',
             profileId: raw.profile?.id || raw.profileId || '',
             workoutsCount: Number(raw.workoutsCount ?? raw.profile?.workoutsCount ?? 0),

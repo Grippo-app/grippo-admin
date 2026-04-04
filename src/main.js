@@ -196,6 +196,7 @@ const userListView = new UserListView({
 const userDetailView = new UserDetailView({
     store: userStore,
     els: {
+        userNameEl: document.getElementById('userName'),
         userIdEl: document.getElementById('userIdField'),
         userEmailEl: document.getElementById('userEmail'),
         userCreatedEl: document.getElementById('userCreated'),
@@ -230,6 +231,17 @@ document.getElementById('tabUsers')?.addEventListener('click', () => {
 bus.on('nav:section-changed', ({section}) => {
     document.getElementById('exerciseView')?.toggleAttribute('hidden', section !== 'exercise');
     document.getElementById('usersView')?.toggleAttribute('hidden', section !== 'users');
+
+    const tabExercise = document.getElementById('tabExercise');
+    const tabUsers = document.getElementById('tabUsers');
+    if (tabExercise) {
+        tabExercise.classList.toggle('active', section === 'exercise');
+        tabExercise.setAttribute('aria-selected', String(section === 'exercise'));
+    }
+    if (tabUsers) {
+        tabUsers.classList.toggle('active', section === 'users');
+        tabUsers.setAttribute('aria-selected', String(section === 'users'));
+    }
 });
 
 /* ── 8. Logout ──────────────────────────────────────────────── */
