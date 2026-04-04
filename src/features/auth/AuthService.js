@@ -1,90 +1,79 @@
-import { Events } from '../../infrastructure/events/events.js';
+import {Events} from '../../infrastructure/events/events.js';
 
-/**
- * AuthService — управляет жизнью сессии.
- *
- * Слушает события:
- *   (none — вызывается напрямую из main.js при старте)
- *
- * Эмитит события:
- *   AUTH_LOGIN_SUCCESS  — после успешного login/restore
- *   AUTH_LOGOUT         — после logout
- *   AUTH_SESSION_EXPIRED — когда refresh token тоже протух
- */
 export class AuthService {
-  /**
-   * @param {{
-   *   apiClient: import('../../infrastructure/http/ApiClient.js').ApiClient,
-   *   userRepository: import('../../domain/user/UserRepository.js').UserRepository,
-   *   storage: import('../../infrastructure/storage/StorageManager.js').StorageManager,
-   *   bus: import('../../infrastructure/events/EventBus.js').EventBus
-   * }} deps
-   */
-  constructor({ apiClient, userRepository, storage, bus }) {
-    this._api  = apiClient;
-    this._userRepo = userRepository;
-    this._storage  = storage;
-    this._bus = bus;
+    /**
+     * @param {{
+     *   apiClient: import('../../infrastructure/http/ApiClient.js').ApiClient,
+     *   userRepository: import('../../domain/user/UserRepository.js').UserRepository,
+     *   storage: import('../../infrastructure/storage/StorageManager.js').StorageManager,
+     *   bus: import('../../infrastructure/events/EventBus.js').EventBus
+     * }} deps
+     */
+    constructor({apiClient, userRepository, storage, bus}) {
+        this._api = apiClient;
+        this._userRepo = userRepository;
+        this._storage = storage;
+        this._bus = bus;
 
-    // Wire ApiClient callback to EventBus
-    this._api.onSessionExpired = () => this._onSessionExpired();
-  }
-
-  /**
-   * Called once at app startup.
-   * Tries to restore session via refresh token (from memory or localStorage).
-   */
-  async tryRestoreSession() {
-    const ok = await this._api.silentRefresh();
-    if (ok) {
-      await this._emitLoginSuccess();
-    } else {
-      this._bus.emit(Events.AUTH_SESSION_EXPIRED);
+        // Wire ApiClient callback to EventBus
+        this._api.onSessionExpired = () => this._onSessionExpired();
     }
-    return ok;
-  }
 
-  /**
-   * Login with email/password.
-   * @param {{ email: string, password: string }} credentials
-   */
-  async login(credentials) {
-    const data = await this._api.login(credentials);  // throws on failure
-    this._api.setTokens(data.accessToken || '', data.refreshToken || '');
-    await this._emitLoginSuccess(data);
-  }
-
-  /**
-   * Logout — clear tokens, notify listeners.
-   */
-  async logout() {
-    await this._api.serverLogout();
-    this._storage.clearUserInfo();
-    this._bus.emit(Events.AUTH_LOGOUT);
-  }
-
-  /** Internal: called by ApiClient when refresh fails. */
-  _onSessionExpired() {
-    this._api.clearAuthToken();
-    this._storage.clearUserInfo();
-    this._bus.emit(Events.AUTH_SESSION_EXPIRED);
-  }
-
-  /** Fetch current user and emit AUTH_LOGIN_SUCCESS. */
-  async _emitLoginSuccess(loginData = null) {
-    let user = null;
-    try {
-      user = await this._userRepo.fetchCurrentUser();
-    } catch {
-      // Non-fatal: user info not critical for session validity
+    /**
+     * Called once at app startup.
+     * Tries to restore session via refresh token (from memory or localStorage).
+     */
+    async tryRestoreSession() {
+        const ok = await this._api.silentRefresh();
+        if (ok) {
+            await this._emitLoginSuccess();
+        } else {
+            this._bus.emit(Events.AUTH_SESSION_EXPIRED);
+        }
+        return ok;
     }
-    this._bus.emit(Events.AUTH_LOGIN_SUCCESS, {
-      tokens: {
-        accessToken:  this._api.authToken,
-        refreshToken: this._storage.getRefreshToken()
-      },
-      user:      user || loginData?.user || loginData || null,
-      loginData  // raw response if available
-    });
-  }
+
+    /**
+     * Login with email/password.
+     * @param {{ email: string, password: string }} credentials
+     */
+    async login(credentials) {
+        const data = await this._api.login(credentials);  // throws on failure
+        this._api.setTokens(data.accessToken || '', data.refreshToken || '');
+        await this._emitLoginSuccess(data);
+    }
+
+    /**
+     * Logout — clear tokens, notify listeners.
+     */
+    async logout() {
+        await this._api.serverLogout();
+        this._storage.clearUserInfo();
+        this._bus.emit(Events.AUTH_LOGOUT);
+    }
+
+    /** Internal: called by ApiClient when refresh fails. */
+    _onSessionExpired() {
+        this._api.clearAuthToken();
+        this._storage.clearUserInfo();
+        this._bus.emit(Events.AUTH_SESSION_EXPIRED);
+    }
+
+    /** Fetch current user and emit AUTH_LOGIN_SUCCESS. */
+    async _emitLoginSuccess(loginData = null) {
+        let user = null;
+        try {
+            user = await this._userRepo.fetchCurrentUser();
+        } catch {
+            // Non-fatal: user info not critical for session validity
+        }
+        this._bus.emit(Events.AUTH_LOGIN_SUCCESS, {
+            tokens: {
+                accessToken: this._api.authToken,
+                refreshToken: this._storage.getRefreshToken()
+            },
+            user: user || loginData?.user || loginData || null,
+            loginData  // raw response if available
+        });
+    }
 }

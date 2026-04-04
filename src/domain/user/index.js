@@ -1,2 +1,2 @@
-export { UserEntity }     from './UserEntity.js';
-export { UserRepository } from './UserRepository.js';
+export {UserEntity} from './UserEntity.js';
+export {UserRepository} from './UserRepository.js';

@@ -1,2 +1,2 @@
-export { StorageManager } from './StorageManager.js';
-export { InMemoryStorage } from './InMemoryStorage.js';
+export {StorageManager} from './StorageManager.js';
+export {InMemoryStorage} from './InMemoryStorage.js';

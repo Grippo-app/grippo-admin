@@ -1,86 +1,63 @@
-/**
- * main.js — Application bootstrap.
- *
- * Responsibilities:
- *   1. Create all infrastructure instances (storage, api, events)
- *   2. Create all domain instances (repositories)
- *   3. Create all feature instances (services, stores, controllers, views)
- *   4. Wire them together via dependency injection
- *   5. Start the application
- *
- * This file knows about EVERYTHING but does NOTHING itself.
- * All logic lives in the modules it composes.
- */
+import {StorageManager} from './infrastructure/storage/index.js';
+import {ApiClient} from './infrastructure/http/index.js';
+import {EventBus} from './infrastructure/events/EventBus.js';
 
-import { StorageManager }   from './infrastructure/storage/StorageManager.js';
-import { ApiClient }        from './infrastructure/http/ApiClient.js';
-import { EventBus }         from './infrastructure/events/EventBus.js';
+import {DictionaryStore, ExerciseNormalizer, ExerciseRepository, ExerciseValidator} from './domain/exercise/index.js';
+import {UserRepository} from './domain/user/index.js';
 
-import { ExerciseRepository } from './domain/exercise/ExerciseRepository.js';
-import { ExerciseNormalizer } from './domain/exercise/ExerciseNormalizer.js';
-import { ExerciseValidator }  from './domain/exercise/ExerciseValidator.js';
-import { UserRepository }     from './domain/user/UserRepository.js';
-import { DictionaryStore }    from './domain/exercise/DictionaryStore.js';
+import {AuthService, LoginView} from './features/auth/index.js';
+import {ExerciseController, ExerciseFormView, ExerciseListView, ExerciseStore} from './features/exercises/index.js';
+import {UserController, UserDetailView, UserListView, UserStore} from './features/users/index.js';
 
-import { AuthService }        from './features/auth/AuthService.js';
-import { LoginView }          from './features/auth/LoginView.js';
-import { ExerciseStore }      from './features/exercises/ExerciseStore.js';
-import { ExerciseListView }   from './features/exercises/ExerciseListView.js';
-import { ExerciseFormView }   from './features/exercises/ExerciseFormView.js';
-import { ExerciseController } from './features/exercises/ExerciseController.js';
-import { UserStore }          from './features/users/UserStore.js';
-import { UserListView }       from './features/users/UserListView.js';
-import { UserDetailView }     from './features/users/UserDetailView.js';
-import { UserController }     from './features/users/UserController.js';
-
-import { ConfirmDialog }      from './shared/components/ConfirmDialog.js';
-import { Toast }              from './shared/components/Toast.js';
-import { DEFAULT_LANGUAGE }   from './shared/constants/index.js';
+import {ConfirmDialog} from './shared/components/index.js';
+import {Toast} from './shared/components/Toast.js';
+import {DEFAULT_LANGUAGE} from './shared/constants/index.js';
 
 /* ── 1. Infrastructure ──────────────────────────────────────── */
 
 const storage = new StorageManager();
-const bus     = new EventBus();
-const api     = new ApiClient({
-  storage,
-  getLocale:        () => storage.getLocale(),
-  onSessionExpired: () => {} // перезаписывается AuthService после создания
+const bus = new EventBus();
+const api = new ApiClient({
+    storage,
+    getLocale: () => storage.getLocale(),
+    onSessionExpired: () => {
+    } // перезаписывается AuthService после создания
 });
 
 /* ── 2. Domain ──────────────────────────────────────────────── */
 
 const exerciseRepo = new ExerciseRepository(api);
-const userRepo     = new UserRepository(api);
+const userRepo = new UserRepository(api);
 const dictionaries = new DictionaryStore(exerciseRepo);
-const validator    = new ExerciseValidator(dictionaries);
+const validator = new ExerciseValidator(dictionaries);
 
 /* ── 3. Shared components ───────────────────────────────────── */
 
 ConfirmDialog.init({
-  overlay:       document.getElementById('confirmOverlay'),
-  titleEl:       document.getElementById('confirmTitle'),
-  messageEl:     document.getElementById('confirmMessage'),
-  detailEl:      document.getElementById('confirmDetail'),
-  actionLabelEl: document.getElementById('confirmAcceptLabel'),
-  cancelBtn:     document.getElementById('confirmCancel'),
-  closeBtn:      document.getElementById('confirmClose'),
-  acceptBtn:     document.getElementById('confirmAccept'),
+    overlay: document.getElementById('confirmOverlay'),
+    titleEl: document.getElementById('confirmTitle'),
+    messageEl: document.getElementById('confirmMessage'),
+    detailEl: document.getElementById('confirmDetail'),
+    actionLabelEl: document.getElementById('confirmAcceptLabel'),
+    cancelBtn: document.getElementById('confirmCancel'),
+    closeBtn: document.getElementById('confirmClose'),
+    acceptBtn: document.getElementById('confirmAccept'),
 });
 
 /* ── 4. Auth ────────────────────────────────────────────────── */
 
-const authService = new AuthService({ apiClient: api, userRepository: userRepo, storage, bus });
+const authService = new AuthService({apiClient: api, userRepository: userRepo, storage, bus});
 
 const loginView = new LoginView({
-  authService,
-  bus,
-  els: {
-    overlay:       document.getElementById('loginOverlay'),
-    form:          document.getElementById('loginForm'),
-    emailInput:    document.getElementById('loginEmail'),
-    passwordInput: document.getElementById('loginPassword'),
-    errorEl:       document.getElementById('loginError'),
-  }
+    authService,
+    bus,
+    els: {
+        overlay: document.getElementById('loginOverlay'),
+        form: document.getElementById('loginForm'),
+        emailInput: document.getElementById('loginEmail'),
+        passwordInput: document.getElementById('loginPassword'),
+        errorEl: document.getElementById('loginError'),
+    }
 });
 
 /* ── 5. Exercises ───────────────────────────────────────────── */
@@ -90,98 +67,98 @@ exerciseStore.setLocale(storage.getLocale());
 exerciseStore.setViewMode(storage.getViewMode());
 
 const exerciseSortOptions = {
-  name:         { label: 'Name' },
-  createdAt:    { label: 'Creation date' },
-  hasImage:     { label: 'Has image' },
-  missingImage: { label: 'Missing image' },
+    name: {label: 'Name'},
+    createdAt: {label: 'Creation date'},
+    hasImage: {label: 'Has image'},
+    missingImage: {label: 'Missing image'},
 };
 
 const exerciseListView = new ExerciseListView({
-  store: exerciseStore,
-  els: {
-    list:        document.getElementById('list'),
-    search:      document.getElementById('search'),
-    clearSearch: document.getElementById('clearSearch'),
-    sortToggle:  document.getElementById('sortToggle'),
-    sortMenu:    document.getElementById('sortMenu'),
-    sortLabel:   document.getElementById('sortLabel'),
-    newBtn:      document.getElementById('newBtn'),
-    loadBtn:     document.getElementById('loadBtn'),
-  },
-  onSelect:    (item) => exerciseController.selectItem(item),
-  onNew:       ()     => exerciseController.newItem(),
-  onLoad:      ()     => exerciseController.loadList(),
-  getItemName: (item) => ExerciseNormalizer.getTranslation(
-    ExerciseNormalizer.ensureTranslationMap(item?.entity?.nameTranslations),
-    DEFAULT_LANGUAGE
-  ) || item?.name || '',
-  sortOptions: exerciseSortOptions,
+    store: exerciseStore,
+    els: {
+        list: document.getElementById('list'),
+        search: document.getElementById('search'),
+        clearSearch: document.getElementById('clearSearch'),
+        sortToggle: document.getElementById('sortToggle'),
+        sortMenu: document.getElementById('sortMenu'),
+        sortLabel: document.getElementById('sortLabel'),
+        newBtn: document.getElementById('newBtn'),
+        loadBtn: document.getElementById('loadBtn'),
+    },
+    onSelect: (item) => exerciseController.selectItem(item),
+    onNew: () => exerciseController.newItem(),
+    onLoad: () => exerciseController.loadList(),
+    getItemName: (item) => ExerciseNormalizer.getTranslation(
+        ExerciseNormalizer.ensureTranslationMap(item?.entity?.nameTranslations),
+        DEFAULT_LANGUAGE
+    ) || item?.name || '',
+    sortOptions: exerciseSortOptions,
 });
 
 const exerciseFormView = new ExerciseFormView({
-  store:       exerciseStore,
-  validator,
-  dictionaries,
-  els: {
-    // Toolbar
-    saveBtn:    document.getElementById('saveBtn'),
-    viewForm:   document.getElementById('viewForm'),
-    viewJson:   document.getElementById('viewJson'),
-    // Editor panels
-    builder:    document.getElementById('builder'),
-    editorWrap: document.getElementById('jsonWrap'),
-    editor:     document.getElementById('editor'),
-    // Basics
-    fId:          document.getElementById('fId'),
-    fName:        document.getElementById('fName'),
-    fImage:       document.getElementById('fImage'),
-    fDescription: document.getElementById('fDescription'),
-    // Attributes
-    fWeightType:  document.getElementById('fWeightType'),
-    fCategory:    document.getElementById('fCategory'),
-    fExperience:  document.getElementById('fExperience'),
-    fForceType:   document.getElementById('fForceType'),
-    // Components / rules
-    fRulesExternalWeightEnabled:     document.getElementById('fRulesExternalWeightEnabled'),
-    fRulesExternalWeightRequired:    document.getElementById('fRulesExternalWeightRequired'),
-    fRulesBodyWeightEnabled:         document.getElementById('fRulesBodyWeightEnabled'),
-    fRulesBodyWeightMultiplier:      document.getElementById('fRulesBodyWeightMultiplier'),
-    fRulesBodyWeightMultiplierValue: document.getElementById('fRulesBodyWeightMultiplierValue'),
-    fRulesExtraWeightEnabled:        document.getElementById('fRulesExtraWeightEnabled'),
-    fRulesExtraWeightRequired:       document.getElementById('fRulesExtraWeightRequired'),
-    fRulesAssistanceEnabled:         document.getElementById('fRulesAssistanceEnabled'),
-    fRulesAssistanceRequired:        document.getElementById('fRulesAssistanceRequired'),
-    // Equipment
-    equipTokens:  document.getElementById('equipTokens'),
-    equipSingle:  document.getElementById('equipSingle'),
-    equipAdd:     document.getElementById('equipAdd'),
-    equipClear:   document.getElementById('equipClear'),
-    // Bundles
-    bundles:      document.getElementById('bundles'),
-    muscleSelect: document.getElementById('muscleSelect'),
-    percentInput: document.getElementById('percentInput'),
-    bundleAdd:    document.getElementById('bundleAdd'),
-    bundleSumInfo: document.getElementById('bundleSumInfo'),
-    // Image preview
-    previewCard:  document.getElementById('exercisePreviewCard'),
-    previewImg:   document.getElementById('exercisePreview'),
-    previewEmpty: document.getElementById('exercisePreviewEmpty'),
-    previewFrame: document.getElementById('previewFrame'),
-    // Locale switcher
-    localeButtons:  document.querySelectorAll('[data-locale]'),
-    localeSwitcher: document.getElementById('localeSwitcher'),
-  },
-  onSave:   (entity) => exerciseController.saveItem(entity),
-  onDelete: (id)     => exerciseController.deleteItem(id),
+    store: exerciseStore,
+    validator,
+    dictionaries,
+    els: {
+        // Toolbar
+        saveBtn: document.getElementById('saveBtn'),
+        viewForm: document.getElementById('viewForm'),
+        viewJson: document.getElementById('viewJson'),
+        // Editor panels
+        builder: document.getElementById('builder'),
+        editorWrap: document.getElementById('jsonWrap'),
+        editor: document.getElementById('editor'),
+        // Basics
+        fId: document.getElementById('fId'),
+        fName: document.getElementById('fName'),
+        fImage: document.getElementById('fImage'),
+        fDescription: document.getElementById('fDescription'),
+        // Attributes
+        fWeightType: document.getElementById('fWeightType'),
+        fCategory: document.getElementById('fCategory'),
+        fExperience: document.getElementById('fExperience'),
+        fForceType: document.getElementById('fForceType'),
+        // Components / rules
+        fRulesExternalWeightEnabled: document.getElementById('fRulesExternalWeightEnabled'),
+        fRulesExternalWeightRequired: document.getElementById('fRulesExternalWeightRequired'),
+        fRulesBodyWeightEnabled: document.getElementById('fRulesBodyWeightEnabled'),
+        fRulesBodyWeightMultiplier: document.getElementById('fRulesBodyWeightMultiplier'),
+        fRulesBodyWeightMultiplierValue: document.getElementById('fRulesBodyWeightMultiplierValue'),
+        fRulesExtraWeightEnabled: document.getElementById('fRulesExtraWeightEnabled'),
+        fRulesExtraWeightRequired: document.getElementById('fRulesExtraWeightRequired'),
+        fRulesAssistanceEnabled: document.getElementById('fRulesAssistanceEnabled'),
+        fRulesAssistanceRequired: document.getElementById('fRulesAssistanceRequired'),
+        // Equipment
+        equipTokens: document.getElementById('equipTokens'),
+        equipSingle: document.getElementById('equipSingle'),
+        equipAdd: document.getElementById('equipAdd'),
+        equipClear: document.getElementById('equipClear'),
+        // Bundles
+        bundles: document.getElementById('bundles'),
+        muscleSelect: document.getElementById('muscleSelect'),
+        percentInput: document.getElementById('percentInput'),
+        bundleAdd: document.getElementById('bundleAdd'),
+        bundleSumInfo: document.getElementById('bundleSumInfo'),
+        // Image preview
+        previewCard: document.getElementById('exercisePreviewCard'),
+        previewImg: document.getElementById('exercisePreview'),
+        previewEmpty: document.getElementById('exercisePreviewEmpty'),
+        previewFrame: document.getElementById('previewFrame'),
+        // Locale switcher
+        localeButtons: document.querySelectorAll('[data-locale]'),
+        localeSwitcher: document.getElementById('localeSwitcher'),
+    },
+    onSave: (entity) => exerciseController.saveItem(entity),
+    onDelete: (id) => exerciseController.deleteItem(id),
 });
 
 // exerciseController forward-declared; defined below
 const exerciseController = new ExerciseController({
-  store:      exerciseStore,
-  listView:   exerciseListView,
-  formView:   exerciseFormView,
-  repository: exerciseRepo,
-  bus,
+    store: exerciseStore,
+    listView: exerciseListView,
+    formView: exerciseFormView,
+    repository: exerciseRepo,
+    bus,
 });
 
 /* ── 6. Users ───────────────────────────────────────────────── */
@@ -189,76 +166,76 @@ const exerciseController = new ExerciseController({
 const userStore = new UserStore();
 
 const userSortOptions = {
-  createdAt:     { label: 'Creation date' },
-  lastActivity:  { label: 'Last activity' },
-  workoutsCount: { label: 'Workouts count' },
-  authType:      { label: 'Auth type' },
-  email:         { label: 'Email' },
+    createdAt: {label: 'Creation date'},
+    lastActivity: {label: 'Last activity'},
+    workoutsCount: {label: 'Workouts count'},
+    authType: {label: 'Auth type'},
+    email: {label: 'Email'},
 };
 
 const userListView = new UserListView({
-  store: userStore,
-  els: {
-    userList:       document.getElementById('userList'),
-    userSearch:     document.getElementById('userSearch'),
-    userSortToggle: document.getElementById('userSortToggle'),
-    userSortMenu:   document.getElementById('userSortMenu'),
-    userSortLabel:  document.getElementById('userSortLabel'),
-  },
-  onSelect:    (user) => userController.selectUser(user),
-  sortOptions: userSortOptions,
+    store: userStore,
+    els: {
+        userList: document.getElementById('userList'),
+        userSearch: document.getElementById('userSearch'),
+        userSortToggle: document.getElementById('userSortToggle'),
+        userSortMenu: document.getElementById('userSortMenu'),
+        userSortLabel: document.getElementById('userSortLabel'),
+    },
+    onSelect: (user) => userController.selectUser(user),
+    sortOptions: userSortOptions,
 });
 
 const userDetailView = new UserDetailView({
-  store: userStore,
-  els: {
-    userIdEl:       document.getElementById('userIdField'),
-    userEmailEl:    document.getElementById('userEmail'),
-    userCreatedEl:  document.getElementById('userCreated'),
-    userActivityEl: document.getElementById('userLastActivity'),
-    userWorkoutsEl: document.getElementById('userWorkoutsCount'),
-    userAuthPill:   document.getElementById('userAuthPill'),
-    userAuthList:   document.getElementById('userAuthList'),
-    roleSegments:   document.querySelectorAll('[data-role]'),
-    deleteUserBtn:  document.getElementById('deleteUserBtn'),
-  },
-  onRoleChange: (role) => userController.changeRole(role),
-  onDelete:     ()     => userController.deleteActiveUser(),
+    store: userStore,
+    els: {
+        userIdEl: document.getElementById('userIdField'),
+        userEmailEl: document.getElementById('userEmail'),
+        userCreatedEl: document.getElementById('userCreated'),
+        userActivityEl: document.getElementById('userLastActivity'),
+        userWorkoutsEl: document.getElementById('userWorkoutsCount'),
+        userAuthPill: document.getElementById('userAuthPill'),
+        userAuthList: document.getElementById('userAuthList'),
+        roleSegments: document.querySelectorAll('[data-role]'),
+        deleteUserBtn: document.getElementById('deleteUserBtn'),
+    },
+    onRoleChange: (role) => userController.changeRole(role),
+    onDelete: () => userController.deleteActiveUser(),
 });
 
 const userController = new UserController({
-  store:         userStore,
-  listView:      userListView,
-  detailView:    userDetailView,
-  repository:    userRepo,
-  bus,
-  confirmDialog: ConfirmDialog,
+    store: userStore,
+    listView: userListView,
+    detailView: userDetailView,
+    repository: userRepo,
+    bus,
+    confirmDialog: ConfirmDialog,
 });
 
 /* ── 7. Navigation ──────────────────────────────────────────── */
 
 document.getElementById('tabExercise')?.addEventListener('click', () => {
-  bus.emit('nav:section-changed', { section: 'exercise' });
+    bus.emit('nav:section-changed', {section: 'exercise'});
 });
 document.getElementById('tabUsers')?.addEventListener('click', () => {
-  bus.emit('nav:section-changed', { section: 'users' });
+    bus.emit('nav:section-changed', {section: 'users'});
 });
-bus.on('nav:section-changed', ({ section }) => {
-  document.getElementById('exerciseView')?.toggleAttribute('hidden', section !== 'exercise');
-  document.getElementById('usersView')?.toggleAttribute('hidden',   section !== 'users');
+bus.on('nav:section-changed', ({section}) => {
+    document.getElementById('exerciseView')?.toggleAttribute('hidden', section !== 'exercise');
+    document.getElementById('usersView')?.toggleAttribute('hidden', section !== 'users');
 });
 
 /* ── 8. Logout ──────────────────────────────────────────────── */
 
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-  await authService.logout();
-  Toast.show({ title: 'Logged out' });
+    await authService.logout();
+    Toast.show({title: 'Logged out'});
 });
 
 /* ── 9. Dictionaries ────────────────────────────────────────── */
 
 bus.on('auth:login-success', async () => {
-  await dictionaries.loadAll();
+    await dictionaries.loadAll();
 });
 
 /* ── 10. Start ──────────────────────────────────────────────── */
