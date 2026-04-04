@@ -1,0 +1,16 @@
+/* ============================================================
+   UTILITY HELPERS
+   ============================================================ */
+
+/* List empty state */
+.list-empty{
+  color: var(--muted);
+  text-align: center;
+  padding: 20px 8px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+
+/* Misc */
+.hide-json-controls .json-only{ display: none; }

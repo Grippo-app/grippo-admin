@@ -1,10 +1,16 @@
-import { FIELD } from './constants.js';
+import { FIELD } from '../../shared/constants/index.js';
 
+/**
+ * DictionaryStore — кэш справочников оборудования и мышц.
+ *
+ * Принимает ExerciseRepository как зависимость (не ApiClient напрямую).
+ */
 export class DictionaryStore {
-  constructor(api) {
-    this.api = api;
+  /** @param {import('./ExerciseRepository.js').ExerciseRepository} repository */
+  constructor(repository) {
+    this._repo    = repository;
     this.equipment = new Map();
-    this.muscles = new Map();
+    this.muscles   = new Map();
   }
 
   async loadAll() {
@@ -13,7 +19,7 @@ export class DictionaryStore {
 
   async loadEquipments() {
     try {
-      const data = await this.api.fetchEquipments();
+      const data = await this._repo.fetchEquipments();
       const equipments = [];
       if (Array.isArray(data) && data.length && Array.isArray(data[0]?.equipments)) {
         data.forEach((g) => (g.equipments || []).forEach((e) => equipments.push(e)));
@@ -30,7 +36,7 @@ export class DictionaryStore {
 
   async loadMuscles() {
     try {
-      const data = await this.api.fetchMuscles();
+      const data = await this._repo.fetchMuscles();
       if (Array.isArray(data)) {
         for (const g of data) {
           (g.muscles || []).forEach((m) => {
@@ -63,8 +69,8 @@ export class DictionaryStore {
     let outOfRange = false;
 
     for (const bundle of arr) {
-      const id = String(bundle?.muscleId ?? '');
-      const p = Number(bundle?.percentage ?? 0);
+      const id  = String(bundle?.muscleId ?? '');
+      const p   = Number(bundle?.percentage ?? 0);
       if (!isFinite(p) || p < 0 || p > 100) outOfRange = true;
       sum += isFinite(p) ? p : 0;
       if (!this.muscles.has(id)) unknownMuscles.push(id);

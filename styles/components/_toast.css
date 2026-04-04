@@ -1,0 +1,21 @@
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  min-width: 220px;
+  display: grid;
+  gap: 4px;
+  z-index: 100;
+}
+.toast.success{ border-color: rgba(48,164,108,.4); }
+.toast.error{ border-color: rgba(229,72,77,.4); }
+.toast .title{ font-weight: 700; font-size: 13px; }

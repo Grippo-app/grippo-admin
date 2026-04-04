@@ -1,0 +1,73 @@
+/* ============================================================
+   COMMAND BAR
+   ============================================================ */
+.command-bar{
+  position: sticky;
+  top: var(--header-h);
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  height: var(--commandbar-h);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.command-bar #currentId{
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.command-bar input[type="search"]{
+  flex: 0 0 var(--sidebar-w);
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+}
+.command-bar .spacer{ flex: 1 1 auto; }
+.command-bar .view-toggle{ flex-shrink: 0; }
+.command-bar .cmd-actions{ display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ============================================================
+   LOCALE SWITCHER
+   ============================================================ */
+.locale-switcher{
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--field);
+  flex-shrink: 0;
+}
+.locale-switcher .locale-btn{
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font: 600 12px/1 inherit;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.locale-switcher .locale-btn:hover,
+.locale-switcher .locale-btn:focus{
+  background: var(--field-hover);
+  color: var(--text);
+  outline: none;
+}
+.locale-switcher .locale-btn.active{
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.locale-switcher .locale-btn:disabled{ opacity: 1; cursor: default; }
+.locale-switcher .locale-btn:focus-visible{
+  box-shadow: 0 0 0 2px rgba(91,156,245,.4);
+}

@@ -1,0 +1,32 @@
+/* ============================================================
+   TABS
+   ============================================================ */
+.primary-tabs{
+  display: flex;
+  gap: 2px;
+  background: var(--field);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.primary-tabs .tab{
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font: 600 13px/1.2 inherit;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.primary-tabs .tab:hover,
+.primary-tabs .tab:focus{
+  background: var(--field-hover);
+  color: var(--text);
+  outline: none;
+}
+.primary-tabs .tab.active{
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}

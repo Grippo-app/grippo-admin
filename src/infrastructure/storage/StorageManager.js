@@ -1,4 +1,24 @@
-import { STORAGE_KEYS, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from './constants.js';
+import { STORAGE_KEYS, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '../../shared/constants/index.js';
+
+/**
+ * IStorage interface (implicit — JS duck typing):
+ *
+ *   getLocale()          → string
+ *   setLocale(locale)    → void
+ *   getViewMode()        → string
+ *   setViewMode(mode)    → void
+ *   getUserId()          → string
+ *   setUserId(id)        → void
+ *   getProfileId()       → string
+ *   setProfileId(id)     → void
+ *   clearUserInfo()      → void
+ *   loadUserInfo()       → { id: string, profileId: string }
+ *   getRefreshToken()    → string
+ *   setRefreshToken(t)   → void
+ *   clearRefreshToken()  → void
+ *   loadEditedSet()      → Set<string>
+ *   persistEditedSet(s)  → void
+ */
 
 /**
  * StorageManager — handles non-sensitive preferences and the refresh token.

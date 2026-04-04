@@ -1,5 +1,5 @@
-import { FIELD, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from './constants.js';
-import { uuidv4 } from './utils.js';
+import { FIELD, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from '../../shared/constants/index.js';
+import { uuidv4 } from '../../shared/utils/index.js';
 
 function createEmptyTranslations() {
   return Object.fromEntries(SUPPORTED_LANGUAGES.map((lang) => [lang, '']));
@@ -372,15 +372,16 @@ function buildLocalePlaceholder(basePlaceholder, fallbackValue, locale) {
   return `${fallbackValue} (${DEFAULT_LANGUAGE.toUpperCase()} fallback)`;
 }
 
-export const EntityToolkit = {
-  createEmptyTranslations,
-  ensureTranslationMap,
-  getTranslation,
-  cloneArrayOfObjects,
-  buildLocalizedEntries,
-  emptyTemplate,
-  normalizeEntityShape,
-  mergeLocalizedEntity,
-  buildPersistencePayload,
-  buildLocalePlaceholder
-};
+export class ExerciseNormalizer {
+  static createEmptyTranslations()                              { return createEmptyTranslations(); }
+  static ensureTranslationMap(raw)                              { return ensureTranslationMap(raw); }
+  static getTranslation(map, locale)                            { return getTranslation(map, locale); }
+  static cloneArrayOfObjects(arr)                               { return cloneArrayOfObjects(arr); }
+  static buildLocalizedEntries(map)                             { return buildLocalizedEntries(map); }
+  static emptyTemplate()                                        { return emptyTemplate(); }
+  static normalizeEntityShape(raw, opts)                        { return normalizeEntityShape(raw, opts); }
+  static mergeLocalizedEntity(canonical, incoming)              { return mergeLocalizedEntity(canonical, incoming); }
+  static buildPersistencePayload(canonical)                     { return buildPersistencePayload(canonical); }
+  static normalizeComponents(raw)                               { return normalizeComponents(raw); }
+  static buildLocalePlaceholder(basePlaceholder, fallback, loc) { return buildLocalePlaceholder(basePlaceholder, fallback, loc); }
+}

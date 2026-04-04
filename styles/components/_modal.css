@@ -1,0 +1,41 @@
+/* ============================================================
+   CONFIRM DIALOG
+   ============================================================ */
+.confirm-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1100;
+}
+.confirm-overlay[hidden]{ display: none !important; }
+.confirm-dialog{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+  padding: 20px;
+  min-width: 340px;
+  max-width: 440px;
+  display: grid;
+  gap: 12px;
+}
+.confirm-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.confirm-title{ font-weight: 700; font-size: 15px; }
+.confirm-message{ color: var(--muted); line-height: 1.5; font-size: 13px; }
+.confirm-detail{
+  color: var(--muted);
+  font-size: 13px;
+  background: var(--field);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+.confirm-actions{ display: flex; justify-content: flex-end; gap: 8px; }

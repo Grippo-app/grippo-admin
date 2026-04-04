@@ -1,0 +1,44 @@
+:root{
+  /* Neutral dark palette with subtle warm undertones */
+  --bg: #121317;
+  --panel: #1a1b21;
+  --panel-2: #16171c;
+  --text: #e8e9ed;
+  --muted: #8b8d98;
+
+  /* Accent — calm blue */
+  --brand: #5b9cf5;
+  --brand-2: #4eb8e8;
+
+  --danger: #e5484d;
+  --ok: #30a46c;
+  --warning: #e5a63e;
+  --border: #27282f;
+
+  --shadow: 0 4px 16px rgba(0,0,0,.24);
+  --field: #1e1f26;
+  --field-hover: #242530;
+  --field-focus: #282a36;
+
+  --header-bg: #16171c;
+  --divider: #27282f;
+
+  --section-gap: 16px;
+  --block-gap: 12px;
+
+  --header-h: 56px;
+  --commandbar-h: 52px;
+  --sidebar-w: 360px;
+  --users-sidebar-w: 400px;
+
+  /* GPT buttons */
+  --gpt-a: #30a46c;
+  --gpt-b: #5bb98b;
+  --gpt-glow: rgba(48,164,108,.2);
+  --gpt-glow-strong: rgba(48,164,108,.35);
+
+  /* Radius tokens */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+}

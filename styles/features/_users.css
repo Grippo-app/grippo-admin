@@ -1,0 +1,241 @@
+/* ============================================================
+   USERS VIEW
+   ============================================================ */
+#usersView{ padding: 0; }
+
+.users-command .cmd-actions{ gap: 8px; align-items: center; }
+.users-command input[type="search"]{ min-width: 240px; }
+.users-command .role-toggle{ display: flex; align-items: center; }
+.users-command .role-toggle .segment{ background: var(--field); }
+.users-command #deleteUserBtn{
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  align-self: center;
+}
+
+.users-layout{
+  position: fixed;
+  top: calc(var(--header-h) + var(--commandbar-h));
+  left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: var(--users-sidebar-w) 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+.users-sidebar{
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  border-right: 1px solid var(--border) !important;
+}
+.users-sidebar .list{
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.user-list{ overflow-x: hidden; }
+
+.users-head{
+  display: flex !important;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.users-head .field{ flex: 1 1 auto; }
+.users-head input{ width: 100%; }
+
+/* User panel */
+.user-panel{
+  background: var(--panel);
+  border: 0;
+  border-radius: 0;
+  padding: 20px 24px;
+  overflow: auto;
+}
+.user-detail{
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  max-width: 700px;
+}
+
+/* User header */
+.user-header{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 16px;
+}
+.user-header-text{ display: grid; gap: 4px; }
+.user-label{
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.user-title{ font-size: 20px; font-weight: 700; }
+.user-subtitle{ color: var(--muted); font-size: 13px; word-break: break-all; }
+
+/* Status chips */
+.user-status-chips{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.status-chip{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.status-chip .chip-label{
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.status-chip .chip-value{
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* User tags */
+.user-tags{
+  display: grid;
+  grid-template-rows: auto auto;
+  justify-items: end;
+  align-content: space-between;
+  gap: 6px;
+  height: 100%;
+  align-self: stretch;
+}
+.user-auth, .user-auth-pill{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+.auth-type-icon{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--field);
+  color: var(--muted);
+}
+.auth-type-empty{ font-size: 12px; color: var(--muted); }
+.user-auth svg, .user-auth-pill svg{ width: 16px; height: 16px; display: block; }
+.auth-icon-email{ fill: currentColor; }
+.auth-icon-google .g-blue{ fill: #4285f4; }
+.auth-icon-google .g-red{ fill: #ea4335; }
+.auth-icon-google .g-yellow{ fill: #fbbc04; }
+.auth-icon-google .g-green{ fill: #34a853; }
+.auth-icon-apple{ fill: currentColor; }
+
+/* User ID fields */
+.user-id-fields{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+.user-id-fields .field input[disabled]{
+  cursor: default;
+  color: var(--muted);
+}
+.field.compact label{ font-size: 12px; }
+
+/* User meta */
+.user-meta-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.meta-card{
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.meta-card.meta-highlight{
+  background: var(--field-focus);
+  border-color: rgba(91,156,245,.2);
+  padding: 14px;
+}
+.meta-label{
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.meta-value{ font-weight: 600; font-size: 14px; }
+.meta-value.meta-emphasis{ font-size: 17px; font-weight: 700; }
+.meta-hint{ color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+/* User actions */
+.user-actions-row{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.user-readonly{ display: flex; gap: 10px; align-items: flex-end; }
+.user-readonly .field{ min-width: 140px; }
+.user-readonly .field.compact label{ font-size: 12px; }
+.user-readonly input[disabled]{ cursor: default; color: var(--muted); }
+
+/* User list items */
+.user-item{
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.user-list .user-item{ padding: 12px; }
+.user-item .user-copy{ min-width: 0; }
+.user-item .user-name{ font-weight: 700; font-size: 13px; overflow-wrap: anywhere; }
+.user-item .user-email{ color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.user-item .user-role{
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-badge{
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pill-subtle{ background: var(--field); color: var(--muted); border-color: var(--border); }
+.pill-admin{
+  background: rgba(48,164,108,.12);
+  border-color: rgba(48,164,108,.3);
+  color: #3dd68c;
+}
+.user-auth{ text-transform: uppercase; font-size: 11px; }
+.user-auth-list{
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+}

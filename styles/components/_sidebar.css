@@ -1,0 +1,109 @@
+/* ============================================================
+   MAIN LAYOUT + SIDEBAR
+   ============================================================ */
+main{
+  position: fixed;
+  top: calc(var(--header-h) + var(--commandbar-h));
+  left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ---- Sidebar ---- */
+.sidebar{
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border) !important;
+}
+.side-head{
+  display: none !important;
+  padding: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.list{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+}
+
+/* ---- Item cards ---- */
+.item{
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  transition: background .12s, border-color .12s;
+}
+.item:hover{
+  background: var(--field);
+  border-color: var(--border);
+}
+.item.active{
+  background: var(--field-focus);
+  border-color: rgba(91,156,245,.35);
+}
+.item.edited{
+  border-color: rgba(91,156,245,.3);
+  background: rgba(91,156,245,.06);
+}
+.item.edited .name::after{
+  content: " • edited";
+  margin-left: 6px;
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.name{ font-weight: 700; font-size: 13px; }
+.thumb{ width: 100%; height: auto; border-radius: 6px; object-fit: cover; }
+.meta{ color: var(--muted); font-size: 12px; display: flex; gap: 8px; align-items: center; }
+.pill{
+  background: var(--field);
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+.pill.edited{
+  background: rgba(91,156,245,.08);
+  color: var(--brand);
+  border-color: rgba(91,156,245,.2);
+}
+
+/* Ensure clean sidebar (preserve border-right separator) */
+main > .sidebar{
+  background: transparent !important;
+  border-left: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+main > .sidebar .side-head,
+main > .sidebar .list{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}

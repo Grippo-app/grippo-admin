@@ -1,0 +1,99 @@
+/* ============================================================
+   FORM INPUTS
+   ============================================================ */
+input[type="password"],
+input[type="text"],
+input[type="email"],
+input[type="search"],
+input[type="url"],
+input[type="number"],
+select,
+textarea{
+  width: 100%;
+  background: var(--field) !important;
+  border: 1px solid var(--border);
+  color: var(--text) !important;
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  transition: border .15s, box-shadow .15s, background .15s;
+  -webkit-text-fill-color: var(--text);
+}
+input::placeholder, textarea::placeholder{ color: var(--muted); }
+input:hover, textarea:hover, select:hover{ background: var(--field-hover) !important; }
+input:focus, textarea:focus, select:focus{
+  background: var(--field-focus) !important;
+  border-color: rgba(91,156,245,.4);
+  box-shadow: 0 0 0 3px rgba(91,156,245,.1);
+}
+
+select{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 36px;
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="%238b8d98"><path d="M5.5 7l4.5 6 4.5-6H5.5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 12px;
+}
+select::-ms-expand{ display: none; }
+
+/* Autofill fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill,
+textarea:-webkit-autofill{
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0px 1000px var(--field-focus) inset;
+  transition: background-color 9999s ease-in-out 0s;
+  caret-color: var(--text);
+}
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+input[type=number]{ -moz-appearance: textfield; }
+
+/* Field */
+.field{ display: grid; gap: 4px; }
+.field label{ font-weight: 600; font-size: 13px; color: var(--text); }
+.hint{ font-size: 12px; color: var(--muted); }
+.error{ color: var(--danger); font-size: 13px; }
+.invalid{ border-color: var(--danger) !important; box-shadow: 0 0 0 1px rgba(229,72,77,.2); }
+
+/* Range */
+.range-field{ display: flex; align-items: center; gap: 12px; }
+.range-field input[type="range"]{ flex: 1; }
+.range-value{
+  min-width: 50px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Checkboxes */
+.checkbox-row{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+  font-size: 13px;
+}
+.checkbox-row input[type="checkbox"]{
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+.checkbox-stack{
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}

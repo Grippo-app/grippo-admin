@@ -1,0 +1,51 @@
+/* ============================================================
+   SORT / DROPDOWN MENU
+   ============================================================ */
+.command-bar .dropdown{ position: relative; flex: 0 0 auto; }
+.command-bar .dropdown .btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.command-bar .dropdown .sort-label{ font-weight: 600; }
+.command-bar .dropdown .chevron{ transition: transform .2s; font-size: 11px; }
+.command-bar .dropdown.open .chevron{ transform: rotate(180deg); }
+.command-bar .dropdown-menu{
+  position: fixed;
+  top: auto;
+  left: auto;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  z-index: 90;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.command-bar .dropdown.open .dropdown-menu{ display: flex; }
+.command-bar .dropdown-item{
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.command-bar .dropdown-item:hover,
+.command-bar .dropdown-item:focus{
+  background: var(--field-hover);
+  outline: none;
+}
+.command-bar .dropdown-item.active{
+  background: var(--field-focus);
+  font-weight: 600;
+}

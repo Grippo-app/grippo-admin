@@ -1,0 +1,27 @@
+/* ============================================================
+   LOGIN OVERLAY
+   ============================================================ */
+.login-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.login-form{
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+}
+.login-form h2{ text-align: center; font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+.login-form button{ margin-top: 4px; }
+.login-form .error{ color: var(--danger); font-size: 13px; }

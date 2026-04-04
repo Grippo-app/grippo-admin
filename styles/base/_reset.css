@@ -1,0 +1,14 @@
+/* ---- Reset ---- */
+*{ box-sizing: border-box; }
+html, body{ height: 100%; overflow: hidden; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar{ width: 6px; height: 6px; }
+::-webkit-scrollbar-track{ background: transparent; }
+::-webkit-scrollbar-thumb{
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover{ background: #3a3b44; }
+
+body.modal-open{ overflow: hidden; }

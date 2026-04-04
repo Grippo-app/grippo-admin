@@ -1,0 +1,35 @@
+/* ============================================================
+   CHIPS & TOKENS
+   ============================================================ */
+.token-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  align-content: flex-start;
+  align-self: start;
+}
+.token{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.token button{
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  transition: color .12s;
+}
+.token button:hover{ color: var(--danger); }
+.token.invalid{ border-color: var(--danger); color: #ff6369; background: rgba(229,72,77,.08); }

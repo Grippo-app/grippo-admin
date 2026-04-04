@@ -1,0 +1,63 @@
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn{
+  background: var(--brand);
+  border: 0;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  transition: filter .15s, transform .05s;
+  box-shadow: none;
+}
+.btn:hover{ filter: brightness(1.1); }
+.btn:active{ transform: translateY(1px); }
+.btn:disabled{ opacity: .45; cursor: not-allowed; }
+
+.btn.tiny{ padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn.muted{
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn.muted:hover{ background: var(--field-hover); }
+.btn.warn{ background: var(--warning); color: #1a1200; }
+.btn.danger{ background: var(--danger); color: #fff; }
+.btn.ghost{ background: transparent; border: 1px dashed var(--border); color: var(--muted); }
+.btn.icon{
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 4px 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+.btn.icon:hover{ color: var(--text); }
+
+/* ---- GPT Button ---- */
+.btn.gpt{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--gpt-a), var(--gpt-b)) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 2px 8px var(--gpt-glow) !important;
+  text-shadow: none;
+  font-weight: 600;
+}
+.btn.gpt:hover{
+  filter: brightness(1.08);
+  box-shadow: 0 4px 16px var(--gpt-glow-strong) !important;
+}
+.btn.gpt:active{ transform: translateY(1px); }
+#promptBtn.btn.gpt::before{ content: "✦"; font-size: 14px; line-height: 1; }
+#promptImgBtn.btn.gpt::before{ content: "✦"; font-size: 14px; line-height: 1; }
+.btn.gpt:focus{
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--gpt-a) !important;
+}
