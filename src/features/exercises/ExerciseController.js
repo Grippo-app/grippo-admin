@@ -11,6 +11,9 @@ export class ExerciseController {
         this._repo = repository;
         this._bus = bus;
 
+        // Monotonically increasing ID used to discard stale selectItem responses
+        this._selectSeq = 0;
+
         bus.on(Events.AUTH_LOGIN_SUCCESS, () => this.loadList());
         bus.on(Events.AUTH_LOGOUT, () => this._store.setItems([]));
         bus.on(Events.AUTH_SESSION_EXPIRED, () => this._store.setItems([]));
@@ -35,6 +38,11 @@ export class ExerciseController {
             Toast.show({title: 'Missing exercise ID', type: 'error'});
             return;
         }
+
+        // Capture sequence number — if a newer selectItem fires before this one resolves,
+        // the stale response will be silently discarded
+        const seq = ++this._selectSeq;
+
         try {
             // Fetch all locales in parallel, normalize each, then merge
             const responses = await Promise.all(
@@ -43,6 +51,9 @@ export class ExerciseController {
                     raw: await this._repo.fetchDetail(id, l).catch(() => null)
                 }))
             );
+
+            // Another selection started while we were in-flight — discard this result
+            if (seq !== this._selectSeq) return;
 
             let canonical = ExerciseNormalizer.emptyTemplate();
             canonical.id = id; // ensure correct ID from the start
@@ -61,7 +72,9 @@ export class ExerciseController {
             this._store.setCurrent(canonical);
             this._bus.emit(Events.EXERCISE_SELECTED, canonical);
         } catch (err) {
-            Toast.show({title: 'Failed to load exercise', message: err.message, type: 'error'});
+            if (seq === this._selectSeq) {
+                Toast.show({title: 'Failed to load exercise', message: err.message, type: 'error'});
+            }
         }
     }
 

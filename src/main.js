@@ -270,6 +270,9 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 
 bus.on('auth:login-success', async () => {
     await dictionaries.loadAll();
+    // Populate equipment/muscle dropdowns now that dictionary data is ready,
+    // so the selects are filled even before the user opens any specific exercise
+    exerciseFormView.refreshOptionLists();
 });
 
 /* ── 10. Start ──────────────────────────────────────────────── */

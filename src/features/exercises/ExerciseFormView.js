@@ -49,6 +49,15 @@ export class ExerciseFormView {
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
+     * Populate the equipment and muscle <select> dropdowns from the dictionary store.
+     * Call this once after dictionaries have been loaded so the options are ready
+     * before the user opens any exercise (not deferred until first selectItem).
+     */
+    refreshOptionLists() {
+        this._refreshOptionLists();
+    }
+
+    /**
      * Populate all form inputs from a canonical entity + active locale.
      *
      * @param {object} entity  — canonical exercise shape
@@ -154,7 +163,7 @@ export class ExerciseFormView {
                 ? {required: !!this._els.fRulesExternalWeightRequired?.checked}
                 : null,
             bodyWeight: bodyEnabled
-                ? {required: true, multiplier: this._bodyWeightMultiplier}
+                ? {required: true, multiplier: Number(this._els.fRulesBodyWeightMultiplier?.value) || this._bodyWeightMultiplier || 1}
                 : null,
             extraWeight: bodyEnabled && extraEnabled
                 ? {required: !!this._els.fRulesExtraWeightRequired?.checked}
@@ -507,9 +516,20 @@ export class ExerciseFormView {
             await this._onSave(entity);
         });
 
-        // View mode toggle
+        // View mode toggle — flush form inputs to store before entering JSON view
+        // so the JSON editor always reflects the latest in-form edits
         this._els.viewForm?.addEventListener('click', () => this._store.setViewMode('form'));
-        this._els.viewJson?.addEventListener('click', () => this._store.setViewMode('json'));
+        this._els.viewJson?.addEventListener('click', () => {
+            if (this._viewMode !== 'json') {
+                try {
+                    const entity = this.readFormToEntity();
+                    this._store.setCurrent(entity);
+                } catch (e) {
+                    console.warn('[ExerciseFormView] Could not flush form before JSON view:', e);
+                }
+            }
+            this._store.setViewMode('json');
+        });
 
         // Image preview live update
         this._els.fImage?.addEventListener('input', () => {
