@@ -177,6 +177,7 @@ const userListView = new UserListView({
     store: userStore,
     els: {
         userList: document.getElementById('userList'),
+        userCount: document.getElementById('userListCount'),
         userSearch: document.getElementById('userSearch'),
         userSortToggle: document.getElementById('userSortToggle'),
         userSortMenu: document.getElementById('userSortMenu'),
