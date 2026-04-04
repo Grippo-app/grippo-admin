@@ -104,10 +104,16 @@ const exerciseFormView = new ExerciseFormView({
         saveBtn: document.getElementById('saveBtn'),
         viewForm: document.getElementById('viewForm'),
         viewJson: document.getElementById('viewJson'),
+        currentId: document.getElementById('currentId'),
+        jsonStatus: document.getElementById('jsonStatus'),
+        promptBtn: document.getElementById('promptBtn'),
+        promptImgBtn: document.getElementById('promptImgBtn'),
+        promptRulesBtn: document.getElementById('promptRulesBtn'),
         // Editor panels
         builder: document.getElementById('builder'),
         editorWrap: document.getElementById('jsonWrap'),
         editor: document.getElementById('editor'),
+        clearJsonBtn: document.getElementById('clearJsonBtn'),
         // Basics
         fId: document.getElementById('fId'),
         fName: document.getElementById('fName'),

@@ -61,7 +61,7 @@ export class ExerciseStore {
     }
 
     setSortKey(key) {
-        this._update({sortKey: key});
+        this._update({sortKey: key, filtered: this._sortItems(this._state.filtered, key)});
     }
 
     setLoading(v) {
@@ -95,13 +95,45 @@ export class ExerciseStore {
     }
 
     _applyFilter(items, query) {
-        if (!query) return items;
-        const q = query.toLowerCase();
-        return items.filter(item => {
-            const name = item?.entity?.nameTranslations?.en?.toLowerCase()
-                || item?.entity?.name?.toLowerCase()
-                || item?.name?.toLowerCase() || '';
-            return name.includes(q);
+        let result = items;
+        if (query) {
+            const q = query.toLowerCase();
+            result = items.filter(item => {
+                const name = item?.entity?.nameTranslations?.en?.toLowerCase()
+                    || item?.entity?.name?.toLowerCase()
+                    || item?.name?.toLowerCase() || '';
+                return name.includes(q);
+            });
+        }
+        return this._sortItems(result, this._state.sortKey);
+    }
+
+    _sortItems(items, key) {
+        const getName = (item) =>
+            (item?.entity?.nameTranslations?.en || item?.entity?.name || item?.name || '').toLowerCase();
+
+        const getTs = (item) => {
+            const raw = item?.entity?.createdAt ?? item?.entity?.created_at ?? item?.createdAt ?? '';
+            return raw ? new Date(raw).getTime() : 0;
+        };
+
+        const hasImage = (item) =>
+            !!(item?.entity?.imageUrl || item?.entity?.image_url || item?.imageUrl || '').trim();
+
+        const sorted = [...items];
+        sorted.sort((a, b) => {
+            switch (key) {
+                case 'createdAt':
+                    return (getTs(b) - getTs(a)) || getName(a).localeCompare(getName(b));
+                case 'hasImage':
+                    return (Number(hasImage(b)) - Number(hasImage(a))) || getName(a).localeCompare(getName(b));
+                case 'missingImage':
+                    return (Number(hasImage(a)) - Number(hasImage(b))) || getName(a).localeCompare(getName(b));
+                case 'name':
+                default:
+                    return getName(a).localeCompare(getName(b));
+            }
         });
+        return sorted;
     }
 }

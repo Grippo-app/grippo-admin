@@ -1,4 +1,23 @@
 import {SortMenu} from '../../shared/components/SortMenu.js';
+import {FIELD} from '../../shared/constants/index.js';
+
+const CATEGORY_PILL = {
+    compound: 'pill-compound',
+    isolation: 'pill-isolation',
+};
+
+const EXPERIENCE_PILL = {
+    beginner: 'pill-beginner',
+    intermediate: 'pill-inter',
+    advanced: 'pill-advanced',
+    pro: 'pill-pro',
+};
+
+const WEIGHT_LABEL = {
+    free: 'free',
+    fixed: 'fixed',
+    body_weight: 'bodyweight',
+};
 
 export class ExerciseListView {
     /**
@@ -18,7 +37,6 @@ export class ExerciseListView {
         this._onSelect = onSelect;
         this._getItemName = getItemName;
 
-        // SortMenu как shared компонент — не дублируем логику
         this._sortMenu = new SortMenu({
             toggleEl: els.sortToggle,
             menuEl: els.sortMenu,
@@ -44,16 +62,45 @@ export class ExerciseListView {
         for (const item of filtered) {
             const el = document.createElement('div');
             el.dataset.id = item.id;
-            el.className = 'item' + (item.id === current?.id ? ' active' : '');
+            el.className = 'item exercise-item' + (item.id === current?.id ? ' active' : '');
             el.setAttribute('role', 'option');
             el.tabIndex = 0;
 
             const name = this._getItemName(item);
-            const imageUrl = item?.entity?.imageUrl || item?.imageUrl || '';
+            const entity = item?.entity || item;
+            const imageUrl = entity?.imageUrl || entity?.image_url || '';
+            const category = entity?.category || '';
+            const experience = entity?.experience || '';
+            const weightType = entity?.weightType || '';
+            const equipCount = (Array.isArray(entity?.[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : []).length;
+            const muscleCount = (Array.isArray(entity?.[FIELD.bundles]) ? entity[FIELD.bundles] : []).length;
+
+            const catClass = CATEGORY_PILL[category] || 'pill-subtle';
+            const expClass = EXPERIENCE_PILL[experience] || 'pill-subtle';
+            const weightLabel = WEIGHT_LABEL[weightType] || weightType;
+
+            const pillsHtml = [
+                category ? `<span class="pill ${catClass} ex-pill">${category}</span>` : '',
+                experience ? `<span class="pill ${expClass} ex-pill">${experience}</span>` : '',
+                weightLabel ? `<span class="pill pill-subtle ex-pill">${weightLabel}</span>` : '',
+            ].filter(Boolean).join('');
+
+            const statsHtml = [
+                muscleCount ? `${muscleCount} muscle${muscleCount > 1 ? 's' : ''}` : '',
+                equipCount ? `${equipCount} equip` : '',
+            ].filter(Boolean).join('<span class="ex-stat-sep">·</span>');
+
+            const thumbHtml = imageUrl
+                ? `<div class="ex-thumb-wrap"><img src="${imageUrl}" alt="" loading="lazy"/></div>`
+                : `<div class="ex-thumb-wrap ex-thumb-empty">—</div>`;
 
             el.innerHTML = `
-                ${imageUrl ? `<img class="thumb" src="${imageUrl}" alt="" loading="lazy"/>` : ''}
-                <div class="name">${name}</div>
+                <div class="exercise-main">
+                    <div class="exercise-name">${name || '(no name)'}</div>
+                    ${pillsHtml ? `<div class="exercise-pills">${pillsHtml}</div>` : ''}
+                    ${statsHtml ? `<div class="exercise-stats">${statsHtml}</div>` : ''}
+                </div>
+                ${thumbHtml}
             `;
 
             el.addEventListener('click', () => this._onSelect(item));
