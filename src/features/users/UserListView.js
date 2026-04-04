@@ -32,21 +32,35 @@ export class UserListView {
         const {filtered, active, isLoading} = this._store.getState();
         if (!this._els.userList) return;
         if (isLoading) {
-            this._els.userList.innerHTML = '<li class="list-loading">Loading…</li>';
+            this._els.userList.innerHTML = '<div class="list-loading">Loading…</div>';
             return;
         }
 
         this._els.userList.innerHTML = '';
         for (const user of filtered) {
-            const li = document.createElement('li');
-            li.dataset.id = user.id;
-            li.className = 'list-item' + (user.id === active?.id ? ' list-item--active' : '');
-            li.innerHTML = `
-        <span class="user-item__email">${user.email || user.id}</span>
-        <span class="user-item__role user-item__role--${user.role}">${user.role}</span>
-      `;
-            li.addEventListener('click', () => this._onSelect(user));
-            this._els.userList.appendChild(li);
+            const el = document.createElement('div');
+            el.dataset.id = user.id;
+            el.className = 'item user-item' + (user.id === active?.id ? ' active' : '');
+            el.setAttribute('role', 'option');
+            el.tabIndex = 0;
+
+            const badge = (user.email || user.id || '?')[0].toUpperCase();
+            const roleClass = user.role === 'admin' ? 'pill pill-admin' : 'pill pill-subtle';
+            const authTypes = (user.authTypes || []).join(', ') || '—';
+
+            el.innerHTML = `
+                <div class="user-badge" aria-hidden="true">${badge}</div>
+                <div class="user-copy">
+                    <div class="user-name">${user.email || user.id}</div>
+                    <div class="user-email">${authTypes}</div>
+                </div>
+                <div class="user-tags">
+                    <span class="${roleClass} user-role">${user.role}</span>
+                </div>
+            `;
+
+            el.addEventListener('click', () => this._onSelect(user));
+            this._els.userList.appendChild(el);
         }
     }
 }

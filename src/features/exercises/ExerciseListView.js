@@ -36,18 +36,28 @@ export class ExerciseListView {
         const {filtered, current, isLoading} = this._store.getState();
         if (!this._els.list) return;
         if (isLoading) {
-            this._els.list.innerHTML = '<li class="list-loading">Loading…</li>';
+            this._els.list.innerHTML = '<div class="list-loading">Loading…</div>';
             return;
         }
 
         this._els.list.innerHTML = '';
         for (const item of filtered) {
-            const li = document.createElement('li');
-            li.dataset.id = item.id;
-            li.className = 'list-item' + (item.id === current?.id ? ' list-item--active' : '');
-            li.textContent = this._getItemName(item);
-            li.addEventListener('click', () => this._onSelect(item));
-            this._els.list.appendChild(li);
+            const el = document.createElement('div');
+            el.dataset.id = item.id;
+            el.className = 'item' + (item.id === current?.id ? ' active' : '');
+            el.setAttribute('role', 'option');
+            el.tabIndex = 0;
+
+            const name = this._getItemName(item);
+            const imageUrl = item?.entity?.imageUrl || item?.imageUrl || '';
+
+            el.innerHTML = `
+                ${imageUrl ? `<img class="thumb" src="${imageUrl}" alt="" loading="lazy"/>` : ''}
+                <div class="name">${name}</div>
+            `;
+
+            el.addEventListener('click', () => this._onSelect(item));
+            this._els.list.appendChild(el);
         }
     }
 
