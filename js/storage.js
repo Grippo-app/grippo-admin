@@ -1,11 +1,12 @@
 import { STORAGE_KEYS, SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE } from './constants.js';
 
 /**
- * StorageManager — handles ONLY non-sensitive preferences in Web Storage.
+ * StorageManager — handles non-sensitive preferences and the refresh token.
  *
- * Auth tokens are NO LONGER stored here.
- * - Access token → held in memory only (see ApiClient).
- * - Refresh token → managed via HttpOnly cookie set by the backend.
+ * - Access token → held in memory only (see ApiClient). Never persisted.
+ * - Refresh token → stored in localStorage under STORAGE_KEYS.refreshToken so
+ *   that sessions survive page reloads. The backend's /auth/refresh endpoint
+ *   accepts the token in the request body (no HttpOnly cookie mechanism).
  */
 export class StorageManager {
   constructor({ local = window.localStorage, session = window.sessionStorage } = {}) {
@@ -99,6 +100,32 @@ export class StorageManager {
       id: this.getUserId(),
       profileId: this.getProfileId()
     };
+  }
+
+  /* ── Refresh token ── */
+
+  getRefreshToken() {
+    try {
+      return this.local.getItem(STORAGE_KEYS.refreshToken) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  setRefreshToken(token) {
+    try {
+      this.local.setItem(STORAGE_KEYS.refreshToken, token || '');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  clearRefreshToken() {
+    try {
+      this.local.removeItem(STORAGE_KEYS.refreshToken);
+    } catch {
+      /* ignore */
+    }
   }
 
   /* ── Edited-IDs session set ── */

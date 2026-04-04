@@ -38,11 +38,15 @@ export class ApiClient {
   }
 
   /**
-   * Store new tokens in memory and schedule a proactive refresh.
+   * Store new tokens in memory, persist the refresh token to storage so it
+   * survives page reloads, and schedule a proactive refresh.
    */
   setTokens(accessToken, refreshToken) {
     this._accessToken = accessToken || '';
-    if (refreshToken !== undefined) this._refreshToken = refreshToken || '';
+    if (refreshToken !== undefined) {
+      this._refreshToken = refreshToken || '';
+      this.storage?.setRefreshToken(this._refreshToken);
+    }
     this._scheduleRefresh();
   }
 
@@ -57,6 +61,7 @@ export class ApiClient {
   clearAuthToken() {
     this._accessToken = '';
     this._refreshToken = '';
+    this.storage?.clearRefreshToken();
     this._cancelRefresh();
   }
 
@@ -85,9 +90,17 @@ export class ApiClient {
   /**
    * Ask the backend for a new access token by sending the refresh token
    * in the request body. Returns `true` on success, `false` on failure.
+   *
+   * On page reload `_refreshToken` is empty; we first try to hydrate it from
+   * localStorage so the session can be restored without re-login.
    */
   async silentRefresh() {
-    if (!this._refreshToken) return false;
+    if (!this._refreshToken) {
+      // Fragile area: storage may throw or return stale data — hydrate defensively.
+      const stored = this.storage?.getRefreshToken() || '';
+      if (!stored) return false;
+      this._refreshToken = stored;
+    }
 
     // Deduplicate concurrent calls.
     if (this._refreshPromise) return this._refreshPromise;

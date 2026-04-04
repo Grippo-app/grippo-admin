@@ -33,7 +33,9 @@ export const STORAGE_KEYS = {
   viewMode: 'grippo_view_mode',
   edited: 'grippo_edited_ids',
   userId: 'grippo_admin_user_id',
-  profileId: 'grippo_admin_profile_id'
+  profileId: 'grippo_admin_profile_id',
+  /** Persisted refresh token (v2 key — v1 key was purged by migration). */
+  refreshToken: 'grippo_admin_refresh_v2'
 };
 
 /** Short-lived access token TTL (ms). Used to schedule silent refresh. */
