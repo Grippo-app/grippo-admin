@@ -15,7 +15,7 @@ export class UserListView {
     /**
      * @param {{
      *   store: UserStore,
-     *   els: { userList, userSearch, userSortToggle, userSortMenu, userSortLabel, userCount? },
+     *   els: { userList, userSearch, userSortMenu, userCount? },
      *   onSelect: (user) => void,
      *   sortOptions: Record<string, { label: string }>
      * }} deps
@@ -26,9 +26,7 @@ export class UserListView {
         this._onSelect = onSelect;
 
         this._sortMenu = new SortMenu({
-            toggleEl: els.userSortToggle,
-            menuEl: els.userSortMenu,
-            labelEl: els.userSortLabel,
+            containerEl: els.userSortMenu,
             options: sortOptions,
             active: store.getState().sortKey,
             onChange: (key) => store.setSortKey(key)

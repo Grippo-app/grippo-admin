@@ -1,73 +1,54 @@
+/**
+ * SortMenu — inline pill-group sort selector.
+ *
+ * Renders a flat row of pill buttons directly inside `containerEl`.
+ * No popup, no toggle button — the active sort is always visible.
+ *
+ * @param {{
+ *   containerEl: HTMLElement,   — .sort-group__pills wrapper
+ *   options:     Record<string, {label: string}>,
+ *   active:      string,        — initially active key
+ *   onChange:    (key: string) => void
+ * }} deps
+ */
 export class SortMenu {
-    constructor({toggleEl, menuEl, labelEl, options, active, onChange}) {
-        this._toggle = toggleEl;
-        this._menu = menuEl;
-        this._container = toggleEl?.closest('.dropdown') ?? menuEl?.parentElement;
-        this._label = labelEl;
+    constructor({containerEl, options, active, onChange}) {
+        this._container = containerEl;
         this._options = options;
         this._active = active;
         this._onChange = onChange;
-        this._open = false;
 
-        this._toggle?.addEventListener('click', () => this.toggle());
-        document.addEventListener('click', (e) => {
-            if (this._open && !this._menu?.contains(e.target) && e.target !== this._toggle) {
-                this.close();
-            }
-        });
-        this._renderItems();
-        this._updateLabel();
+        this._render();
     }
 
-    _renderItems() {
-        if (!this._menu) return;
-        this._menu.innerHTML = '';
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    setActive(key) {
+        if (key === this._active) return;
+        this._active = key;
+        this._render();
+    }
+
+    // ── Private ───────────────────────────────────────────────────────────────
+
+    _render() {
+        if (!this._container) return;
+        this._container.innerHTML = '';
+
         for (const [key, {label}] of Object.entries(this._options)) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.dataset.key = key;
             btn.textContent = label;
-            btn.className = 'sort-item' + (key === this._active ? ' sort-item--active' : '');
+            btn.className = 'sort-pill' + (key === this._active ? ' sort-pill--active' : '');
+            btn.setAttribute('aria-pressed', String(key === this._active));
             btn.addEventListener('click', () => {
+                if (key === this._active) return;
                 this._active = key;
-                this._updateLabel();
-                this._renderItems();
-                this.close();
+                this._render();
                 this._onChange?.(key);
             });
-            this._menu.appendChild(btn);
+            this._container.appendChild(btn);
         }
-    }
-
-    _updateLabel() {
-        if (this._label) this._label.textContent = this._options[this._active]?.label || '';
-    }
-
-    open() {
-        this._open = true;
-        this._container?.classList.add('open');
-        this._position();
-    }
-
-    close() {
-        this._open = false;
-        this._container?.classList.remove('open');
-    }
-
-    toggle() {
-        this._open ? this.close() : this.open();
-    }
-
-    _position() {
-        if (!this._toggle || !this._menu) return;
-        const rect = this._toggle.getBoundingClientRect();
-        this._menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
-        this._menu.style.left = `${rect.left + window.scrollX}px`;
-    }
-
-    setActive(key) {
-        this._active = key;
-        this._updateLabel();
-        this._renderItems();
     }
 }
