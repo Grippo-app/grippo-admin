@@ -46,13 +46,12 @@
 }
 .sort-dropdown.open .sort-toggle__chevron { transform: rotate(180deg); }
 
-/* Popup menu */
+/* Popup menu — fixed so it escapes command-bar's overflow:hidden */
 .sort-menu {
   display: none;
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  min-width: 100%;
+  position: fixed;
+  /* top / left set by JS (_position) */
+  min-width: 160px;
   flex-direction: column;
   gap: 1px;
   padding: 4px;
@@ -60,7 +59,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 6px 20px rgba(0,0,0,.25);
-  z-index: 100;
+  z-index: 1000;
 }
 .sort-dropdown.open .sort-menu { display: flex; }
 

@@ -1,9 +1,12 @@
 /**
  * SortMenu — popup dropdown sort selector.
  *
- * The outside-click handler uses `container.contains(e.target)` so clicks on
- * any child element (including <span> nodes inside the toggle button) are
- * correctly treated as "inside" — fixing the old e.target !== toggleEl bug.
+ * Uses position:fixed so the menu is never clipped by parent overflow:hidden
+ * (the command-bar has overflow-y:hidden which would cut off a position:absolute menu).
+ *
+ * The outside-click handler uses container.contains(e.target) so clicks on any
+ * child element of the toggle button (spans, icons) are correctly treated as
+ * "inside" — no stopPropagation needed.
  *
  * @param {{
  *   toggleEl:  HTMLButtonElement,
@@ -18,8 +21,6 @@ export class SortMenu {
     constructor({toggleEl, menuEl, labelEl, options, active, onChange}) {
         this._toggle    = toggleEl;
         this._menu      = menuEl;
-        // Use the shared container (.sort-dropdown) so contains() covers both
-        // the toggle button and the open menu
         this._container = toggleEl?.closest('.sort-dropdown') ?? menuEl?.parentElement;
         this._label     = labelEl;
         this._options   = options;
@@ -27,12 +28,11 @@ export class SortMenu {
         this._onChange  = onChange;
         this._open      = false;
 
-        this._toggle?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.toggle();
-        });
+        // No stopPropagation — the contains() check in the document listener
+        // already handles "click inside the toggle" correctly
+        this._toggle?.addEventListener('click', () => this.toggle());
 
-        // Close on any click outside the whole .sort-dropdown container
+        // Close when clicking anywhere outside the .sort-dropdown container
         document.addEventListener('click', (e) => {
             if (this._open && !this._container?.contains(e.target)) {
                 this.close();
@@ -62,6 +62,7 @@ export class SortMenu {
 
     open() {
         this._open = true;
+        this._position();
         this._container?.classList.add('open');
         this._toggle?.setAttribute('aria-expanded', 'true');
     }
@@ -77,6 +78,18 @@ export class SortMenu {
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    /**
+     * Pin the fixed-position menu directly below the toggle button.
+     * Must be called every time the menu opens so it tracks the button
+     * even if the page has scrolled.
+     */
+    _position() {
+        if (!this._toggle || !this._menu) return;
+        const rect = this._toggle.getBoundingClientRect();
+        this._menu.style.top  = `${rect.bottom + 5}px`;
+        this._menu.style.left = `${rect.left}px`;
+    }
 
     _renderItems() {
         if (!this._menu) return;
