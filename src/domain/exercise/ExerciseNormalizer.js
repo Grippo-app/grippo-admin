@@ -180,9 +180,7 @@ function normalizeComponents(source, previousEntity) {
         assistWeight = null;
     }
 
-    return {
-        components: {externalWeight, bodyWeight, extraWeight, assistWeight}
-    };
+    return {components: {externalWeight, bodyWeight, extraWeight, assistWeight}};
 }
 
 function emptyTemplate() {
