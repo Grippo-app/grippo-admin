@@ -29,19 +29,35 @@ export class ExerciseController {
     }
 
     async selectItem(item) {
+        const id = item.id ?? item.entity?.id;
         try {
             // Fetch all locales and merge
             const results = await Promise.all(
-                SUPPORTED_LANGUAGES.map(l => this._repo.fetchDetail(item.id, l).catch(() => null))
+                SUPPORTED_LANGUAGES.map(l => this._repo.fetchDetail(id, l).catch(() => null))
             );
             let canonical = ExerciseNormalizer.emptyTemplate();
-            for (const [i, raw] of results.entries()) {
+            for (const raw of results) {
                 if (raw) canonical = ExerciseNormalizer.mergeLocalizedEntity(canonical, raw);
             }
             this._store.setCurrent(canonical);
             this._bus.emit(Events.EXERCISE_SELECTED, canonical);
         } catch (err) {
             Toast.show({title: 'Failed to load exercise', message: err.message, type: 'error'});
+        }
+    }
+
+    async selectLocale(locale) {
+        const {current} = this._store.getState();
+        if (!current?.id) return;
+        this._store.setLocale(locale);
+        try {
+            const raw = await this._repo.fetchDetail(current.id, locale);
+            if (raw) {
+                const merged = ExerciseNormalizer.mergeLocalizedEntity(current, raw);
+                this._store.setCurrent(merged);
+            }
+        } catch (err) {
+            Toast.show({title: 'Failed to load locale', message: err.message, type: 'error'});
         }
     }
 

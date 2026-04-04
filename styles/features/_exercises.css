@@ -142,6 +142,7 @@
    JSON EDITOR
    ============================================================ */
 .json-wrap{
+  display: none;
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
@@ -149,6 +150,10 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--panel-2);
+}
+.json-wrap.show{
+  display: flex;
+  flex-direction: column;
 }
 .json-wrap textarea{
   width: 100%;
@@ -272,8 +277,8 @@
 
 /* Thumbnail */
 .ex-thumb-wrap{
-  width: 42px;
-  height: 42px;
+  width: 54px;
+  height: 54px;
   border-radius: var(--radius-sm);
   background: var(--field);
   border: 1px solid var(--border);

@@ -26,13 +26,14 @@ export class ExerciseFormView {
      *   onDelete: (id)     => Promise<void>
      * }} deps
      */
-    constructor({store, validator, dictionaries, els, onSave, onDelete}) {
+    constructor({store, validator, dictionaries, els, onSave, onDelete, onLocaleChange}) {
         this._store = store;
         this._validator = validator;
         this._dicts = dictionaries;
         this._els = els;
         this._onSave = onSave;
         this._onDelete = onDelete;
+        this._onLocaleChange = onLocaleChange;
 
         this._locale = store.getState().locale || DEFAULT_LANGUAGE;
         this._viewMode = store.getState().viewMode || 'form';
@@ -40,6 +41,9 @@ export class ExerciseFormView {
 
         this._bindEvents();
         store.subscribe((state) => this._onStateChange(state));
+
+        // Apply initial view mode so UI matches store state from the start
+        this._applyViewMode(this._viewMode);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -221,17 +225,21 @@ export class ExerciseFormView {
     // ── Private: state ────────────────────────────────────────────────────────
 
     _onStateChange({current, isNew, locale, viewMode}) {
-        if (locale && locale !== this._locale) {
-            this._locale = locale;
-            this._updateLocaleUI();
-        }
-        if (current) {
-            this._refreshOptionLists();
-            this.writeEntityToForm(current, this._locale);
-            this._updateLocaleUI();
-            this._updateCurrentId(current, isNew);
-            // Sync JSON editor if open
-            if (this._viewMode === 'json') this._populateJsonEditor(current);
+        // Always apply view mode — must run even if something below throws
+        try {
+            if (locale && locale !== this._locale) {
+                this._locale = locale;
+                this._updateLocaleUI();
+            }
+            if (current) {
+                this._refreshOptionLists();
+                this.writeEntityToForm(current, this._locale);
+                this._updateLocaleUI();
+                this._updateCurrentId(current, isNew);
+                if (this._viewMode === 'json') this._populateJsonEditor(current);
+            }
+        } catch (e) {
+            console.error('[ExerciseFormView] _onStateChange error:', e);
         }
         this._applyViewMode(viewMode);
     }
@@ -241,8 +249,15 @@ export class ExerciseFormView {
         const isJson = mode === 'json';
         this._viewMode = mode;
 
-        if (this._els.builder) this._els.builder.hidden = isJson;
-        if (this._els.editorWrap) this._els.editorWrap.hidden = !isJson;
+        // Use CSS class toggling — avoids conflict between hidden attribute and .show class
+        if (this._els.builder) {
+            this._els.builder.classList.toggle('show', !isJson);
+            this._els.builder.hidden = isJson;
+        }
+        if (this._els.editorWrap) {
+            this._els.editorWrap.classList.toggle('show', isJson);
+            this._els.editorWrap.hidden = !isJson;
+        }
 
         // Update segment button active states
         if (this._els.viewForm) this._els.viewForm.classList.toggle('active', !isJson);
@@ -542,9 +557,14 @@ export class ExerciseFormView {
                 const entity = this.readFormToEntity();
                 this._store.setCurrent(entity);
                 this._locale = lang;
-                this._store.setLocale(lang);
                 this._updateLocaleUI();
-                this.writeEntityToForm(this._store.getState().current, lang);
+                // If handler provided — delegate (triggers API fetch + setCurrent → re-render)
+                if (this._onLocaleChange) {
+                    this._onLocaleChange(lang);
+                } else {
+                    this._store.setLocale(lang);
+                    this.writeEntityToForm(this._store.getState().current, lang);
+                }
             });
         });
 

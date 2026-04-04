@@ -88,10 +88,19 @@ const exerciseListView = new ExerciseListView({
     onSelect: (item) => exerciseController.selectItem(item),
     onNew: () => exerciseController.newItem(),
     onLoad: () => exerciseController.loadList(),
-    getItemName: (item) => ExerciseNormalizer.getTranslation(
-        ExerciseNormalizer.ensureTranslationMap(item?.entity?.nameTranslations),
-        DEFAULT_LANGUAGE
-    ) || item?.name || '',
+    getItemName: (item) => {
+        const nameTranslations = item?.entity?.nameTranslations ?? item?.nameTranslations;
+        const fromMap = ExerciseNormalizer.getTranslation(
+            ExerciseNormalizer.ensureTranslationMap(nameTranslations),
+            DEFAULT_LANGUAGE
+        );
+        if (fromMap) return fromMap;
+        if (Array.isArray(item?.name)) {
+            const en = item.name.find(e => e.language === 'en');
+            return en?.value || en?.name || item.name[0]?.value || '';
+        }
+        return typeof item?.name === 'string' ? item.name : '';
+    },
     sortOptions: exerciseSortOptions,
 });
 
@@ -156,6 +165,7 @@ const exerciseFormView = new ExerciseFormView({
     },
     onSave: (entity) => exerciseController.saveItem(entity),
     onDelete: (id) => exerciseController.deleteItem(id),
+    onLocaleChange: (locale) => exerciseController.selectLocale(locale),
 });
 
 // exerciseController forward-declared; defined below

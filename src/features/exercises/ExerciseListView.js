@@ -62,7 +62,8 @@ export class ExerciseListView {
         for (const item of filtered) {
             const el = document.createElement('div');
             el.dataset.id = item.id;
-            el.className = 'item exercise-item' + (item.id === current?.id ? ' active' : '');
+            const itemId = item.id ?? item.entity?.id;
+            el.className = 'item exercise-item' + (current != null && itemId === current.id ? ' active' : '');
             el.setAttribute('role', 'option');
             el.tabIndex = 0;
 
