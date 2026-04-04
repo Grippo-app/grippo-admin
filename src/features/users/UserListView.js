@@ -96,13 +96,15 @@ export class UserListView {
             el.innerHTML = `
                 <div class="user-badge" style="background:${bg};color:${color};border-color:${color}33" aria-hidden="true">${badge}</div>
                 <div class="user-copy">
-                    <div class="user-name">${displayName}</div>
+                    <div class="user-name-row">
+                        <span class="user-name">${displayName}</span>
+                        ${noProfileChip}
+                    </div>
                     ${emailLine}
                     ${metaHtml}
                 </div>
                 <div class="user-tags">
                     <div class="user-auth-icons">${authIconsHtml}</div>
-                    ${noProfileChip}
                     <span class="${roleClass} user-role">${user.role}</span>
                 </div>
             `;

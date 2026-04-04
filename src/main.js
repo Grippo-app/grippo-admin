@@ -89,17 +89,22 @@ const exerciseListView = new ExerciseListView({
     onNew: () => exerciseController.newItem(),
     onLoad: () => exerciseController.loadList(),
     getItemName: (item) => {
-        const nameTranslations = item?.entity?.nameTranslations ?? item?.nameTranslations;
+        const entity = item?.entity || item;
+        // Try nameTranslations map (en first)
+        const nameTranslations = entity?.nameTranslations ?? item?.nameTranslations;
         const fromMap = ExerciseNormalizer.getTranslation(
             ExerciseNormalizer.ensureTranslationMap(nameTranslations),
             DEFAULT_LANGUAGE
         );
         if (fromMap) return fromMap;
-        if (Array.isArray(item?.name)) {
-            const en = item.name.find(e => e.language === 'en');
-            return en?.value || en?.name || item.name[0]?.value || '';
+        // Fallback to plain name string on entity
+        if (typeof entity?.name === 'string' && entity.name) return entity.name;
+        // Handle localized array format
+        if (Array.isArray(entity?.name)) {
+            const en = entity.name.find(e => e.language === 'en');
+            return en?.value || en?.name || entity.name[0]?.value || '';
         }
-        return typeof item?.name === 'string' ? item.name : '';
+        return '';
     },
     sortOptions: exerciseSortOptions,
 });

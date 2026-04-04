@@ -29,7 +29,8 @@ export class ExerciseController {
     }
 
     async selectItem(item) {
-        const id = item.id ?? item.entity?.id;
+        // entity.id is the real exercise ID; item.id is the list-wrapper ID
+        const id = item.entity?.id || item.id;
         try {
             // Fetch all locales and merge
             const results = await Promise.all(
@@ -48,10 +49,11 @@ export class ExerciseController {
 
     async selectLocale(locale) {
         const {current} = this._store.getState();
-        if (!current?.id) return;
+        const id = current?.entity?.id || current?.id;
+        if (!id) return;
         this._store.setLocale(locale);
         try {
-            const raw = await this._repo.fetchDetail(current.id, locale);
+            const raw = await this._repo.fetchDetail(id, locale);
             if (raw) {
                 const merged = ExerciseNormalizer.mergeLocalizedEntity(current, raw);
                 this._store.setCurrent(merged);
