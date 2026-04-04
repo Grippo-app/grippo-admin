@@ -51,9 +51,15 @@
     <!-- Command bar: sticky below header -->
     <div id="commandBar" class="command-bar">
       <input id="search" type="search" placeholder="Search by name…"/>
-      <div class="sort-group" role="group" aria-label="Exercise sort">
-        <span class="sort-group__label">Sort</span>
-        <div id="sortMenu" class="sort-group__pills"></div>
+      <div id="sortDropdown" class="sort-dropdown">
+        <button id="sortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span class="sort-toggle__label">Sort</span>
+          <span class="sort-toggle__sep">·</span>
+          <span id="sortLabel" class="sort-toggle__value">Name</span>
+          <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="sortMenu" class="sort-menu" role="menu" aria-label="Exercise sorting"></div>
       </div>
       <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
       <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
@@ -302,9 +308,15 @@
   <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
     <div id="usersCommandBar" class="command-bar users-command">
       <input id="userSearch" type="search" placeholder="Search by email or name" />
-      <div class="sort-group" role="group" aria-label="User sort">
-        <span class="sort-group__label">Sort</span>
-        <div id="userSortMenu" class="sort-group__pills"></div>
+      <div id="userSortDropdown" class="sort-dropdown">
+        <button id="userSortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
+          <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span class="sort-toggle__label">Sort</span>
+          <span class="sort-toggle__sep">·</span>
+          <span id="userSortLabel" class="sort-toggle__value">Creation date</span>
+          <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="userSortMenu" class="sort-menu" role="menu" aria-label="User sorting"></div>
       </div>
       <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
 

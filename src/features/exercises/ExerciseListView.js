@@ -23,7 +23,7 @@ export class ExerciseListView {
     /**
      * @param {{
      *   store: ExerciseStore,
-     *   els: { list, search, clearSearch, sortMenu, newBtn, loadBtn },
+     *   els: { list, search, clearSearch, sortToggle, sortMenu, sortLabel, newBtn, loadBtn },
      *   onSelect: (item) => void,
      *   onNew: () => void,
      *   onLoad: () => void,
@@ -38,9 +38,11 @@ export class ExerciseListView {
         this._getItemName = getItemName;
 
         this._sortMenu = new SortMenu({
-            containerEl: els.sortMenu,
-            options: sortOptions,
-            active: store.getState().sortKey,
+            toggleEl: els.sortToggle,
+            menuEl:   els.sortMenu,
+            labelEl:  els.sortLabel,
+            options:  sortOptions,
+            active:   store.getState().sortKey,
             onChange: (key) => store.setSortKey(key)
         });
 

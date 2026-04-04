@@ -1,67 +1,103 @@
 /* ============================================================
-   SORT GROUP — inline pill selector (no popup)
-   Follows the same visual language as .locale-switcher
+   SORT DROPDOWN
    ============================================================ */
 
-.sort-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+/* Container — anchor for the absolute popup */
+.sort-dropdown {
+  position: relative;
   flex-shrink: 0;
 }
 
-.sort-group__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .05em;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.sort-group__pills {
-  display: flex;
+/* Toggle button */
+.sort-toggle {
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--field);
-}
-
-/* Individual pill button */
-.sort-pill {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  font: 600 12px/1 inherit;
+  gap: 5px;
   padding: 5px 10px;
-  border-radius: 6px;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background .15s, color .15s;
+  transition: background .15s, border-color .15s;
+  user-select: none;
 }
-
-.sort-pill:hover,
-.sort-pill:focus {
-  background: var(--field-hover);
-  color: var(--text);
+.sort-toggle:hover { background: var(--field-hover); }
+.sort-toggle:focus-visible {
   outline: none;
-}
-
-.sort-pill:focus-visible {
   box-shadow: 0 0 0 2px rgba(91,156,245,.4);
 }
-
-/* Active / selected pill */
-.sort-pill--active {
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
-  cursor: default;
+.sort-dropdown.open .sort-toggle {
+  background: var(--field-hover);
+  border-color: var(--brand);
 }
 
-.sort-pill--active:hover {
+.sort-toggle__icon  { color: var(--muted); flex-shrink: 0; }
+.sort-toggle__label { color: var(--muted); font-size: 12px; font-weight: 500; }
+.sort-toggle__sep   { color: var(--muted); font-size: 12px; }
+.sort-toggle__value { font-weight: 600; }
+.sort-toggle__chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform .18s;
+}
+.sort-dropdown.open .sort-toggle__chevron { transform: rotate(180deg); }
+
+/* Popup menu */
+.sort-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 100%;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
   background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  z-index: 100;
+}
+.sort-dropdown.open .sort-menu { display: flex; }
+
+/* Menu items */
+.sort-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.sort-menu__item:hover,
+.sort-menu__item:focus { background: var(--field-hover); outline: none; }
+
+/* Checkmark for active item */
+.sort-menu__item::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.sort-menu__item--active {
+  font-weight: 600;
+}
+.sort-menu__item--active::before {
+  content: '';
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14' fill='none'%3E%3Cpath d='M2.5 7L5.5 10L11.5 4' stroke='%235b9cf5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
 }

@@ -317,6 +317,8 @@
   color: #e5484d;
   font-size: 10px;
   letter-spacing: .02em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .pill-admin{
   background: rgba(48,164,108,.12);
