@@ -84,9 +84,13 @@ export class UserListView {
                 ? `<div class="user-meta">${metaParts.join('<span class="user-meta-sep">·</span>')}</div>`
                 : '';
 
+            const hasProfile = Boolean(user.name);
             const displayName = user.name || user.email || user.id;
             const emailLine = user.name && user.email
                 ? `<div class="user-email">${user.email}</div>`
+                : '';
+            const noProfileChip = !hasProfile
+                ? `<span class="pill pill-no-profile" aria-label="No profile">no profile</span>`
                 : '';
 
             el.innerHTML = `
@@ -98,6 +102,7 @@ export class UserListView {
                 </div>
                 <div class="user-tags">
                     <div class="user-auth-icons">${authIconsHtml}</div>
+                    ${noProfileChip}
                     <span class="${roleClass} user-role">${user.role}</span>
                 </div>
             `;

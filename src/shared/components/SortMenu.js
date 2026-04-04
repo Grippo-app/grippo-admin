@@ -2,6 +2,7 @@ export class SortMenu {
     constructor({toggleEl, menuEl, labelEl, options, active, onChange}) {
         this._toggle = toggleEl;
         this._menu = menuEl;
+        this._container = toggleEl?.closest('.dropdown') ?? menuEl?.parentElement;
         this._label = labelEl;
         this._options = options;
         this._active = active;
@@ -44,13 +45,13 @@ export class SortMenu {
 
     open() {
         this._open = true;
-        this._menu?.classList.add('open');
+        this._container?.classList.add('open');
         this._position();
     }
 
     close() {
         this._open = false;
-        this._menu?.classList.remove('open');
+        this._container?.classList.remove('open');
     }
 
     toggle() {
