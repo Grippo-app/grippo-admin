@@ -46,10 +46,16 @@ export class UserController {
     async changeRole(role) {
         const {active} = this._store.getState();
         if (!active) return;
+        if (active.role === role) return; // уже эта роль — нечего менять
         this._store.setRoleChangeInFlight(true);
         try {
             const updated = await this._repo.setRole(active.id, role);
-            const normalized = UserEntity.normalize(updated);
+            // Если бэкенд ответил пустым телом / странной формой — мерджим локально с новой ролью,
+            // чтобы UI не оказался с пустыми полями юзера.
+            const merged = (updated && typeof updated === 'object')
+                ? {...active.raw, ...updated, id: active.id, role}
+                : {...active.raw, id: active.id, role};
+            const normalized = UserEntity.normalize(merged);
             this._store.updateUser(normalized);
             this._bus.emit(Events.USER_ROLE_CHANGED, normalized);
             Toast.show({title: `Role changed to ${role}`});

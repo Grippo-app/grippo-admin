@@ -46,7 +46,10 @@ export class ExerciseRepository {
             const text = await resp.text();
             throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
         }
-        return resp.json().catch(() => null);
+        // Some backends respond 204 / empty body on PUT — синтезируем минимальный ответ,
+        // чтобы вызывающий код мог надёжно обновить локальный кэш.
+        const fallback = {id, entity: {...payload, id}};
+        return resp.json().catch(() => fallback);
     }
 
     async delete(id) {

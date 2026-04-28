@@ -19,12 +19,12 @@ export class LoginView {
     }
 
     show() {
-        if (this._els.overlay) this._els.overlay.style.display = 'flex';
+        if (this._els.overlay) this._els.overlay.hidden = false;
         this._els.emailInput?.focus();
     }
 
     hide() {
-        if (this._els.overlay) this._els.overlay.style.display = 'none';
+        if (this._els.overlay) this._els.overlay.hidden = true;
         this._clearError();
     }
 
@@ -61,12 +61,12 @@ export class LoginView {
     _showError(msg) {
         if (!this._els.errorEl) return;
         this._els.errorEl.textContent = msg;
-        this._els.errorEl.style.display = 'block';
+        this._els.errorEl.hidden = false;
     }
 
     _clearError() {
         if (!this._els.errorEl) return;
         this._els.errorEl.textContent = '';
-        this._els.errorEl.style.display = 'none';
+        this._els.errorEl.hidden = true;
     }
 }

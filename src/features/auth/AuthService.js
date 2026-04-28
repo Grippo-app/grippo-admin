@@ -24,10 +24,20 @@ export class AuthService {
      * Tries to restore session via refresh token (from memory or localStorage).
      */
     async tryRestoreSession() {
-        const ok = await this._api.silentRefresh();
+        // Если refresh-токена нет вообще — это первый заход / разлогинились.
+        // Не показываем «Session expired», просто эмитим LOGOUT → LoginView.show().
+        const hasRefresh = !!this._storage.getRefreshToken();
+        if (!hasRefresh) {
+            this._bus.emit(Events.AUTH_LOGOUT);
+            return false;
+        }
+        // force:false — при бутстрапе мы сами решаем, как реагировать (показ login overlay),
+        // не надо чтобы ApiClient ещё раз дёргал onSessionExpired (двойной emit).
+        const ok = await this._api.silentRefresh({force: false});
         if (ok) {
             await this._emitLoginSuccess();
         } else {
+            // Токен был, но рефреш упал — реальное "истечение сессии"
             this._bus.emit(Events.AUTH_SESSION_EXPIRED);
         }
         return ok;

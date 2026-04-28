@@ -1,5 +1,6 @@
 import {SortMenu} from '../../shared/components/SortMenu.js';
 import {FIELD} from '../../shared/constants/index.js';
+import {escapeHtml, safeUrl} from '../../shared/utils/index.js';
 
 const CATEGORY_PILL = {
     compound: 'pill-compound',
@@ -23,7 +24,7 @@ export class ExerciseListView {
     /**
      * @param {{
      *   store: ExerciseStore,
-     *   els: { list, search, clearSearch, sortToggle, sortMenu, sortLabel, newBtn, loadBtn },
+     *   els: { list, search, sortToggle, sortMenu, sortLabel, newBtn, loadBtn },
      *   onSelect: (item) => void,
      *   onNew: () => void,
      *   onLoad: () => void,
@@ -47,7 +48,12 @@ export class ExerciseListView {
         });
 
         this._bindEvents(onNew, onLoad);
-        store.subscribe(() => this.render());
+        this._unsubscribe = store.subscribe(() => this.render());
+    }
+
+    destroy() {
+        this._unsubscribe?.();
+        this._unsubscribe = null;
     }
 
     render() {
@@ -61,9 +67,9 @@ export class ExerciseListView {
         this._els.list.innerHTML = '';
         for (const item of filtered) {
             const el = document.createElement('div');
-            el.dataset.id = item.id;
             // Compare via entity.id (real exercise ID), not the list-wrapper item.id
             const entityId = item.entity?.id || item.id;
+            el.dataset.id = entityId || '';
             el.className = 'item exercise-item' + (current != null && entityId === current.id ? ' active' : '');
             el.setAttribute('role', 'option');
             el.tabIndex = 0;
@@ -82,9 +88,9 @@ export class ExerciseListView {
             const weightLabel = WEIGHT_LABEL[weightType] || weightType;
 
             const pillsHtml = [
-                category ? `<span class="pill ${catClass} ex-pill">${category}</span>` : '',
-                experience ? `<span class="pill ${expClass} ex-pill">${experience}</span>` : '',
-                weightLabel ? `<span class="pill pill-subtle ex-pill">${weightLabel}</span>` : '',
+                category ? `<span class="pill ${catClass} ex-pill">${escapeHtml(category)}</span>` : '',
+                experience ? `<span class="pill ${expClass} ex-pill">${escapeHtml(experience)}</span>` : '',
+                weightLabel ? `<span class="pill pill-subtle ex-pill">${escapeHtml(weightLabel)}</span>` : '',
             ].filter(Boolean).join('');
 
             const statsHtml = [
@@ -92,13 +98,14 @@ export class ExerciseListView {
                 equipCount ? `${equipCount} equip` : '',
             ].filter(Boolean).join('<span class="ex-stat-sep">·</span>');
 
-            const thumbHtml = imageUrl
-                ? `<div class="ex-thumb-wrap"><img src="${imageUrl}" alt="" loading="lazy"/></div>`
+            const safeImg = safeUrl(imageUrl);
+            const thumbHtml = safeImg
+                ? `<div class="ex-thumb-wrap"><img src="${safeImg}" alt="" loading="lazy"/></div>`
                 : `<div class="ex-thumb-wrap ex-thumb-empty">—</div>`;
 
             el.innerHTML = `
                 <div class="exercise-main">
-                    <div class="exercise-name">${name || '(no name)'}</div>
+                    <div class="exercise-name">${escapeHtml(name) || '(no name)'}</div>
                     ${pillsHtml ? `<div class="exercise-pills">${pillsHtml}</div>` : ''}
                     ${statsHtml ? `<div class="exercise-stats">${statsHtml}</div>` : ''}
                 </div>
@@ -114,10 +121,8 @@ export class ExerciseListView {
         this._els.search?.addEventListener('input', (e) => {
             this._store.setSearchQuery(e.target.value);
         });
-        this._els.clearSearch?.addEventListener('click', () => {
-            if (this._els.search) this._els.search.value = '';
-            this._store.setSearchQuery('');
-        });
+        // Native <input type="search"> sends input event with empty value when user clears it,
+        // so отдельная кнопка "clear" не нужна — событие input поднимет setSearchQuery('').
         this._els.newBtn?.addEventListener('click', onNew);
         this._els.loadBtn?.addEventListener('click', onLoad);
     }

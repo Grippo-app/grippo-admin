@@ -1,5 +1,6 @@
 import {SortMenu} from '../../shared/components/SortMenu.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
+import {escapeHtml} from '../../shared/utils/index.js';
 
 const AVATAR_COLORS = [
     {bg: 'rgba(91,156,245,.15)', color: '#5b9cf5'},
@@ -36,7 +37,12 @@ export class UserListView {
 
         els.userSearch?.addEventListener('input', (e) => store.setSearchQuery(e.target.value));
 
-        store.subscribe(() => this.render());
+        this._unsubscribe = store.subscribe(() => this.render());
+    }
+
+    destroy() {
+        this._unsubscribe?.();
+        this._unsubscribe = null;
     }
 
     render() {
@@ -68,7 +74,7 @@ export class UserListView {
             el.tabIndex = 0;
 
             const key = user.email || user.id || '?';
-            const badge = key[0].toUpperCase();
+            const badge = escapeHtml(key[0].toUpperCase());
             const {bg, color} = this._avatarColor(key);
             const roleClass = user.role === 'admin' ? 'pill pill-admin' : 'pill pill-subtle';
 
@@ -78,7 +84,7 @@ export class UserListView {
                 ? `<span class="user-workouts">${user.workoutsCount} workouts</span>`
                 : '';
             const datePart = user.createdAt
-                ? `<span class="user-item-date">${this._relativeDate(user.createdAt)}</span>`
+                ? `<span class="user-item-date">${escapeHtml(this._relativeDate(user.createdAt))}</span>`
                 : '';
             const metaParts = [workoutsPart, datePart].filter(Boolean);
             const metaHtml = metaParts.length
@@ -86,9 +92,9 @@ export class UserListView {
                 : '';
 
             const hasProfile = Boolean(user.name);
-            const displayName = user.name || user.email || user.id;
+            const displayName = escapeHtml(user.name || user.email || user.id);
             const emailLine = user.name && user.email
-                ? `<div class="user-email">${user.email}</div>`
+                ? `<div class="user-email">${escapeHtml(user.email)}</div>`
                 : '';
             const noProfileChip = !hasProfile
                 ? `<span class="pill pill-no-profile" aria-label="No profile">no profile</span>`
@@ -106,7 +112,7 @@ export class UserListView {
                 </div>
                 <div class="user-tags">
                     <div class="user-auth-icons">${authIconsHtml}</div>
-                    <span class="${roleClass} user-role">${user.role}</span>
+                    <span class="${roleClass} user-role">${escapeHtml(user.role)}</span>
                 </div>
             `;
 
@@ -141,7 +147,8 @@ export class UserListView {
         if (!authTypes.length) return '';
         return authTypes.map(type => {
             const {label, svg} = getAuthIcon(type);
-            return `<span class="user-auth-icon" title="${label}" aria-label="${label}">${svg}</span>`;
+            const safeLabel = escapeHtml(label);
+            return `<span class="user-auth-icon" title="${safeLabel}" aria-label="${safeLabel}">${svg}</span>`;
         }).join('');
     }
 }

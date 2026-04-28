@@ -40,6 +40,15 @@ export class ExerciseStore {
         this._update({current: exercise, isNew: false});
     }
 
+    /**
+     * Точечное обновление полей current без сброса isNew.
+     * Использовать для inline-правок формы (equipment, bundles, view-mode flush, etc.).
+     */
+    patchCurrent(patch) {
+        const merged = {...(this._state.current || {}), ...(patch || {})};
+        this._update({current: merged});
+    }
+
     setNew(exercise) {
         this._update({current: exercise, isNew: true});
     }
@@ -72,14 +81,27 @@ export class ExerciseStore {
         this._update({isSaving: v});
     }
 
-    /** Update items list after save (replace or append). */
+    /**
+     * Update items list after save (replace or append).
+     * Сравнивает по entity.id, потому что список приходит как { id, entity: { id } },
+     * а после save сервер может вернуть либо обёртку, либо «голую» сущность.
+     */
     upsertItem(item) {
-        const items = this._state.items.filter(i => i.id !== item.id).concat(item);
+        if (!item || typeof item !== 'object') return;
+        const newId = item.entity?.id || item.id;
+        if (!newId) {
+            // нет идентификатора — просто добавляем, не трогая существующее
+            this.setItems([...this._state.items, item]);
+            return;
+        }
+        const items = this._state.items
+            .filter(i => (i?.entity?.id || i?.id) !== newId)
+            .concat(item);
         this.setItems(items);
     }
 
     removeItem(id) {
-        const items = this._state.items.filter(i => i.id !== id);
+        const items = this._state.items.filter(i => (i?.entity?.id || i?.id) !== id);
         this.setItems(items);
     }
 

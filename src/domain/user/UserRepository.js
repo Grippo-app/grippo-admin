@@ -32,7 +32,8 @@ export class UserRepository {
             const text = await resp.text();
             throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
         }
-        return resp.json();
+        // 204 / пустое тело — синтезируем минимальный ответ, иначе .json() кинет.
+        return resp.json().catch(() => ({id, role}));
     }
 
     async delete(id) {

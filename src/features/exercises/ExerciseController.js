@@ -13,6 +13,8 @@ export class ExerciseController {
 
         // Monotonically increasing ID used to discard stale selectItem responses
         this._selectSeq = 0;
+        // Отдельный seq для смены локали (selectLocale)
+        this._localeSeq = 0;
 
         bus.on(Events.AUTH_LOGIN_SUCCESS, () => this.loadList());
         bus.on(Events.AUTH_LOGOUT, () => this._store.setItems([]));
@@ -23,7 +25,9 @@ export class ExerciseController {
         this._store.setLoading(true);
         try {
             const raw = await this._repo.fetchList();
-            this._store.setItems(Array.isArray(raw) ? raw : []);
+            const list = Array.isArray(raw) ? raw : [];
+            this._store.setItems(list);
+            this._bus.emit(Events.EXERCISE_LIST_LOADED, list);
         } catch (err) {
             Toast.show({title: 'Failed to load exercises', message: err.message, type: 'error'});
         } finally {
@@ -55,6 +59,13 @@ export class ExerciseController {
             // Another selection started while we were in-flight — discard this result
             if (seq !== this._selectSeq) return;
 
+            // Если ни одна локаль не пришла — это либо сетевой сбой, либо id невалиден.
+            // Не подсовываем пустой шаблон вместо реальных данных.
+            if (responses.every(({raw}) => !raw)) {
+                Toast.show({title: 'Failed to load exercise', message: 'No data returned for any locale', type: 'error'});
+                return;
+            }
+
             let canonical = ExerciseNormalizer.emptyTemplate();
             canonical.id = id; // ensure correct ID from the start
 
@@ -79,22 +90,36 @@ export class ExerciseController {
     }
 
     async selectLocale(locale) {
-        const {current} = this._store.getState();
+        const {current, isNew} = this._store.getState();
         const id = current?.id;
         if (!id) return;
+        // Для свежесозданного, ещё не сохранённого упражнения тянуть с сервера нечего
+        if (isNew) {
+            this._store.setLocale(locale);
+            this._bus.emit(Events.EXERCISE_LOCALE_CHANGED, {locale});
+            return;
+        }
+        const seq = ++this._localeSeq;
         this._store.setLocale(locale);
+        this._bus.emit(Events.EXERCISE_LOCALE_CHANGED, {locale});
         try {
             const raw = await this._repo.fetchDetail(id, locale);
+            if (seq !== this._localeSeq) return; // stale, more recent locale switch is in flight
             if (!raw) return;
             const entityData = raw.entity || raw;
             const normalized = ExerciseNormalizer.normalizeEntityShape(entityData, {
                 locale,
                 previous: current,
             });
-            const merged = ExerciseNormalizer.mergeLocalizedEntity(current, normalized);
-            this._store.setCurrent(merged);
+            // Берём актуальный current из стора — пока ходили на сервер, юзер мог что-то напечатать,
+            // и FormView успел зафлэшить правки в стор перед переключением локали.
+            const base = this._store.getState().current || current;
+            const merged = ExerciseNormalizer.mergeLocalizedEntity(base, normalized);
+            this._store.patchCurrent(merged);
         } catch (err) {
-            Toast.show({title: 'Failed to load locale', message: err.message, type: 'error'});
+            if (seq === this._localeSeq) {
+                Toast.show({title: 'Failed to load locale', message: err.message, type: 'error'});
+            }
         }
     }
 
@@ -112,20 +137,22 @@ export class ExerciseController {
             const saved = isNew
                 ? await this._repo.create(payload)
                 : await this._repo.update(entityId, payload);
-            // After save, re-select to get fresh server data
-            const savedEntity = saved?.entity || saved;
-            if (savedEntity?.id) {
-                const refreshed = ExerciseNormalizer.normalizeEntityShape(savedEntity, {
-                    locale: this._store.getState().locale,
-                    previous: current,
-                });
-                this._store.upsertItem(saved);
-                this._store.setCurrent(refreshed);
-            } else {
-                this._store.upsertItem(saved);
-                this._store.setCurrent(saved);
-            }
-            this._bus.emit(Events.EXERCISE_SAVED, saved);
+            // After save, re-select to get fresh server data.
+            // Если сервер вернул пустое/неполное тело — синтезируем минимальный ответ
+            // на основе того, что отправили. Это исключает падение upsertItem(null).
+            const savedEntity = saved?.entity || (saved && typeof saved === 'object' ? saved : null) || {...entity, id: entityId};
+            const finalId = savedEntity?.id || entityId;
+            const safeListItem = saved && typeof saved === 'object'
+                ? (saved.entity ? saved : {id: finalId, entity: savedEntity})
+                : {id: finalId, entity: savedEntity};
+
+            const refreshed = ExerciseNormalizer.normalizeEntityShape(savedEntity, {
+                locale: this._store.getState().locale,
+                previous: current,
+            });
+            this._store.upsertItem(safeListItem);
+            this._store.setCurrent(refreshed);
+            this._bus.emit(Events.EXERCISE_SAVED, safeListItem);
             Toast.show({title: isNew ? 'Created' : 'Saved'});
         } catch (err) {
             Toast.show({title: 'Save failed', message: err.message, type: 'error'});

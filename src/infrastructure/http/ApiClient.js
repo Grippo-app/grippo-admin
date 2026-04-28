@@ -44,7 +44,8 @@ export class ApiClient {
         this._cancelRefresh();
         if (!this._accessToken) return;
         const delay = Math.max(ACCESS_TOKEN_TTL_MS - 60_000, 5_000);
-        this._refreshTimer = setTimeout(() => this.silentRefresh(), delay);
+        // Таймерный рефреш не разлогинивает при сбое — попытаемся ещё раз через минуту.
+        this._refreshTimer = setTimeout(() => this.silentRefresh({force: false}), delay);
     }
 
     _cancelRefresh() {
@@ -54,10 +55,17 @@ export class ApiClient {
         }
     }
 
-    async silentRefresh() {
+    /**
+     * @param {{force?: boolean}} opts force=true — при провале сразу разлогинить
+     *                                  (используется при ответе 401 от защищённого запроса).
+     */
+    async silentRefresh({force = true} = {}) {
         if (!this._refreshToken) {
             const stored = this.storage?.getRefreshToken() || '';
-            if (!stored) return false;
+            if (!stored) {
+                if (force) this.onSessionExpired?.();
+                return false;
+            }
             this._refreshToken = stored;
         }
         if (this._refreshPromise) return this._refreshPromise;
@@ -73,8 +81,14 @@ export class ApiClient {
                 this.setTokens(data.accessToken, data.refreshToken);
                 return true;
             } catch {
-                this.clearAuthToken();
-                this.onSessionExpired?.();
+                if (force) {
+                    this.clearAuthToken();
+                    this.onSessionExpired?.();
+                } else {
+                    // Таймерный рефреш — попробуем ещё через минуту, не теряя сессию.
+                    this._cancelRefresh();
+                    this._refreshTimer = setTimeout(() => this.silentRefresh({force: false}), 60_000);
+                }
                 return false;
             } finally {
                 this._refreshPromise = null;

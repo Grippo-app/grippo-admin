@@ -16,7 +16,7 @@
   </header>
 
   <!-- Login overlay -->
-  <div id="loginOverlay" class="login-overlay" style="display:none;">
+  <div id="loginOverlay" class="login-overlay" hidden>
     <form id="loginForm" class="login-form">
       <h2>Sign in</h2>
       <div class="field">
@@ -27,7 +27,7 @@
         <label for="loginPassword">Password</label>
         <input id="loginPassword" type="password" placeholder="Password" required />
       </div>
-      <div id="loginError" class="error" style="display:none"></div>
+      <div id="loginError" class="error" hidden></div>
       <button id="loginBtn" class="btn" type="submit">Login</button>
     </form>
   </div>
@@ -42,12 +42,12 @@
       <div id="confirmDetail" class="confirm-detail" hidden></div>
       <div class="confirm-actions">
         <button id="confirmCancel" class="btn muted" type="button">Cancel</button>
-        <button id="confirmAccept" class="btn danger" type="button">Delete</button>
+        <button id="confirmAccept" class="btn danger" type="button"><span id="confirmAcceptLabel">Delete</span></button>
       </div>
     </div>
   </div>
 
-  <div id="exerciseView" class="primary-view active" aria-labelledby="tabExercise" role="tabpanel">
+  <div id="exerciseView" class="primary-view" aria-labelledby="tabExercise" role="tabpanel">
     <!-- Command bar: sticky below header -->
     <div id="commandBar" class="command-bar">
       <input id="search" type="search" placeholder="Search by name…"/>
@@ -69,7 +69,7 @@
       <span id="currentId" class="hint">No item selected</span>
       <span id="jsonStatus" class="status warn">Waiting…</span>
 
-      <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" style="display:none;">
+      <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" hidden>
         <button type="button" class="locale-btn" data-locale="en">EN</button>
         <button type="button" class="locale-btn" data-locale="ua">UA</button>
         <button type="button" class="locale-btn" data-locale="ru">RU</button>
@@ -86,7 +86,7 @@
       <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
       <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
       <button id="promptRulesBtn" class="btn gpt" title="Build Rules Prompt">GPT Rules</button>
-      <button id="saveBtn" class="btn" disabled title="Save changes">Save</button>
+      <button id="saveBtn" class="btn" type="button" title="Save changes">Save</button>
       </div>
     </div>
 
@@ -393,31 +393,6 @@
       </section>
     </div>
   </section>
-
-  <template id="itemTemplate">
-    <div class="item" role="option" tabindex="0">
-      <img class="thumb" alt="" />
-      <div class="name"></div>
-      <div class="meta">
-        <span class="pill usage"></span>
-        <span class="lastUsed"></span>
-      </div>
-    </div>
-  </template>
-
-  <template id="userItemTemplate">
-    <div class="item user-item" role="option" tabindex="0">
-      <div class="user-badge" aria-hidden="true"></div>
-      <div class="user-copy">
-        <div class="user-name"></div>
-        <div class="user-email"></div>
-      </div>
-      <div class="user-tags">
-        <div class="user-auth" aria-label="Auth types"></div>
-        <span class="pill user-role"></span>
-      </div>
-    </div>
-  </template>
 
   <script type="module" src="./src/main.js"></script>
 </body>

@@ -65,10 +65,12 @@ export class UserStore {
 
     _update(patch) {
         this._state = {...this._state, ...patch};
-        for (const fn of this._observers) try {
-            fn(this._state);
-        } catch (e) {
-            console.error(e);
+        for (const fn of this._observers) {
+            try {
+                fn(this._state);
+            } catch (e) {
+                console.error('[UserStore]', e);
+            }
         }
     }
 

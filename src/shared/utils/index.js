@@ -1,20 +1,16 @@
-export function toast({title, message = '', type = 'success', ms = 3000}) {
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.innerHTML = `<div class="title">${title}</div>${message ? `<div>${message}</div>` : ''}`;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), ms);
-}
-
 export function pretty(json) {
     return JSON.stringify(json, null, 2);
 }
 
 export function formatIso(value) {
+    if (value === null || value === undefined || value === '' || value === 0) return '—';
+    const d = value instanceof Date ? value : new Date(value);
+    const ts = d.getTime();
+    if (!Number.isFinite(ts)) return '—';
     try {
-        return new Date(value).toISOString().replace('T', ' ').replace('Z', 'Z');
+        return d.toISOString().replace('T', ' ');
     } catch {
-        return String(value);
+        return '—';
     }
 }
 
@@ -37,6 +33,41 @@ export function safeString(value) {
     } catch {
         return '';
     }
+}
+
+/**
+ * Безопасный экран строки для подстановки в innerHTML.
+ * Используется во всех местах, где пользовательские поля попадают в HTML.
+ */
+const HTML_ESCAPES = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'};
+export function escapeHtml(value) {
+    return safeString(value).replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
+}
+
+/**
+ * Санитизирует URL: разрешает только http(s) и относительные пути.
+ * Запрещает `javascript:`, `data:`, `vbscript:`, и protocol-relative `//host`
+ * (которые могут увести на внешний домен). Возвращает чистый URL без HTML-escape —
+ * подходит для DOM-property (img.src, a.href и т.п.).
+ *
+ * Для подстановки в innerHTML/template literal оборачивайте дополнительно в escapeHtml.
+ */
+export function sanitizeUrl(value) {
+    const s = safeString(value).trim();
+    if (!s) return '';
+    // protocol-relative (//host/path) — отвергаем, может увести на чужой домен
+    if (s.startsWith('//')) return '';
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.startsWith('/') || s.startsWith('./') || s.startsWith('../')) return s;
+    return '';
+}
+
+/**
+ * URL для подстановки в HTML-атрибут (через innerHTML/template literal).
+ * Сначала санитизирует, потом HTML-escape'ит — безопасно и не ломает & в query string.
+ */
+export function safeUrl(value) {
+    return escapeHtml(sanitizeUrl(value));
 }
 
 const collator = typeof Intl !== 'undefined' && Intl.Collator

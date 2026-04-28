@@ -12,6 +12,7 @@ import {UserController, UserDetailView, UserListView, UserStore} from './feature
 import {ConfirmDialog} from './shared/components/index.js';
 import {Toast} from './shared/components/Toast.js';
 import {DEFAULT_LANGUAGE} from './shared/constants/index.js';
+import {Events} from './infrastructure/events/events.js';
 
 /* ── 1. Infrastructure ──────────────────────────────────────── */
 
@@ -66,6 +67,22 @@ const exerciseStore = new ExerciseStore();
 exerciseStore.setLocale(storage.getLocale());
 exerciseStore.setViewMode(storage.getViewMode());
 
+// Persist locale/viewMode → storage at every store update; обновляем <html lang>
+let _lastPersistedLocale = exerciseStore.getState().locale;
+let _lastPersistedViewMode = exerciseStore.getState().viewMode;
+document.documentElement.setAttribute('lang', _lastPersistedLocale || DEFAULT_LANGUAGE);
+exerciseStore.subscribe((state) => {
+    if (state.locale && state.locale !== _lastPersistedLocale) {
+        _lastPersistedLocale = state.locale;
+        storage.setLocale(state.locale);
+        document.documentElement.setAttribute('lang', state.locale);
+    }
+    if (state.viewMode && state.viewMode !== _lastPersistedViewMode) {
+        _lastPersistedViewMode = state.viewMode;
+        storage.setViewMode(state.viewMode);
+    }
+});
+
 const exerciseSortOptions = {
     name: {label: 'Name'},
     createdAt: {label: 'Creation date'},
@@ -73,12 +90,15 @@ const exerciseSortOptions = {
     missingImage: {label: 'Missing image'},
 };
 
+// Forward-declare contoller — list/form views ссылаются на него через замыкания onSelect/onSave/onDelete.
+// Реальное присваивание ниже, после конструирования вьюх.
+let exerciseController;
+
 const exerciseListView = new ExerciseListView({
     store: exerciseStore,
     els: {
         list: document.getElementById('list'),
         search: document.getElementById('search'),
-        clearSearch: document.getElementById('clearSearch'),
         sortToggle: document.getElementById('sortToggle'),
         sortMenu:   document.getElementById('sortMenu'),
         sortLabel:  document.getElementById('sortLabel'),
@@ -173,8 +193,7 @@ const exerciseFormView = new ExerciseFormView({
     onLocaleChange: (locale) => exerciseController.selectLocale(locale),
 });
 
-// exerciseController forward-declared; defined below
-const exerciseController = new ExerciseController({
+exerciseController = new ExerciseController({
     store: exerciseStore,
     listView: exerciseListView,
     formView: exerciseFormView,
@@ -194,6 +213,9 @@ const userSortOptions = {
     email: {label: 'Email'},
 };
 
+// Forward-declare userController, аналогично exerciseController
+let userController;
+
 const userListView = new UserListView({
     store: userStore,
     els: {
@@ -211,14 +233,18 @@ const userListView = new UserListView({
 const userDetailView = new UserDetailView({
     store: userStore,
     els: {
+        userDetail: document.getElementById('userDetail'),
         userNameEl: document.getElementById('userName'),
         userIdEl: document.getElementById('userIdField'),
+        profileIdEl: document.getElementById('profileIdField'),
         userEmailEl: document.getElementById('userEmail'),
         userCreatedEl: document.getElementById('userCreated'),
+        userUpdatedEl: document.getElementById('userUpdated'),
         userActivityEl: document.getElementById('userLastActivity'),
         userWorkoutsEl: document.getElementById('userWorkoutsCount'),
         userAuthPill: document.getElementById('userAuthPill'),
         userAuthList: document.getElementById('userAuthList'),
+        userSelectionHint: document.getElementById('userSelectionHint'),
         roleSegments: document.querySelectorAll('[data-role]'),
         deleteUserBtn: document.getElementById('deleteUserBtn'),
     },
@@ -226,7 +252,7 @@ const userDetailView = new UserDetailView({
     onDelete: () => userController.deleteActiveUser(),
 });
 
-const userController = new UserController({
+userController = new UserController({
     store: userStore,
     listView: userListView,
     detailView: userDetailView,
@@ -238,12 +264,15 @@ const userController = new UserController({
 /* ── 7. Navigation ──────────────────────────────────────────── */
 
 document.getElementById('tabExercise')?.addEventListener('click', () => {
-    bus.emit('nav:section-changed', {section: 'exercise'});
+    bus.emit(Events.NAV_SECTION_CHANGED, {section: 'exercise'});
 });
 document.getElementById('tabUsers')?.addEventListener('click', () => {
-    bus.emit('nav:section-changed', {section: 'users'});
+    bus.emit(Events.NAV_SECTION_CHANGED, {section: 'users'});
 });
-bus.on('nav:section-changed', ({section}) => {
+document.getElementById('reloadUsersBtn')?.addEventListener('click', () => {
+    userController.loadUsers();
+});
+bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
     document.getElementById('exerciseView')?.toggleAttribute('hidden', section !== 'exercise');
     document.getElementById('usersView')?.toggleAttribute('hidden', section !== 'users');
 
@@ -268,11 +297,15 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 
 /* ── 9. Dictionaries ────────────────────────────────────────── */
 
-bus.on('auth:login-success', async () => {
+bus.on(Events.AUTH_LOGIN_SUCCESS, async () => {
     await dictionaries.loadAll();
     // Populate equipment/muscle dropdowns now that dictionary data is ready,
     // so the selects are filled even before the user opens any specific exercise
     exerciseFormView.refreshOptionLists();
+    bus.emit(Events.DICTS_LOADED, {
+        equipments: dictionaries.equipment,
+        muscles: dictionaries.muscles,
+    });
 });
 
 /* ── 10. Start ──────────────────────────────────────────────── */

@@ -14,6 +14,9 @@ export class ExerciseValidator {
     }
 
     validate(entity) {
+        if (!entity || typeof entity !== 'object') {
+            return {ok: false, errors: ['Invalid entity: expected object'], warnings: []};
+        }
         const normalized = {
             ...entity,
             nameTranslations: ExerciseNormalizer.ensureTranslationMap(entity.nameTranslations),

@@ -1,6 +1,7 @@
 import {DEFAULT_LANGUAGE, FIELD} from '../../shared/constants/index.js';
 import {ExerciseNormalizer} from '../../domain/exercise/index.js';
 import {Toast} from '../../shared/components/Toast.js';
+import {sanitizeUrl} from '../../shared/utils/index.js';
 
 export class ExerciseFormView {
     /**
@@ -39,11 +40,22 @@ export class ExerciseFormView {
         this._viewMode = store.getState().viewMode || 'form';
         this._bodyWeightMultiplier = 1;
 
+        // Кеш для дедупликации перерисовок формы. _onStateChange срабатывает
+        // на ЛЮБОЕ изменение стора (search, sort, loading, saving) — нельзя
+        // дёргать writeEntityToForm каждый раз, иначе затрутся правки юзера в полях.
+        this._lastRendered = {current: null, locale: null, isNew: null};
+
         this._bindEvents();
-        store.subscribe((state) => this._onStateChange(state));
+        this._unsubscribe = store.subscribe((state) => this._onStateChange(state));
 
         // Apply initial view mode so UI matches store state from the start
         this._applyViewMode(this._viewMode);
+    }
+
+    /** Снять подписки на стор. Для тестов / HMR. */
+    destroy() {
+        this._unsubscribe?.();
+        this._unsubscribe = null;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -52,9 +64,17 @@ export class ExerciseFormView {
      * Populate the equipment and muscle <select> dropdowns from the dictionary store.
      * Call this once after dictionaries have been loaded so the options are ready
      * before the user opens any exercise (not deferred until first selectItem).
+     *
+     * Также пересобирает equipment tokens и bundle rows у текущего entity —
+     * иначе элементы, отрендеренные до загрузки словарей, остаются с классом 'invalid'.
      */
     refreshOptionLists() {
         this._refreshOptionLists();
+        const {current} = this._store.getState();
+        if (current) {
+            this._renderEquipmentTokens(current);
+            this._renderBundles(current);
+        }
     }
 
     /**
@@ -128,7 +148,11 @@ export class ExerciseFormView {
         // In JSON view mode, parse from the raw editor
         if (this._viewMode === 'json' && this._els.editor) {
             try {
-                return JSON.parse(this._els.editor.value);
+                const parsed = JSON.parse(this._els.editor.value);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    return parsed;
+                }
+                // null / array / primitive → fall through to form reading
             } catch {
                 // Fall through to form reading
             }
@@ -236,32 +260,49 @@ export class ExerciseFormView {
     _onStateChange({current, isNew, locale, viewMode, isSaving}) {
         // Always apply view mode — must run even if something below throws
         try {
-            if (locale && locale !== this._locale) {
+            const localeChanged = locale && locale !== this._locale;
+            if (localeChanged) {
                 this._locale = locale;
                 this._updateLocaleUI();
             }
-            if (current) {
+
+            // Перерисовываем форму ТОЛЬКО когда реально изменилось то,
+            // что в неё пишется (current по reference, locale, или isNew).
+            // Иначе search/sort/loading/saving события безусловно затирали
+            // несохранённые правки юзера в полях.
+            const currentChanged = current !== this._lastRendered.current;
+            const isNewChanged = isNew !== this._lastRendered.isNew;
+            const shouldRerender = current && (currentChanged || localeChanged || isNewChanged);
+
+            if (shouldRerender) {
                 this._refreshOptionLists();
                 this.writeEntityToForm(current, this._locale);
                 this._updateLocaleUI();
                 this._updateCurrentId(current, isNew);
                 if (this._viewMode === 'json') this._populateJsonEditor(current);
+                this._lastRendered = {current, locale: this._locale, isNew};
+            } else if (!current && this._lastRendered.current) {
+                // current был, стал null — обновим placeholder ID
+                this._updateCurrentId(null, isNew);
+                this._lastRendered = {current: null, locale: this._locale, isNew};
             }
         } catch (e) {
             console.error('[ExerciseFormView] _onStateChange error:', e);
         }
-        // Enable Save only when an exercise is loaded/created and not currently saving
+        // Save доступен всегда (кроме момента активного сохранения), а отсутствие
+        // выбранного упражнения отлавливаем тостом в click-handler.
         if (this._els.saveBtn) {
-            this._els.saveBtn.disabled = !current || !!isSaving;
+            this._els.saveBtn.disabled = !!isSaving;
             this._els.saveBtn.textContent = isSaving ? 'Saving…' : 'Save';
         }
         this._applyViewMode(viewMode);
     }
 
     _applyViewMode(mode) {
+        const safeMode = mode || 'form';
         const wasJson = this._viewMode === 'json';
-        const isJson = mode === 'json';
-        this._viewMode = mode;
+        const isJson = safeMode === 'json';
+        this._viewMode = safeMode;
 
         // Use CSS class toggling — avoids conflict between hidden attribute and .show class
         if (this._els.builder) {
@@ -328,11 +369,13 @@ export class ExerciseFormView {
 
     _renderImagePreview(url) {
         if (!this._els.previewCard) return;
-        const hasImage = !!url;
+        const safe = sanitizeUrl(url);
+        const hasImage = !!safe;
         const altName = (this._els.fName?.value || 'Exercise').trim();
         if (this._els.previewImg) {
             if (hasImage) {
-                this._els.previewImg.src = url;
+                // используем отвалидированный URL — без javascript:/data:/protocol-relative
+                this._els.previewImg.src = safe;
                 this._els.previewImg.alt = `${altName} illustration`;
             } else {
                 this._els.previewImg.removeAttribute('src');
@@ -353,7 +396,7 @@ export class ExerciseFormView {
         Array.from(this._els.localeButtons).forEach(btn => {
             btn.classList.toggle('active', btn.dataset.locale === this._locale);
         });
-        if (this._els.localeSwitcher) this._els.localeSwitcher.style.display = '';
+        if (this._els.localeSwitcher) this._els.localeSwitcher.hidden = false;
     }
 
     // ── Private: equipment ───────────────────────────────────────────────────
@@ -371,17 +414,19 @@ export class ExerciseFormView {
             const token = document.createElement('span');
             token.className = 'token';
             if (!this._dicts.equipment.has(id)) token.classList.add('invalid');
-            token.innerHTML = `<span>${name}</span>`;
+            const nameEl = document.createElement('span');
+            nameEl.textContent = name;
+            token.appendChild(nameEl);
 
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
             removeBtn.textContent = '×';
             removeBtn.title = 'Remove';
             removeBtn.addEventListener('click', () => {
-                const {current} = this._store.getState();
-                const arr = [...(current?.[FIELD.equipmentRefs] || [])];
+                const formEntity = this.readFormToEntity();
+                const arr = [...(formEntity?.[FIELD.equipmentRefs] || [])];
                 arr.splice(index, 1);
-                this._store.setCurrent({...current, [FIELD.equipmentRefs]: arr});
+                this._store.patchCurrent({...formEntity, [FIELD.equipmentRefs]: arr});
             });
 
             token.appendChild(removeBtn);
@@ -457,22 +502,22 @@ export class ExerciseFormView {
             removeBtn.textContent = 'Remove';
 
             muscleEl.addEventListener('change', () => {
-                const {current} = this._store.getState();
-                const bundles = [...(current?.[FIELD.bundles] || [])];
+                const formEntity = this.readFormToEntity();
+                const bundles = [...(formEntity?.[FIELD.bundles] || [])];
                 bundles[index] = {...bundles[index], muscleId: muscleEl.value};
-                this._store.setCurrent({...current, [FIELD.bundles]: bundles});
+                this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
             });
             percentEl.addEventListener('change', () => {
-                const {current} = this._store.getState();
-                const bundles = [...(current?.[FIELD.bundles] || [])];
+                const formEntity = this.readFormToEntity();
+                const bundles = [...(formEntity?.[FIELD.bundles] || [])];
                 bundles[index] = {...bundles[index], percentage: Number(percentEl.value || 0)};
-                this._store.setCurrent({...current, [FIELD.bundles]: bundles});
+                this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
             });
             removeBtn.addEventListener('click', () => {
-                const {current} = this._store.getState();
-                const bundles = [...(current?.[FIELD.bundles] || [])];
+                const formEntity = this.readFormToEntity();
+                const bundles = [...(formEntity?.[FIELD.bundles] || [])];
                 bundles.splice(index, 1);
-                this._store.setCurrent({...current, [FIELD.bundles]: bundles});
+                this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
             });
 
             row.appendChild(muscleEl);
@@ -500,10 +545,10 @@ export class ExerciseFormView {
             Toast.show({title: 'Unknown muscle', type: 'error'});
             return;
         }
-        const {current} = this._store.getState();
-        const bundles = [...(Array.isArray(current?.[FIELD.bundles]) ? current[FIELD.bundles] : [])];
+        const formEntity = this.readFormToEntity();
+        const bundles = [...(Array.isArray(formEntity?.[FIELD.bundles]) ? formEntity[FIELD.bundles] : [])];
         bundles.push({muscleId, percentage});
-        this._store.setCurrent({...current, [FIELD.bundles]: bundles});
+        this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
         if (this._els.percentInput) this._els.percentInput.value = '';
     }
 
@@ -512,6 +557,11 @@ export class ExerciseFormView {
     _bindEvents() {
         // Save
         this._els.saveBtn?.addEventListener('click', async () => {
+            const {current} = this._store.getState();
+            if (!current) {
+                Toast.show({title: 'Nothing to save', message: 'Select an exercise from the list or click "New".', type: 'error'});
+                return;
+            }
             const entity = this.readFormToEntity();
             const {ok, errors, warnings} = this._validator.validate(entity);
             if (!ok) {
@@ -531,7 +581,7 @@ export class ExerciseFormView {
             if (this._viewMode !== 'json') {
                 try {
                     const entity = this.readFormToEntity();
-                    this._store.setCurrent(entity);
+                    this._store.patchCurrent(entity);
                 } catch (e) {
                     console.warn('[ExerciseFormView] Could not flush form before JSON view:', e);
                 }
@@ -583,7 +633,7 @@ export class ExerciseFormView {
                 if (!lang) return;
                 // Flush current locale text into store before switching
                 const entity = this.readFormToEntity();
-                this._store.setCurrent(entity);
+                this._store.patchCurrent(entity);
                 this._locale = lang;
                 this._updateLocaleUI();
                 // If handler provided — delegate (triggers API fetch + setCurrent → re-render)
@@ -607,15 +657,15 @@ export class ExerciseFormView {
                 Toast.show({title: 'Unknown equipment', type: 'error'});
                 return;
             }
-            const {current} = this._store.getState();
-            const refs = Array.isArray(current?.[FIELD.equipmentRefs]) ? [...current[FIELD.equipmentRefs]] : [];
+            const formEntity = this.readFormToEntity();
+            const refs = Array.isArray(formEntity?.[FIELD.equipmentRefs]) ? [...formEntity[FIELD.equipmentRefs]] : [];
             if (!refs.some(x => x.equipmentId === id)) refs.push({equipmentId: id});
-            this._store.setCurrent({...current, [FIELD.equipmentRefs]: refs});
+            this._store.patchCurrent({...formEntity, [FIELD.equipmentRefs]: refs});
         });
 
         this._els.equipClear?.addEventListener('click', () => {
-            const {current} = this._store.getState();
-            this._store.setCurrent({...current, [FIELD.equipmentRefs]: []});
+            const formEntity = this.readFormToEntity();
+            this._store.patchCurrent({...formEntity, [FIELD.equipmentRefs]: []});
         });
 
         // Bundles

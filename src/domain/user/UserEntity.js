@@ -12,10 +12,16 @@ export class UserEntity {
             profileId: raw.profile?.id || raw.profileId || '',
             workoutsCount: Number(raw.workoutsCount ?? raw.profile?.workoutsCount ?? 0),
             createdAt: raw.createdAt || raw.created_at || '',
+            updatedAt: raw.updatedAt || raw.updated_at || '',
             lastActivity: raw.lastActivity || raw.last_activity || '',
             authTypes: UserEntity.normalizeAuthTypes(raw.authTypes || raw.auth_types),
             raw,  // keep original for display purposes
         };
+    }
+
+    static updatedAt(user) {
+        const raw = user?.updatedAt || user?.updated_at || '';
+        return raw ? new Date(raw).getTime() : 0;
     }
 
     /** Parse authTypes array from various API shapes. */
