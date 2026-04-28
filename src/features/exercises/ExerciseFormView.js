@@ -233,7 +233,7 @@ export class ExerciseFormView {
 
     // ── Private: state ────────────────────────────────────────────────────────
 
-    _onStateChange({current, isNew, locale, viewMode}) {
+    _onStateChange({current, isNew, locale, viewMode, isSaving}) {
         // Always apply view mode — must run even if something below throws
         try {
             if (locale && locale !== this._locale) {
@@ -249,6 +249,11 @@ export class ExerciseFormView {
             }
         } catch (e) {
             console.error('[ExerciseFormView] _onStateChange error:', e);
+        }
+        // Enable Save only when an exercise is loaded/created and not currently saving
+        if (this._els.saveBtn) {
+            this._els.saveBtn.disabled = !current || !!isSaving;
+            this._els.saveBtn.textContent = isSaving ? 'Saving…' : 'Save';
         }
         this._applyViewMode(viewMode);
     }
@@ -273,6 +278,9 @@ export class ExerciseFormView {
         if (this._els.viewJson) this._els.viewJson.classList.toggle('active', isJson);
         if (this._els.viewForm) this._els.viewForm.setAttribute('aria-selected', String(!isJson));
         if (this._els.viewJson) this._els.viewJson.setAttribute('aria-selected', String(isJson));
+
+        // jsonStatus is only meaningful in JSON mode
+        if (this._els.jsonStatus) this._els.jsonStatus.hidden = !isJson;
 
         // Populate editor when switching TO json
         if (isJson && !wasJson) {
