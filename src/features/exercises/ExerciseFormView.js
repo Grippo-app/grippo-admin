@@ -260,8 +260,10 @@ export class ExerciseFormView {
     _onStateChange({current, isNew, locale, viewMode, isSaving}) {
         // Always apply view mode — must run even if something below throws
         try {
-            const localeChanged = locale && locale !== this._locale;
-            if (localeChanged) {
+            // Sync this._locale с состоянием стора. Это отдельный шаг, не путать с
+            // мемоизацией — мемо хранит "последнюю отрисованную" локаль, а
+            // this._locale — актуальный сказ стора.
+            if (locale && locale !== this._locale) {
                 this._locale = locale;
                 this._updateLocaleUI();
             }
@@ -271,6 +273,7 @@ export class ExerciseFormView {
             // Иначе search/sort/loading/saving события безусловно затирали
             // несохранённые правки юзера в полях.
             const currentChanged = current !== this._lastRendered.current;
+            const localeChanged = this._locale !== this._lastRendered.locale;
             const isNewChanged = isNew !== this._lastRendered.isNew;
             const shouldRerender = current && (currentChanged || localeChanged || isNewChanged);
 
@@ -630,18 +633,18 @@ export class ExerciseFormView {
             btn.addEventListener('click', (event) => {
                 event.preventDefault();
                 const lang = btn.dataset.locale;
-                if (!lang) return;
-                // Flush current locale text into store before switching
+                if (!lang || lang === this._locale) return;
+                // Flush текущей локали текст в стор ДО переключения. readFormToEntity
+                // использует this._locale как ключ, поэтому строки попадут в правильный слот.
                 const entity = this.readFormToEntity();
                 this._store.patchCurrent(entity);
-                this._locale = lang;
-                this._updateLocaleUI();
-                // If handler provided — delegate (triggers API fetch + setCurrent → re-render)
+                // Не устанавливаем this._locale напрямую — setLocale (внутри selectLocale
+                // или ниже) синхронно вызовет _onStateChange, который и обновит this._locale
+                // и UI. Прямая установка здесь приводит к мерцанию active-класса.
                 if (this._onLocaleChange) {
                     this._onLocaleChange(lang);
                 } else {
                     this._store.setLocale(lang);
-                    this.writeEntityToForm(this._store.getState().current, lang);
                 }
             });
         });
