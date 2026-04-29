@@ -10,7 +10,7 @@ export class ExerciseFormView {
      *   validator:   ExerciseValidator,
      *   dictionaries: DictionaryStore,
      *   els: {
-     *     saveBtn, viewForm, viewJson,
+     *     saveBtn, deleteBtn, viewForm, viewJson,
      *     builder, editorWrap, editor,
      *     fId, fName, fImage, fDescription,
      *     fWeightType, fCategory, fExperience, fForceType,
@@ -298,6 +298,14 @@ export class ExerciseFormView {
             this._els.saveBtn.disabled = !!isSaving;
             this._els.saveBtn.textContent = isSaving ? 'Saving…' : 'Save';
         }
+        // Delete доступен только для уже сохранённого упражнения с реальным ID.
+        // Для нового (несохранённого) и при отсутствии current — кнопку прячем,
+        // иначе нечего удалять. На время сохранения тоже блокируем.
+        if (this._els.deleteBtn) {
+            const canDelete = !!current && !isNew && !!current.id;
+            this._els.deleteBtn.hidden = !canDelete;
+            this._els.deleteBtn.disabled = !canDelete || !!isSaving;
+        }
         this._applyViewMode(viewMode);
     }
 
@@ -575,6 +583,16 @@ export class ExerciseFormView {
                 Toast.show({title: 'Warning', message: warnings[0], type: 'warning'});
             }
             await this._onSave(entity);
+        });
+
+        // Delete — confirmation живёт в контроллере, тут только прокидываем id текущего упражнения.
+        this._els.deleteBtn?.addEventListener('click', async () => {
+            const {current, isNew} = this._store.getState();
+            if (!current || isNew || !current.id) {
+                Toast.show({title: 'Nothing to delete', message: 'Select a saved exercise first.', type: 'error'});
+                return;
+            }
+            await this._onDelete(current.id);
         });
 
         // View mode toggle — flush form inputs to store before entering JSON view

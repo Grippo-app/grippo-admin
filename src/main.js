@@ -136,6 +136,7 @@ const exerciseFormView = new ExerciseFormView({
     els: {
         // Toolbar
         saveBtn: document.getElementById('saveBtn'),
+        deleteBtn: document.getElementById('deleteExerciseBtn'),
         viewForm: document.getElementById('viewForm'),
         viewJson: document.getElementById('viewJson'),
         currentId: document.getElementById('currentId'),
@@ -199,6 +200,7 @@ exerciseController = new ExerciseController({
     formView: exerciseFormView,
     repository: exerciseRepo,
     bus,
+    confirmDialog: ConfirmDialog,
 });
 
 /* ── 6. Users ───────────────────────────────────────────────── */

@@ -1,15 +1,16 @@
 import {Events} from '../../infrastructure/events/events.js';
 import {ExerciseNormalizer} from '../../domain/exercise/index.js';
 import {Toast} from '../../shared/components/Toast.js';
-import {SUPPORTED_LANGUAGES} from '../../shared/constants/index.js';
+import {DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES} from '../../shared/constants/index.js';
 
 export class ExerciseController {
-    constructor({store, listView, formView, repository, bus}) {
+    constructor({store, listView, formView, repository, bus, confirmDialog}) {
         this._store = store;
         this._list = listView;
         this._form = formView;
         this._repo = repository;
         this._bus = bus;
+        this._confirm = confirmDialog;
 
         // Monotonically increasing ID used to discard stale selectItem responses
         this._selectSeq = 0;
@@ -162,6 +163,23 @@ export class ExerciseController {
     }
 
     async deleteItem(id) {
+        if (!id) return;
+
+        // Confirm перед удалением — сервер удаляет навсегда, отката нет.
+        // В сообщении показываем имя на дефолтной локали, чтобы юзер видел, что именно удаляет.
+        const {current} = this._store.getState();
+        const nameTrans = ExerciseNormalizer.ensureTranslationMap(current?.nameTranslations);
+        const displayName = ExerciseNormalizer.getTranslation(nameTrans, DEFAULT_LANGUAGE)
+            || (typeof current?.name === 'string' ? current.name : '')
+            || id;
+        const ok = await this._confirm.ask({
+            title: 'Delete exercise example',
+            message: `Delete "${displayName}"?`,
+            detail: 'This action cannot be undone. Examples referenced by existing exercises cannot be deleted.',
+            actionLabel: 'Delete',
+        });
+        if (!ok) return;
+
         try {
             await this._repo.delete(id);
             this._store.removeItem(id);
@@ -169,7 +187,14 @@ export class ExerciseController {
             this._bus.emit(Events.EXERCISE_DELETED, {id});
             Toast.show({title: 'Deleted'});
         } catch (err) {
-            Toast.show({title: 'Delete failed', message: err.message, type: 'error'});
+            // Бэкенд возвращает 409, если example используется существующими exercises —
+            // даём более понятное сообщение, чем сырой ответ сервера.
+            const msg = err?.message || '';
+            if (msg.includes('409')) {
+                Toast.show({title: 'Cannot delete', message: 'This example is referenced by existing exercises.', type: 'error'});
+            } else {
+                Toast.show({title: 'Delete failed', message: msg, type: 'error'});
+            }
         }
     }
 }
