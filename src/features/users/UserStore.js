@@ -32,6 +32,14 @@ export class UserStore {
     }
 
     setActive(user) {
+        // Re-selecting the same user (or refreshing the user object after a role
+        // change) must NOT wipe the loaded details. Only a real change of identity
+        // resets goal/workouts/weight state.
+        const isSameUser = user && this._state.active?.id === user.id;
+        if (isSameUser) {
+            this._update({active: user});
+            return;
+        }
         this._update({
             active: user,
             details: null,

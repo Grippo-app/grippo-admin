@@ -214,7 +214,7 @@ export class UserDetailView {
             .join('');
         const moreLabel = trainings.length > visible.length
             ? `Showing ${visible.length} of ${trainings.length}`
-            : `Showing last ${visible.length}`;
+            : `${trainings.length} workout${trainings.length === 1 ? '' : 's'} · last 60 days`;
         this._setText(note, moreLabel);
     }
 

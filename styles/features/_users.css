@@ -92,8 +92,18 @@
     display: grid;
     grid-template-rows: auto auto auto 1fr;
     gap: 16px;
-    height: 100%;
-    max-width: 1200px;
+    /* The parent `.user-panel` inherits `display: flex; flex-direction: column`
+       from `.panel`. Use the standard "flex child fills remaining space" pattern
+       so the bottom `1fr` row of this grid actually receives free vertical space. */
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+
+/* Author rule `display: grid` would otherwise outweigh the UA `[hidden]` rule
+   at equal specificity — re-establish `hidden` on the empty-selection state. */
+.user-detail[hidden] {
+    display: none;
 }
 
 /* User header */
@@ -495,6 +505,9 @@
     grid-template-rows: auto 1fr;
     gap: 12px;
     min-height: 0;
+    /* Explicit height keeps the inner `1fr` reliable across browsers when nested
+       inside another grid track. */
+    height: 100%;
 }
 
 .user-section {
@@ -616,10 +629,13 @@
     background: var(--panel);
     border: 1px solid var(--border);
     align-items: center;
+    font: inherit;
+    color: var(--text);
     font-size: 12px;
     cursor: pointer;
     text-align: left;
     transition: background .12s, border-color .12s, transform .12s;
+    width: 100%;
 }
 
 .training-row:hover {
@@ -635,6 +651,9 @@
 .training-row.is-open {
     background: var(--field-focus);
     border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
+    /* Flatten the bottom corners so the row visually merges with the detail box. */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .training-date {

@@ -39,9 +39,15 @@ export class UserController {
     }
 
     selectUser(user) {
+        const prev = this._store.getState();
+        const alreadyLoaded = prev.detailsForUserId === user?.id && prev.details && !prev.detailsLoading;
+
         this._store.setActive(user);
         this._bus.emit(Events.USER_SELECTED, user);
-        if (user?.id) this._loadDetails(user.id);
+
+        // Skip the round-trip if details for this user are already in the store —
+        // re-selecting the same row should be a no-op, not a flicker + re-fetch.
+        if (user?.id && !alreadyLoaded) this._loadDetails(user.id);
     }
 
     async _loadDetails(userId) {
