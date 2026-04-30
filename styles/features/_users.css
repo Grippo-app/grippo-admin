@@ -89,8 +89,8 @@
 }
 
 .user-detail {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto auto auto 1fr;
     gap: 16px;
     height: 100%;
     max-width: 1200px;
@@ -494,7 +494,6 @@
     grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
     grid-template-rows: auto 1fr;
     gap: 12px;
-    flex: 1 1 auto;
     min-height: 0;
 }
 
@@ -556,7 +555,6 @@
 
 .user-section-body--scroll {
     overflow: auto;
-    max-height: 460px;
     padding-right: 2px;
 }
 
