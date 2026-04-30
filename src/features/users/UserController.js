@@ -1,5 +1,5 @@
 import {Events} from '../../infrastructure/events/events.js';
-import {UserEntity} from '../../domain/user/index.js';
+import {UserDetailsEntity, UserEntity} from '../../domain/user/index.js';
 import {Toast} from '../../shared/components/Toast.js';
 
 export class UserController {
@@ -41,6 +41,52 @@ export class UserController {
     selectUser(user) {
         this._store.setActive(user);
         this._bus.emit(Events.USER_SELECTED, user);
+        if (user?.id) this._loadDetails(user.id);
+    }
+
+    async _loadDetails(userId) {
+        this._store.setDetailsLoading(userId);
+        const {start, end} = this._defaultTrainingsRange();
+
+        const [goalRes, trainingsRes, weightsRes] = await Promise.allSettled([
+            this._repo.fetchGoal(userId),
+            this._repo.fetchTrainings(userId, {start, end}),
+            this._repo.fetchWeightHistory(userId),
+        ]);
+
+        // If user switched while we were loading, drop the result silently.
+        if (this._store.getState().active?.id !== userId) return;
+
+        const details = {
+            goal: goalRes.status === 'fulfilled'
+                ? UserDetailsEntity.normalizeGoal(goalRes.value)
+                : null,
+            recentTrainings: trainingsRes.status === 'fulfilled'
+                ? UserDetailsEntity.normalizeTrainings(trainingsRes.value)
+                : [],
+            weightHistory: weightsRes.status === 'fulfilled'
+                ? UserDetailsEntity.normalizeWeightHistory(weightsRes.value)
+                : [],
+        };
+
+        const failed = [goalRes, trainingsRes, weightsRes].find(r => r.status === 'rejected');
+        if (failed) {
+            Toast.show({
+                title: 'Failed to load some user details',
+                message: failed.reason?.message || 'Unknown error',
+                type: 'error',
+            });
+        }
+
+        this._store.setDetails(userId, details);
+        this._bus.emit(Events.USER_DETAILS_LOADED, {userId, details});
+    }
+
+    /** Default range for the admin trainings query: last 60 days. */
+    _defaultTrainingsRange() {
+        const now = new Date();
+        const start = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        return {start: start.toISOString(), end: now.toISOString()};
     }
 
     async changeRole(role) {

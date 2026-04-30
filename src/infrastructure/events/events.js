@@ -16,6 +16,7 @@ export const Events = Object.freeze({
     USER_SELECTED: 'user:selected',      // payload: User | null
     USER_ROLE_CHANGED: 'user:role-changed',  // payload: User (updated)
     USER_DELETED: 'user:deleted',       // payload: { id: string }
+    USER_DETAILS_LOADED: 'user:details-loaded', // payload: { userId, details }
 
     // Navigation
     NAV_SECTION_CHANGED: 'nav:section-changed', // payload: { section: 'exercise' | 'users' }

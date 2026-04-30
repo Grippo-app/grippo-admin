@@ -10,6 +10,9 @@ export class UserStore {
             sortKey: 'createdAt',
             isLoading: false,
             roleChangeInFlight: false,
+            details: null,
+            detailsForUserId: null,
+            detailsLoading: false,
         };
         this._observers = new Set();
     }
@@ -28,11 +31,37 @@ export class UserStore {
     }
 
     setActive(user) {
-        this._update({active: user});
+        this._update({
+            active: user,
+            details: null,
+            detailsForUserId: null,
+            detailsLoading: false,
+        });
     }
 
     clearActive() {
-        this._update({active: null});
+        this._update({
+            active: null,
+            details: null,
+            detailsForUserId: null,
+            detailsLoading: false,
+        });
+    }
+
+    setDetailsLoading(userId) {
+        this._update({
+            detailsForUserId: userId,
+            detailsLoading: true,
+        });
+    }
+
+    setDetails(userId, details) {
+        if (this._state.active?.id !== userId) return;
+        this._update({
+            details,
+            detailsForUserId: userId,
+            detailsLoading: false,
+        });
     }
 
     setSearchQuery(q) {

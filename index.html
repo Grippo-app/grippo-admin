@@ -1,400 +1,455 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Grippo Admin — Exercise Examples</title>
-  <link rel="stylesheet" href="./styles/main.css"/>
+    <meta charset="utf-8"/>
+    <title>Grippo Admin — Exercise Examples</title>
+    <link rel="stylesheet" href="./styles/main.css"/>
 </head>
 <body>
-  <!-- Header -->
-  <header>
+<!-- Header -->
+<header>
     <nav class="primary-tabs" role="tablist" aria-label="Primary sections">
-      <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise" type="button">Exercise examples</button>
-      <button id="tabUsers" class="tab" role="tab" aria-selected="false" data-section="users" type="button">Users</button>
+        <button id="tabExercise" class="tab active" role="tab" aria-selected="true" data-section="exercise"
+                type="button">Exercise examples
+        </button>
+        <button id="tabUsers" class="tab" role="tab" aria-selected="false" data-section="users" type="button">Users
+        </button>
     </nav>
     <button id="logoutBtn" class="btn danger" style="margin-left:auto;" title="Logout">Logout</button>
-  </header>
+</header>
 
-  <!-- Login overlay -->
-  <div id="loginOverlay" class="login-overlay" hidden>
+<!-- Login overlay -->
+<div id="loginOverlay" class="login-overlay" hidden>
     <form id="loginForm" class="login-form">
-      <h2>Sign in</h2>
-      <div class="field">
-        <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="Email" required />
-      </div>
-      <div class="field">
-        <label for="loginPassword">Password</label>
-        <input id="loginPassword" type="password" placeholder="Password" required />
-      </div>
-      <div id="loginError" class="error" hidden></div>
-      <button id="loginBtn" class="btn" type="submit">Login</button>
+        <h2>Sign in</h2>
+        <div class="field">
+            <label for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" placeholder="Email" required/>
+        </div>
+        <div class="field">
+            <label for="loginPassword">Password</label>
+            <input id="loginPassword" type="password" placeholder="Password" required/>
+        </div>
+        <div id="loginError" class="error" hidden></div>
+        <button id="loginBtn" class="btn" type="submit">Login</button>
     </form>
-  </div>
+</div>
 
-  <div id="confirmOverlay" class="confirm-overlay" hidden>
-    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
-      <div class="confirm-header">
-        <div id="confirmTitle" class="confirm-title">Confirm action</div>
-        <button id="confirmClose" class="btn icon" type="button" aria-label="Close">×</button>
-      </div>
-      <div id="confirmMessage" class="confirm-message"></div>
-      <div id="confirmDetail" class="confirm-detail" hidden></div>
-      <div class="confirm-actions">
-        <button id="confirmCancel" class="btn muted" type="button">Cancel</button>
-        <button id="confirmAccept" class="btn danger" type="button"><span id="confirmAcceptLabel">Delete</span></button>
-      </div>
+<div id="confirmOverlay" class="confirm-overlay" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle"
+         aria-describedby="confirmMessage">
+        <div class="confirm-header">
+            <div id="confirmTitle" class="confirm-title">Confirm action</div>
+            <button id="confirmClose" class="btn icon" type="button" aria-label="Close">×</button>
+        </div>
+        <div id="confirmMessage" class="confirm-message"></div>
+        <div id="confirmDetail" class="confirm-detail" hidden></div>
+        <div class="confirm-actions">
+            <button id="confirmCancel" class="btn muted" type="button">Cancel</button>
+            <button id="confirmAccept" class="btn danger" type="button"><span id="confirmAcceptLabel">Delete</span>
+            </button>
+        </div>
     </div>
-  </div>
+</div>
 
-  <div id="exerciseView" class="primary-view" aria-labelledby="tabExercise" role="tabpanel">
+<div id="exerciseView" class="primary-view" aria-labelledby="tabExercise" role="tabpanel">
     <!-- Command bar: sticky below header -->
     <div id="commandBar" class="command-bar">
-      <input id="search" type="search" placeholder="Search by name…"/>
-      <div id="sortDropdown" class="sort-dropdown">
-        <button id="sortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
-          <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="sort-toggle__label">Sort</span>
-          <span class="sort-toggle__sep">·</span>
-          <span id="sortLabel" class="sort-toggle__value">Name</span>
-          <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div id="sortMenu" class="sort-menu" role="menu" aria-label="Exercise sorting"></div>
-      </div>
-      <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
-      <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
-
-      <span class="spacer"></span>
-
-      <span id="currentId" class="hint">No item selected</span>
-      <span id="jsonStatus" class="status warn">Waiting…</span>
-
-      <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" hidden>
-        <button type="button" class="locale-btn" data-locale="en">EN</button>
-        <button type="button" class="locale-btn" data-locale="ua">UA</button>
-        <button type="button" class="locale-btn" data-locale="ru">RU</button>
-      </div>
-
-      <div class="view-toggle">
-        <div class="segment" role="tablist" aria-label="Editor mode">
-          <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form</button>
-          <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
+        <input id="search" type="search" placeholder="Search by name…"/>
+        <div id="sortDropdown" class="sort-dropdown">
+            <button id="sortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
+                <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none"
+                     aria-hidden="true">
+                    <path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span class="sort-toggle__label">Sort</span>
+                <span class="sort-toggle__sep">·</span>
+                <span id="sortLabel" class="sort-toggle__value">Name</span>
+                <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none"
+                     aria-hidden="true">
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                          stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div id="sortMenu" class="sort-menu" role="menu" aria-label="Exercise sorting"></div>
         </div>
-      </div>
+        <button id="newBtn" class="btn warn" title="Create new exercise example">New</button>
+        <button id="loadBtn" class="btn" title="Fetch list from API">Load list</button>
 
-      <div class="cmd-actions">
-      <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
-      <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
-      <button id="promptRulesBtn" class="btn gpt" title="Build Rules Prompt">GPT Rules</button>
-      <button id="deleteExerciseBtn" class="btn danger" type="button" title="Delete exercise example" hidden>Delete</button>
-      <button id="saveBtn" class="btn" type="button" title="Save changes">Save</button>
-      </div>
+        <span class="spacer"></span>
+
+        <span id="currentId" class="hint">No item selected</span>
+        <span id="jsonStatus" class="status warn">Waiting…</span>
+
+        <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" hidden>
+            <button type="button" class="locale-btn" data-locale="en">EN</button>
+            <button type="button" class="locale-btn" data-locale="ua">UA</button>
+            <button type="button" class="locale-btn" data-locale="ru">RU</button>
+        </div>
+
+        <div class="view-toggle">
+            <div class="segment" role="tablist" aria-label="Editor mode">
+                <button id="viewForm" class="seg active" role="tab" aria-selected="true" title="Form builder">Form
+                </button>
+                <button id="viewJson" class="seg" role="tab" aria-selected="false" title="Raw JSON">JSON</button>
+            </div>
+        </div>
+
+        <div class="cmd-actions">
+            <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
+            <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
+            <button id="promptRulesBtn" class="btn gpt" title="Build Rules Prompt">GPT Rules</button>
+            <button id="deleteExerciseBtn" class="btn danger" type="button" title="Delete exercise example" hidden>
+                Delete
+            </button>
+            <button id="saveBtn" class="btn" type="button" title="Save changes">Save</button>
+        </div>
     </div>
 
     <main>
-      <!-- Sidebar -->
-      <section class="sidebar" aria-label="Examples list">
-        <div class="side-head">
-          <div class="spacer"></div>
-        </div>
-        <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
-      </section>
-
-      <!-- Editor -->
-      <section class="panel">
-
-        <!-- FORM BUILDER -->
-        <div id="builder" class="builder show" aria-label="Exercise Example Builder">
-          <div class="section section-card intro-main">
-            <div class="section-header">
-              <div class="section-title">Exercise basics</div>
-              <div class="section-note">Identity & text</div>
+        <!-- Sidebar -->
+        <section class="sidebar" aria-label="Examples list">
+            <div class="side-head">
+                <div class="spacer"></div>
             </div>
-            <div class="basics-row">
-              <div class="preview-card" id="exercisePreviewCard">
-                <div class="preview-label">Exercise image</div>
-                <button id="previewFrame" type="button" class="preview-frame" aria-label="Open image preview" aria-disabled="true">
-                  <img id="exercisePreview" alt="Exercise image preview" />
-                  <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
-                </button>
-              </div>
-              <div class="intro-stack">
-                <div class="field">
-                  <label for="fId">ID (locked for existing)</label>
-                  <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
-                  <div class="hint">ID cannot be changed for existing items.</div>
-                </div>
-                <div class="grid two">
-                  <div class="field">
-                    <label for="fName">Name *</label>
-                    <input id="fName" type="text" placeholder="e.g., Bench Press"/>
-                  </div>
-                  <div class="field">
-                    <label for="fImage">Image URL (optional)</label>
-                    <input id="fImage" type="url" placeholder="https://..."/>
-                  </div>
-                </div>
-                <div class="field">
-                  <label for="fDescription">Description *</label>
-                  <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="details-grid">
-            <!-- Attributes in two rows -->
-            <div class="section section-card">
-              <div class="section-header">
-                <div class="section-title">Attributes</div>
-                <div class="section-note">Required</div>
-              </div>
-
-              <div class="grid two">
-                <div class="field">
-                  <label for="fWeightType">Weight type *</label>
-                  <select id="fWeightType">
-                    <option value="">— select —</option>
-                    <option value="free">free</option>
-                    <option value="fixed">fixed</option>
-                    <option value="body_weight">body_weight</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="fCategory">Category *</label>
-                  <select id="fCategory">
-                    <option value="">— select —</option>
-                    <option value="compound">compound</option>
-                    <option value="isolation">isolation</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="grid two">
-                <div class="field">
-                  <label for="fExperience">Experience *</label>
-                  <select id="fExperience">
-                    <option value="">— select —</option>
-                    <option value="beginner">beginner</option>
-                    <option value="intermediate">intermediate</option>
-                    <option value="advanced">advanced</option>
-                    <option value="pro">pro</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="fForceType">Force type *</label>
-                  <select id="fForceType">
-                    <option value="">— select —</option>
-                    <option value="push">push</option>
-                    <option value="pull">pull</option>
-                    <option value="hinge">hinge</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div class="section section-card">
-              <div class="section-header">
-                <div class="section-title">Exercise components</div>
-                <div class="section-note">Inputs</div>
-              </div>
-
-              <div class="grid two">
-                <div class="field">
-                  <label class="checkbox-row" for="fRulesExternalWeightEnabled">
-                    <input id="fRulesExternalWeightEnabled" type="checkbox"/>
-                    <span>External weight input</span>
-                  </label>
-                  <div class="hint">Adds a “weight” field for barbell, dumbbell, machine, etc.</div>
-                  <label class="checkbox-row" for="fRulesExternalWeightRequired">
-                    <input id="fRulesExternalWeightRequired" type="checkbox"/>
-                    <span>External weight required</span>
-                  </label>
-                </div>
-                <div class="field">
-                  <label class="checkbox-row" for="fRulesBodyWeightEnabled">
-                    <input id="fRulesBodyWeightEnabled" type="checkbox"/>
-                    <span>Body weight participates</span>
-                  </label>
-                  <div class="hint">Mutually exclusive with external weight.</div>
-                  <label for="fRulesBodyWeightMultiplier">Body weight multiplier</label>
-                  <div class="range-field">
-                    <input id="fRulesBodyWeightMultiplier" type="range" min="0.05" max="2" step="0.05" value="1"/>
-                    <span id="fRulesBodyWeightMultiplierValue" class="range-value">1.00×</span>
-                  </div>
-                  <div class="hint">Required when body weight participates (0.05–2.0).</div>
-                </div>
-              </div>
-
-              <div class="grid two">
-                <div class="field">
-                  <label class="checkbox-row" for="fRulesExtraWeightEnabled">
-                    <input id="fRulesExtraWeightEnabled" type="checkbox"/>
-                    <span>Extra weight input (bodyweight only)</span>
-                  </label>
-                  <div class="hint">Use for weighted bodyweight (belt, plates, vest).</div>
-                  <label class="checkbox-row" for="fRulesExtraWeightRequired">
-                    <input id="fRulesExtraWeightRequired" type="checkbox"/>
-                    <span>Extra weight required</span>
-                  </label>
-                </div>
-                <div class="field">
-                  <label class="checkbox-row" for="fRulesAssistanceEnabled">
-                    <input id="fRulesAssistanceEnabled" type="checkbox"/>
-                    <span>Assistance input (bodyweight only)</span>
-                  </label>
-                  <div class="hint">Use for gravitron, bands, or counterbalance.</div>
-                  <label class="checkbox-row" for="fRulesAssistanceRequired">
-                    <input id="fRulesAssistanceRequired" type="checkbox"/>
-                    <span>Assistance required</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Equipment (reorganized: left chips, right single select + add) -->
-          <div class="section section-card">
-            <div class="section-header">
-              <div class="section-title">Equipment *</div>
-              <div class="section-note">Required list</div>
-            </div>
-
-            <div class="grid two">
-              <div class="field">
-                <label>Selected</label>
-                <div id="equipTokens" class="token-list" aria-live="polite"></div>
-              </div>
-
-              <div class="field">
-                <label for="equipSingle">Add equipment</label>
-                <select id="equipSingle"></select>
-                <div style="display:flex; gap:8px; margin-top:8px;">
-                  <button id="equipAdd" class="btn" type="button">Add selected</button>
-                  <button id="equipClear" class="btn muted" type="button">Clear all</button>
-                </div>
-              </div>
-            </div>
-
-            <hr class="divider"/>
-          </div>
-
-          <!-- Muscles -->
-          <div class="section section-card">
-            <div class="section-header">
-              <div class="section-title">Muscle bundles (sum must be 100%) *</div>
-              <div class="section-note">Distribution</div>
-            </div>
-
-            <div id="bundles" style="display:grid;gap:8px"></div>
-
-            <div class="bundle-row">
-              <select id="muscleSelect"></select>
-              <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
-              <button id="bundleAdd" class="btn" type="button">Add bundle</button>
-            </div>
-            <div id="bundleSumInfo" class="sum">Sum: 0%</div>
-          </div>
-        </div>
-
-          <!-- RAW JSON -->
-          <div id="jsonWrap" class="json-wrap" hidden>
-            <button id="clearJsonBtn" class="btn clear-json" type="button" title="Clear JSON" aria-label="Clear JSON">&times;</button>
-            <textarea id="editor" spellcheck="false"></textarea>
-          </div>
+            <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
         </section>
-      </main>
-  </div>
 
-  <section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
+        <!-- Editor -->
+        <section class="panel">
+
+            <!-- FORM BUILDER -->
+            <div id="builder" class="builder show" aria-label="Exercise Example Builder">
+                <div class="section section-card intro-main">
+                    <div class="section-header">
+                        <div class="section-title">Exercise basics</div>
+                        <div class="section-note">Identity & text</div>
+                    </div>
+                    <div class="basics-row">
+                        <div class="preview-card" id="exercisePreviewCard">
+                            <div class="preview-label">Exercise image</div>
+                            <button id="previewFrame" type="button" class="preview-frame"
+                                    aria-label="Open image preview" aria-disabled="true">
+                                <img id="exercisePreview" alt="Exercise image preview"/>
+                                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+                            </button>
+                        </div>
+                        <div class="intro-stack">
+                            <div class="field">
+                                <label for="fId">ID (locked for existing)</label>
+                                <input id="fId" type="text" disabled placeholder="Auto for new, locked for existing"/>
+                                <div class="hint">ID cannot be changed for existing items.</div>
+                            </div>
+                            <div class="grid two">
+                                <div class="field">
+                                    <label for="fName">Name *</label>
+                                    <input id="fName" type="text" placeholder="e.g., Bench Press"/>
+                                </div>
+                                <div class="field">
+                                    <label for="fImage">Image URL (optional)</label>
+                                    <input id="fImage" type="url" placeholder="https://..."/>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label for="fDescription">Description *</label>
+                                <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <!-- Attributes in two rows -->
+                    <div class="section section-card">
+                        <div class="section-header">
+                            <div class="section-title">Attributes</div>
+                            <div class="section-note">Required</div>
+                        </div>
+
+                        <div class="grid two">
+                            <div class="field">
+                                <label for="fWeightType">Weight type *</label>
+                                <select id="fWeightType">
+                                    <option value="">— select —</option>
+                                    <option value="free">free</option>
+                                    <option value="fixed">fixed</option>
+                                    <option value="body_weight">body_weight</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="fCategory">Category *</label>
+                                <select id="fCategory">
+                                    <option value="">— select —</option>
+                                    <option value="compound">compound</option>
+                                    <option value="isolation">isolation</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid two">
+                            <div class="field">
+                                <label for="fExperience">Experience *</label>
+                                <select id="fExperience">
+                                    <option value="">— select —</option>
+                                    <option value="beginner">beginner</option>
+                                    <option value="intermediate">intermediate</option>
+                                    <option value="advanced">advanced</option>
+                                    <option value="pro">pro</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="fForceType">Force type *</label>
+                                <select id="fForceType">
+                                    <option value="">— select —</option>
+                                    <option value="push">push</option>
+                                    <option value="pull">pull</option>
+                                    <option value="hinge">hinge</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section section-card">
+                        <div class="section-header">
+                            <div class="section-title">Exercise components</div>
+                            <div class="section-note">Inputs</div>
+                        </div>
+
+                        <div class="grid two">
+                            <div class="field">
+                                <label class="checkbox-row" for="fRulesExternalWeightEnabled">
+                                    <input id="fRulesExternalWeightEnabled" type="checkbox"/>
+                                    <span>External weight input</span>
+                                </label>
+                                <div class="hint">Adds a “weight” field for barbell, dumbbell, machine, etc.</div>
+                                <label class="checkbox-row" for="fRulesExternalWeightRequired">
+                                    <input id="fRulesExternalWeightRequired" type="checkbox"/>
+                                    <span>External weight required</span>
+                                </label>
+                            </div>
+                            <div class="field">
+                                <label class="checkbox-row" for="fRulesBodyWeightEnabled">
+                                    <input id="fRulesBodyWeightEnabled" type="checkbox"/>
+                                    <span>Body weight participates</span>
+                                </label>
+                                <div class="hint">Mutually exclusive with external weight.</div>
+                                <label for="fRulesBodyWeightMultiplier">Body weight multiplier</label>
+                                <div class="range-field">
+                                    <input id="fRulesBodyWeightMultiplier" type="range" min="0.05" max="2" step="0.05"
+                                           value="1"/>
+                                    <span id="fRulesBodyWeightMultiplierValue" class="range-value">1.00×</span>
+                                </div>
+                                <div class="hint">Required when body weight participates (0.05–2.0).</div>
+                            </div>
+                        </div>
+
+                        <div class="grid two">
+                            <div class="field">
+                                <label class="checkbox-row" for="fRulesExtraWeightEnabled">
+                                    <input id="fRulesExtraWeightEnabled" type="checkbox"/>
+                                    <span>Extra weight input (bodyweight only)</span>
+                                </label>
+                                <div class="hint">Use for weighted bodyweight (belt, plates, vest).</div>
+                                <label class="checkbox-row" for="fRulesExtraWeightRequired">
+                                    <input id="fRulesExtraWeightRequired" type="checkbox"/>
+                                    <span>Extra weight required</span>
+                                </label>
+                            </div>
+                            <div class="field">
+                                <label class="checkbox-row" for="fRulesAssistanceEnabled">
+                                    <input id="fRulesAssistanceEnabled" type="checkbox"/>
+                                    <span>Assistance input (bodyweight only)</span>
+                                </label>
+                                <div class="hint">Use for gravitron, bands, or counterbalance.</div>
+                                <label class="checkbox-row" for="fRulesAssistanceRequired">
+                                    <input id="fRulesAssistanceRequired" type="checkbox"/>
+                                    <span>Assistance required</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equipment (reorganized: left chips, right single select + add) -->
+                <div class="section section-card">
+                    <div class="section-header">
+                        <div class="section-title">Equipment *</div>
+                        <div class="section-note">Required list</div>
+                    </div>
+
+                    <div class="grid two">
+                        <div class="field">
+                            <label>Selected</label>
+                            <div id="equipTokens" class="token-list" aria-live="polite"></div>
+                        </div>
+
+                        <div class="field">
+                            <label for="equipSingle">Add equipment</label>
+                            <select id="equipSingle"></select>
+                            <div style="display:flex; gap:8px; margin-top:8px;">
+                                <button id="equipAdd" class="btn" type="button">Add selected</button>
+                                <button id="equipClear" class="btn muted" type="button">Clear all</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="divider"/>
+                </div>
+
+                <!-- Muscles -->
+                <div class="section section-card">
+                    <div class="section-header">
+                        <div class="section-title">Muscle bundles (sum must be 100%) *</div>
+                        <div class="section-note">Distribution</div>
+                    </div>
+
+                    <div id="bundles" style="display:grid;gap:8px"></div>
+
+                    <div class="bundle-row">
+                        <select id="muscleSelect"></select>
+                        <input id="percentInput" type="number" min="0" max="100" step="1" placeholder="%"/>
+                        <button id="bundleAdd" class="btn" type="button">Add bundle</button>
+                    </div>
+                    <div id="bundleSumInfo" class="sum">Sum: 0%</div>
+                </div>
+            </div>
+
+            <!-- RAW JSON -->
+            <div id="jsonWrap" class="json-wrap" hidden>
+                <button id="clearJsonBtn" class="btn clear-json" type="button" title="Clear JSON"
+                        aria-label="Clear JSON">&times;
+                </button>
+                <textarea id="editor" spellcheck="false"></textarea>
+            </div>
+        </section>
+    </main>
+</div>
+
+<section id="usersView" class="primary-view" aria-labelledby="tabUsers" role="tabpanel" hidden>
     <div id="usersCommandBar" class="command-bar users-command">
-      <input id="userSearch" type="search" placeholder="Search by email or name" />
-      <div id="userSortDropdown" class="sort-dropdown">
-        <button id="userSortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
-          <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          <span class="sort-toggle__label">Sort</span>
-          <span class="sort-toggle__sep">·</span>
-          <span id="userSortLabel" class="sort-toggle__value">Creation date</span>
-          <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div id="userSortMenu" class="sort-menu" role="menu" aria-label="User sorting"></div>
-      </div>
-      <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
-
-      <span class="spacer"></span>
-
-      <span id="userSelectionHint" class="hint">No user selected</span>
-
-      <div class="cmd-actions">
-        <div class="view-toggle role-toggle">
-          <div id="roleSegment" class="segment" role="tablist" aria-label="User role">
-            <button id="roleDefaultBtn" class="seg active" role="tab" aria-selected="true" data-role="default">Default</button>
-            <button id="roleAdminBtn" class="seg" role="tab" aria-selected="false" data-role="admin">Admin</button>
-          </div>
+        <input id="userSearch" type="search" placeholder="Search by email or name"/>
+        <div id="userSortDropdown" class="sort-dropdown">
+            <button id="userSortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
+                <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none"
+                     aria-hidden="true">
+                    <path d="M1 3h11M3 6.5h7M5.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <span class="sort-toggle__label">Sort</span>
+                <span class="sort-toggle__sep">·</span>
+                <span id="userSortLabel" class="sort-toggle__value">Creation date</span>
+                <svg class="sort-toggle__chevron" width="10" height="10" viewBox="0 0 10 10" fill="none"
+                     aria-hidden="true">
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                          stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div id="userSortMenu" class="sort-menu" role="menu" aria-label="User sorting"></div>
         </div>
-        <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
-      </div>
+        <button id="reloadUsersBtn" class="btn" type="button">Load users</button>
+
+        <span class="spacer"></span>
+
+        <span id="userSelectionHint" class="hint">No user selected</span>
+
+        <div class="cmd-actions">
+            <div class="view-toggle role-toggle">
+                <div id="roleSegment" class="segment" role="tablist" aria-label="User role">
+                    <button id="roleDefaultBtn" class="seg active" role="tab" aria-selected="true" data-role="default">
+                        Default
+                    </button>
+                    <button id="roleAdminBtn" class="seg" role="tab" aria-selected="false" data-role="admin">Admin
+                    </button>
+                </div>
+            </div>
+            <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+        </div>
     </div>
 
     <div class="users-layout">
-      <section class="sidebar users-sidebar" aria-label="Users list">
-        <div class="user-list-header">
-          <span id="userListCount" class="user-count"></span>
-        </div>
-      <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
-      </section>
+        <section class="sidebar users-sidebar" aria-label="Users list">
+            <div class="user-list-header">
+                <span id="userListCount" class="user-count"></span>
+            </div>
+            <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
+        </section>
 
-      <section class="panel user-panel">
-        <div id="userDetail" class="user-detail" hidden>
-          <div class="user-header">
-            <div class="user-header-text">
-              <div class="user-label">Selected user</div>
-              <div id="userName" class="user-title"></div>
-              <div id="userEmail" class="user-subtitle"></div>
-              <div class="user-status-chips" aria-label="User status">
-                <div class="status-chip" id="userLastActivityChip">
-                  <span class="chip-label">Last activity</span>
-                  <span id="userLastActivity" class="chip-value">—</span>
+        <section class="panel user-panel">
+            <div id="userDetail" class="user-detail" hidden>
+                <div class="user-header">
+                    <div class="user-header-text">
+                        <div class="user-label">Selected user</div>
+                        <div id="userName" class="user-title"></div>
+                        <div id="userEmail" class="user-subtitle"></div>
+                        <div class="user-status-chips" aria-label="User status">
+                            <div class="status-chip" id="userLastActivityChip">
+                                <span class="chip-label">Last activity</span>
+                                <span id="userLastActivity" class="chip-value">—</span>
+                            </div>
+                            <div class="status-chip" id="userWorkoutsChip">
+                                <span class="chip-label">Workouts</span>
+                                <span id="userWorkoutsCount" class="chip-value">—</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-tags">
+                        <div id="userAuthPill" class="user-auth-pill" aria-label="Auth types"></div>
+                        <div id="userAuthList" class="user-auth-list" aria-label="Auth types list"></div>
+                    </div>
                 </div>
-                <div class="status-chip" id="userWorkoutsChip">
-                  <span class="chip-label">Workouts</span>
-                  <span id="userWorkoutsCount" class="chip-value">—</span>
+
+                <div class="user-id-fields">
+                    <div class="field compact">
+                        <label for="userIdField">User ID</label>
+                        <input id="userIdField" type="text" disabled placeholder="—"/>
+                    </div>
+                    <div class="field compact">
+                        <label for="profileIdField">Profile ID</label>
+                        <input id="profileIdField" type="text" disabled placeholder="—"/>
+                    </div>
                 </div>
-              </div>
-            </div>
-            <div class="user-tags">
-              <div id="userAuthPill" class="user-auth-pill" aria-label="Auth types"></div>
-              <div id="userAuthList" class="user-auth-list" aria-label="Auth types list"></div>
-            </div>
-          </div>
 
-          <div class="user-id-fields">
-            <div class="field compact">
-              <label for="userIdField">User ID</label>
-              <input id="userIdField" type="text" disabled placeholder="—" />
-            </div>
-            <div class="field compact">
-              <label for="profileIdField">Profile ID</label>
-              <input id="profileIdField" type="text" disabled placeholder="—" />
-            </div>
-          </div>
+                <div class="user-meta-grid">
+                    <div class="meta-card">
+                        <div class="meta-label">Created</div>
+                        <div id="userCreated" class="meta-value">—</div>
+                    </div>
+                    <div class="meta-card">
+                        <div class="meta-label">Updated</div>
+                        <div id="userUpdated" class="meta-value">—</div>
+                    </div>
+                </div>
 
-          <div class="user-meta-grid">
-            <div class="meta-card">
-              <div class="meta-label">Created</div>
-              <div id="userCreated" class="meta-value">—</div>
-            </div>
-            <div class="meta-card">
-              <div class="meta-label">Updated</div>
-              <div id="userUpdated" class="meta-value">—</div>
-            </div>
-          </div>
+                <div id="userDetailsSections" class="user-details-sections">
+                    <section class="user-section" id="userGoalSection">
+                        <div class="user-section-head">
+                            <div class="user-section-title">Goal</div>
+                            <div id="userGoalSummary" class="user-section-note">—</div>
+                        </div>
+                        <div id="userGoalBody" class="user-section-body"></div>
+                    </section>
 
-        </div>
-      </section>
+                    <section class="user-section" id="userTrainingsSection">
+                        <div class="user-section-head">
+                            <div class="user-section-title">Recent workouts</div>
+                            <div id="userTrainingsCount" class="user-section-note">—</div>
+                        </div>
+                        <div id="userTrainingsBody" class="user-section-body"></div>
+                    </section>
+
+                    <section class="user-section" id="userWeightSection">
+                        <div class="user-section-head">
+                            <div class="user-section-title">Weight history</div>
+                            <div id="userWeightSummary" class="user-section-note">—</div>
+                        </div>
+                        <div id="userWeightBody" class="user-section-body"></div>
+                    </section>
+                </div>
+
+            </div>
+        </section>
     </div>
-  </section>
+</section>
 
-  <script type="module" src="./src/main.js"></script>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

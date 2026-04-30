@@ -60,4 +60,28 @@ export class UserRepository {
         }
         return resp.json();
     }
+
+    async fetchGoal(id) {
+        const resp = await this._client._fetch(ENDPOINTS.userGoal(id), {
+            headers: this._client.buildHeaders()
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        return resp.json();
+    }
+
+    async fetchTrainings(id, {start, end}) {
+        const resp = await this._client._fetch(ENDPOINTS.userTrainings(id, start, end), {
+            headers: this._client.buildHeaders()
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        return resp.json();
+    }
+
+    async fetchWeightHistory(id) {
+        const resp = await this._client._fetch(ENDPOINTS.userWeightHistory(id), {
+            headers: this._client.buildHeaders()
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        return resp.json();
+    }
 }

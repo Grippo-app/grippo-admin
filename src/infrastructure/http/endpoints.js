@@ -19,5 +19,8 @@ export const ENDPOINTS = Object.freeze({
     users: `${API_BASE}/admin/users`,
     userRole: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/role`,
     userDelete: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}`,
+    userGoal: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/goal`,
+    userTrainings: (id, start, end) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/trainings?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+    userWeightHistory: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/weight-history`,
     makeAdmin: `${API_BASE}/admin/users/make-admin`,
 });
