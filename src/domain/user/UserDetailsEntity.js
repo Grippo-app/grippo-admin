@@ -31,13 +31,37 @@ export class UserDetailsEntity {
     }
 
     static _normalizeTraining(training = {}) {
+        const exercises = Array.isArray(training.exercises) ? training.exercises : [];
         return {
             id: training.id || '',
             createdAt: training.createdAt || '',
             duration: training.duration ?? null,
             volume: training.volume ?? null,
             repetitions: training.repetitions ?? null,
-            exercisesCount: Array.isArray(training.exercises) ? training.exercises.length : 0,
+            exercisesCount: exercises.length,
+            exercises: exercises.map(UserDetailsEntity._normalizeExercise),
+        };
+    }
+
+    static _normalizeExercise(exercise = {}) {
+        const iterations = Array.isArray(exercise.iterations) ? exercise.iterations : [];
+        return {
+            id: exercise.id || '',
+            // After i18n on the backend, exerciseExample.name is the localized name.
+            name: exercise.exerciseExample?.name || exercise.name || '—',
+            iterations: iterations.map(UserDetailsEntity._normalizeIteration),
+        };
+    }
+
+    static _normalizeIteration(iteration = {}) {
+        return {
+            id: iteration.id || '',
+            externalWeight: iteration.externalWeight ?? null,
+            bodyWeight: iteration.bodyWeight ?? null,
+            extraWeight: iteration.extraWeight ?? null,
+            assistWeight: iteration.assistWeight ?? null,
+            bodyMultiplier: iteration.bodyMultiplier ?? null,
+            repetitions: iteration.repetitions ?? null,
         };
     }
 

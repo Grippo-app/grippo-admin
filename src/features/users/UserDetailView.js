@@ -25,6 +25,7 @@ export class UserDetailView {
 
         this._bindRoleSegment(onRoleChange);
         this._els.deleteUserBtn?.addEventListener('click', onDelete);
+        this._bindTrainingsDelegation();
 
         this._unsubscribe = store.subscribe(() => this.render());
         // Сразу применяем initial state чтобы UserDetail был скрыт корректно
@@ -37,7 +38,7 @@ export class UserDetailView {
     }
 
     render() {
-        const {active, roleChangeInFlight, details, detailsLoading} = this._store.getState();
+        const {active, roleChangeInFlight, details, detailsLoading, expandedTrainingId} = this._store.getState();
         if (!active) {
             this._showEmpty();
             this._setActionsDisabled(true);
@@ -66,7 +67,7 @@ export class UserDetailView {
         this._updateRoleSegment(active.role);
 
         // Extended details sections
-        this._renderDetails({active, details, loading: detailsLoading});
+        this._renderDetails({active, details, loading: detailsLoading, expandedTrainingId});
     }
 
     _setActionsDisabled(disabled) {
@@ -126,7 +127,7 @@ export class UserDetailView {
 
     // ── Details sections ─────────────────────────────────
 
-    _renderDetails({active, details, loading}) {
+    _renderDetails({active, details, loading, expandedTrainingId}) {
         if (!this._els.detailsSections) return;
 
         if (loading) {
@@ -142,7 +143,7 @@ export class UserDetailView {
             return;
         }
         this._renderGoal({state: 'ready', goal: details.goal});
-        this._renderTrainings({state: 'ready', trainings: details.recentTrainings});
+        this._renderTrainings({state: 'ready', trainings: details.recentTrainings, expandedTrainingId});
         this._renderWeight({state: 'ready', entries: details.weightHistory});
     }
 
@@ -191,7 +192,7 @@ export class UserDetailView {
         return `<span class="goal-pill"><span class="pill-label">${escapeHtml(label)}</span>${escapeHtml(value)}</span>`;
     }
 
-    _renderTrainings({state, trainings}) {
+    _renderTrainings({state, trainings, expandedTrainingId}) {
         const body = this._els.trainingsBody;
         const note = this._els.trainingsCount;
         if (!body) return;
@@ -208,33 +209,119 @@ export class UserDetailView {
         }
 
         const visible = trainings.slice(0, 10);
-        body.innerHTML = visible.map(t => this._trainingRow(t)).join('');
+        body.innerHTML = visible
+            .map(t => this._trainingItem(t, t.id === expandedTrainingId))
+            .join('');
         const moreLabel = trainings.length > visible.length
             ? `Showing ${visible.length} of ${trainings.length}`
             : `Showing last ${visible.length}`;
         this._setText(note, moreLabel);
     }
 
-    _trainingRow(training) {
-        const stats = [];
-        stats.push(this._stat('Duration', formatDuration(training.duration)));
-        stats.push(this._stat('Volume', formatNumber(training.volume, {unit: 'kg', decimals: 1})));
-        stats.push(this._stat('Reps', formatNumber(training.repetitions)));
+    _trainingItem(training, isOpen) {
+        const stats = [
+            this._stat('Duration', formatDuration(training.duration)),
+            this._stat('Volume', formatNumber(training.volume, {unit: 'kg', decimals: 1})),
+            this._stat('Reps', formatNumber(training.repetitions)),
+        ].join('');
 
         const dateRel = relativeDate(training.createdAt) || '—';
         const dateAbs = formatShortDate(training.createdAt);
+        const exCountLabel = `${training.exercisesCount} ex.`;
+
+        const detail = isOpen ? this._trainingDetail(training) : '';
 
         return `
-            <div class="training-row" title="${escapeHtml(dateAbs)}">
-                <div class="training-date">${escapeHtml(dateRel)}</div>
-                <div class="training-stats">${stats.join('')}</div>
-                <div class="training-exercises">${training.exercisesCount} exercise${training.exercisesCount === 1 ? '' : 's'}</div>
-            </div>
+            <button type="button" class="training-row${isOpen ? ' is-open' : ''}"
+                    data-training-id="${escapeHtml(training.id)}"
+                    aria-expanded="${isOpen ? 'true' : 'false'}"
+                    title="${escapeHtml(dateAbs)}">
+                <span class="training-date">
+                    <span class="training-date-rel">${escapeHtml(dateRel)}</span>
+                    <span class="training-date-abs">${escapeHtml(dateAbs)}</span>
+                </span>
+                <span class="training-stats">${stats}</span>
+                <span class="training-exercises">${escapeHtml(exCountLabel)}</span>
+                <svg class="training-chevron" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            ${detail}
         `;
     }
 
     _stat(label, value) {
         return `<span class="training-stat"><span class="stat-label">${escapeHtml(label)}</span><span class="stat-value">${escapeHtml(value)}</span></span>`;
+    }
+
+    _trainingDetail(training) {
+        if (!training.exercises || training.exercises.length === 0) {
+            return `<div class="training-detail"><div class="user-section-empty">No exercises recorded</div></div>`;
+        }
+        const items = training.exercises.map(ex => this._trainingExercise(ex)).join('');
+        return `<div class="training-detail">${items}</div>`;
+    }
+
+    _trainingExercise(exercise) {
+        const sets = exercise.iterations.length;
+        const setsLabel = sets === 0 ? 'no sets' : `${sets} set${sets === 1 ? '' : 's'}`;
+        const iters = exercise.iterations.map(it => this._trainingIteration(it)).join('');
+        return `
+            <div class="training-exercise">
+                <div class="training-exercise-name">
+                    <span>${escapeHtml(exercise.name)}</span>
+                    <span class="sets-count">${escapeHtml(setsLabel)}</span>
+                </div>
+                ${iters ? `<div class="training-iterations">${iters}</div>` : ''}
+            </div>
+        `;
+    }
+
+    _trainingIteration(iteration) {
+        const reps = iteration.repetitions;
+        const repsText = reps != null ? `× ${reps}` : '';
+
+        // Pick the most informative weight signal available.
+        const w = this._formatIterationWeight(iteration);
+        if (!w) {
+            return `<span class="training-iteration training-iteration--reps-only">${escapeHtml(repsText || '—')}</span>`;
+        }
+        return `
+            <span class="training-iteration">
+                <span class="iter-mode">${escapeHtml(w.mode)}</span>
+                <span>${escapeHtml(w.value)}</span>
+                <span>${escapeHtml(repsText)}</span>
+            </span>
+        `;
+    }
+
+    _formatIterationWeight(it) {
+        if (it.externalWeight != null) {
+            return {mode: 'ext', value: formatNumber(it.externalWeight, {unit: 'kg', decimals: 1})};
+        }
+        if (it.extraWeight != null) {
+            return {mode: 'extra', value: `+${formatNumber(it.extraWeight, {unit: 'kg', decimals: 1})}`};
+        }
+        if (it.assistWeight != null) {
+            return {mode: 'assist', value: `-${formatNumber(it.assistWeight, {unit: 'kg', decimals: 1})}`};
+        }
+        if (it.bodyWeight != null) {
+            const mult = it.bodyMultiplier != null ? ` ×${formatNumber(it.bodyMultiplier, {decimals: 2})}` : '';
+            return {mode: 'bw', value: `${formatNumber(it.bodyWeight, {unit: 'kg', decimals: 1})}${mult}`};
+        }
+        return null;
+    }
+
+    _bindTrainingsDelegation() {
+        const body = this._els.trainingsBody;
+        if (!body) return;
+        body.addEventListener('click', (e) => {
+            const row = e.target.closest('.training-row');
+            if (!row) return;
+            const id = row.dataset.trainingId;
+            if (!id) return;
+            this._store.toggleExpandedTraining(id);
+        });
     }
 
     _renderWeight({state, entries, userHasProfile}) {

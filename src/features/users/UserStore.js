@@ -13,6 +13,7 @@ export class UserStore {
             details: null,
             detailsForUserId: null,
             detailsLoading: false,
+            expandedTrainingId: null,
         };
         this._observers = new Set();
     }
@@ -36,6 +37,7 @@ export class UserStore {
             details: null,
             detailsForUserId: null,
             detailsLoading: false,
+            expandedTrainingId: null,
         });
     }
 
@@ -45,6 +47,7 @@ export class UserStore {
             details: null,
             detailsForUserId: null,
             detailsLoading: false,
+            expandedTrainingId: null,
         });
     }
 
@@ -62,6 +65,11 @@ export class UserStore {
             detailsForUserId: userId,
             detailsLoading: false,
         });
+    }
+
+    toggleExpandedTraining(trainingId) {
+        const next = this._state.expandedTrainingId === trainingId ? null : trainingId;
+        this._update({expandedTrainingId: next});
     }
 
     setSearchQuery(q) {

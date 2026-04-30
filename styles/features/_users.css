@@ -93,7 +93,7 @@
     flex-direction: column;
     gap: 16px;
     height: 100%;
-    max-width: 700px;
+    max-width: 1200px;
 }
 
 /* User header */
@@ -489,19 +489,31 @@
 }
 
 /* ── User detail sections ─────────────────────────────── */
-.user-details-sections {
+.user-details-grid {
     display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    grid-template-rows: auto 1fr;
     gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .user-section {
+    --accent: var(--brand);
     background: var(--field);
     border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
     border-radius: var(--radius-md);
     padding: 12px 14px;
     display: grid;
+    grid-template-rows: auto 1fr;
     gap: 10px;
+    min-height: 0;
 }
+
+.user-section--goal       { --accent: var(--brand); grid-column: 1 / -1; }
+.user-section--workouts   { --accent: var(--ok);    grid-column: 1; min-height: 280px; }
+.user-section--weight     { --accent: var(--warning); grid-column: 2; min-height: 280px; }
 
 .user-section-head {
     display: flex;
@@ -511,11 +523,22 @@
 }
 
 .user-section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: var(--muted);
+    color: var(--text);
+}
+
+.section-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .user-section-note {
@@ -527,6 +550,14 @@
 .user-section-body {
     display: grid;
     gap: 8px;
+    align-content: start;
+    min-height: 0;
+}
+
+.user-section-body--scroll {
+    overflow: auto;
+    max-height: 460px;
+    padding-right: 2px;
 }
 
 .user-section-empty {
@@ -580,7 +611,7 @@
 /* Training rows */
 .training-row {
     display: grid;
-    grid-template-columns: minmax(110px, auto) 1fr auto;
+    grid-template-columns: 64px 1fr auto auto;
     gap: 12px;
     padding: 8px 10px;
     border-radius: var(--radius-sm);
@@ -588,11 +619,42 @@
     border: 1px solid var(--border);
     align-items: center;
     font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s, border-color .12s, transform .12s;
+}
+
+.training-row:hover {
+    background: var(--field-hover);
+    border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+}
+
+.training-row:focus-visible {
+    outline: 2px solid var(--ok);
+    outline-offset: 2px;
+}
+
+.training-row.is-open {
+    background: var(--field-focus);
+    border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
 }
 
 .training-date {
-    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
     color: var(--text);
+}
+
+.training-date-rel {
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.training-date-abs {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
 }
 
 .training-stats {
@@ -623,6 +685,88 @@
     white-space: nowrap;
 }
 
+.training-chevron {
+    width: 14px;
+    height: 14px;
+    color: var(--muted);
+    transition: transform .15s;
+}
+
+.training-row.is-open .training-chevron {
+    transform: rotate(90deg);
+    color: var(--ok);
+}
+
+/* Expanded training body */
+.training-detail {
+    display: grid;
+    gap: 8px;
+    padding: 8px 12px 10px;
+    border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--border));
+    border-top: 0;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    background: var(--panel-2);
+    margin-top: -1px;
+}
+
+.training-exercise {
+    display: grid;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    border: 1px solid var(--border);
+}
+
+.training-exercise-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.training-exercise-name .sets-count {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    font-weight: 700;
+}
+
+.training-iterations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.training-iteration {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--field);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+.training-iteration .iter-mode {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    font-weight: 700;
+}
+
+.training-iteration--reps-only {
+    color: var(--muted);
+}
+
 /* Weight rows */
 .weight-row {
     display: grid;
@@ -643,6 +787,7 @@
 .weight-value {
     font-weight: 700;
     color: var(--text);
+    font-variant-numeric: tabular-nums;
 }
 
 .weight-delta {
@@ -650,6 +795,7 @@
     font-weight: 600;
     min-width: 44px;
     text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
 .weight-delta.up {
@@ -679,5 +825,18 @@
     }
     100% {
         background-position: -200% 0;
+    }
+}
+
+/* Narrow viewport — collapse to a single column */
+@media (max-width: 980px) {
+    .user-details-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .user-section--goal,
+    .user-section--workouts,
+    .user-section--weight {
+        grid-column: 1;
     }
 }

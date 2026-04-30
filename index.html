@@ -419,29 +419,38 @@
                     </div>
                 </div>
 
-                <div id="userDetailsSections" class="user-details-sections">
-                    <section class="user-section" id="userGoalSection">
+                <div id="userDetailsGrid" class="user-details-grid">
+                    <section class="user-section user-section--goal" id="userGoalSection">
                         <div class="user-section-head">
-                            <div class="user-section-title">Goal</div>
+                            <div class="user-section-title">
+                                <span class="section-dot section-dot--goal" aria-hidden="true"></span>
+                                Goal
+                            </div>
                             <div id="userGoalSummary" class="user-section-note">—</div>
                         </div>
                         <div id="userGoalBody" class="user-section-body"></div>
                     </section>
 
-                    <section class="user-section" id="userTrainingsSection">
+                    <section class="user-section user-section--workouts" id="userTrainingsSection">
                         <div class="user-section-head">
-                            <div class="user-section-title">Recent workouts</div>
+                            <div class="user-section-title">
+                                <span class="section-dot section-dot--workouts" aria-hidden="true"></span>
+                                Recent workouts
+                            </div>
                             <div id="userTrainingsCount" class="user-section-note">—</div>
                         </div>
-                        <div id="userTrainingsBody" class="user-section-body"></div>
+                        <div id="userTrainingsBody" class="user-section-body user-section-body--scroll"></div>
                     </section>
 
-                    <section class="user-section" id="userWeightSection">
+                    <section class="user-section user-section--weight" id="userWeightSection">
                         <div class="user-section-head">
-                            <div class="user-section-title">Weight history</div>
+                            <div class="user-section-title">
+                                <span class="section-dot section-dot--weight" aria-hidden="true"></span>
+                                Weight history
+                            </div>
                             <div id="userWeightSummary" class="user-section-note">—</div>
                         </div>
-                        <div id="userWeightBody" class="user-section-body"></div>
+                        <div id="userWeightBody" class="user-section-body user-section-body--scroll"></div>
                     </section>
                 </div>
 

@@ -250,7 +250,7 @@ const userDetailView = new UserDetailView({
         roleSegments: document.querySelectorAll('[data-role]'),
         deleteUserBtn: document.getElementById('deleteUserBtn'),
         // Details sections
-        detailsSections: document.getElementById('userDetailsSections'),
+        detailsSections: document.getElementById('userDetailsGrid'),
         goalSummary: document.getElementById('userGoalSummary'),
         goalBody: document.getElementById('userGoalBody'),
         trainingsCount: document.getElementById('userTrainingsCount'),
