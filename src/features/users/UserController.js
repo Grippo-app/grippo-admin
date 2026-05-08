@@ -54,10 +54,11 @@ export class UserController {
         this._store.setDetailsLoading(userId);
         const {start, end} = this._defaultTrainingsRange();
 
-        const [goalRes, trainingsRes, weightsRes] = await Promise.allSettled([
+        const [goalRes, trainingsRes, weightsRes, deviceTokensRes] = await Promise.allSettled([
             this._repo.fetchGoal(userId),
             this._repo.fetchTrainings(userId, {start, end}),
             this._repo.fetchWeightHistory(userId),
+            this._repo.fetchDeviceTokens(userId),
         ]);
 
         // If user switched while we were loading, drop the result silently.
@@ -73,9 +74,12 @@ export class UserController {
             weightHistory: weightsRes.status === 'fulfilled'
                 ? UserDetailsEntity.normalizeWeightHistory(weightsRes.value)
                 : [],
+            deviceTokens: deviceTokensRes.status === 'fulfilled'
+                ? UserDetailsEntity.normalizeDeviceTokens(deviceTokensRes.value)
+                : [],
         };
 
-        const failed = [goalRes, trainingsRes, weightsRes].find(r => r.status === 'rejected');
+        const failed = [goalRes, trainingsRes, weightsRes, deviceTokensRes].find(r => r.status === 'rejected');
         if (failed) {
             Toast.show({
                 title: 'Failed to load some user details',

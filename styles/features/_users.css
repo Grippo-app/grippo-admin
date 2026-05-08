@@ -526,6 +526,7 @@
 .user-section--goal       { --accent: var(--brand); grid-column: 1 / -1; }
 .user-section--workouts   { --accent: var(--ok);    grid-column: 1; min-height: 280px; }
 .user-section--weight     { --accent: var(--warning); grid-column: 2; min-height: 280px; }
+.user-section--devices    { --accent: var(--brand-2); grid-column: 1 / -1; }
 
 .user-section-head {
     display: flex;
@@ -827,6 +828,73 @@
     color: var(--muted);
 }
 
+/* Device tokens */
+.device-token-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    align-items: center;
+    font-size: 12px;
+}
+
+.device-token-value {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.device-token-date {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.device-token-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    background: var(--field);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.device-token-copy:hover {
+    color: var(--text);
+    background: var(--field-hover);
+    border-color: var(--brand);
+}
+
+.device-token-copy:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+}
+
+.device-token-copy.is-copied,
+.device-token-copy.is-copied:hover {
+    color: var(--ok);
+    border-color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 14%, var(--field));
+}
+
+.device-token-copy svg {
+    width: 14px;
+    height: 14px;
+}
+
 /* Loading skeleton */
 .user-section-loading {
     height: 14px;
@@ -853,7 +921,8 @@
 
     .user-section--goal,
     .user-section--workouts,
-    .user-section--weight {
+    .user-section--weight,
+    .user-section--devices {
         grid-column: 1;
     }
 }

@@ -84,4 +84,12 @@ export class UserRepository {
         if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
         return resp.json();
     }
+
+    async fetchDeviceTokens(id) {
+        const resp = await this._client._fetch(ENDPOINTS.userDeviceTokens(id), {
+            headers: this._client.buildHeaders()
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        return resp.json();
+    }
 }

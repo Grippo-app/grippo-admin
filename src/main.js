@@ -257,6 +257,8 @@ const userDetailView = new UserDetailView({
         trainingsBody: document.getElementById('userTrainingsBody'),
         weightSummary: document.getElementById('userWeightSummary'),
         weightBody: document.getElementById('userWeightBody'),
+        deviceTokensSummary: document.getElementById('userDeviceTokensSummary'),
+        deviceTokensBody: document.getElementById('userDeviceTokensBody'),
     },
     onRoleChange: (role) => userController.changeRole(role),
     onDelete: () => userController.deleteActiveUser(),

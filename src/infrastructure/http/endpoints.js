@@ -22,5 +22,6 @@ export const ENDPOINTS = Object.freeze({
     userGoal: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/goal`,
     userTrainings: (id, start, end) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/trainings?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
     userWeightHistory: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/weight-history`,
+    userDeviceTokens: (id) => `${API_BASE}/admin/users/${encodeURIComponent(id)}/device-tokens`,
     makeAdmin: `${API_BASE}/admin/users/make-admin`,
 });

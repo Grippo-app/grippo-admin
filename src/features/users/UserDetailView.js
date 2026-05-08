@@ -1,6 +1,7 @@
 import {UserEntity} from '../../domain/user/index.js';
 import {escapeHtml, formatIso} from '../../shared/utils/index.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
+import {Toast} from '../../shared/components/Toast.js';
 import {formatDuration, formatNumber, formatShortDate, humanizeEnum, relativeDate,} from './userFormatters.js';
 
 export class UserDetailView {
@@ -13,7 +14,8 @@ export class UserDetailView {
      *     roleSegments, deleteUserBtn,
      *     detailsSections, goalSummary, goalBody,
      *     trainingsCount, trainingsBody,
-     *     weightSummary, weightBody
+     *     weightSummary, weightBody,
+     *     deviceTokensSummary, deviceTokensBody
      *   },
      *   onRoleChange: (role: string) => void,
      *   onDelete: () => void
@@ -26,6 +28,7 @@ export class UserDetailView {
         this._bindRoleSegment(onRoleChange);
         this._els.deleteUserBtn?.addEventListener('click', onDelete);
         this._bindTrainingsDelegation();
+        this._bindDeviceTokensDelegation();
 
         this._unsubscribe = store.subscribe(() => this.render());
         // Сразу применяем initial state чтобы UserDetail был скрыт корректно
@@ -134,17 +137,20 @@ export class UserDetailView {
             this._renderGoal({state: 'loading'});
             this._renderTrainings({state: 'loading'});
             this._renderWeight({state: 'loading'});
+            this._renderDeviceTokens({state: 'loading'});
             return;
         }
         if (!details) {
             this._renderGoal({state: 'empty'});
             this._renderTrainings({state: 'empty'});
             this._renderWeight({state: 'empty', userHasProfile: Boolean(active.profileId)});
+            this._renderDeviceTokens({state: 'empty'});
             return;
         }
         this._renderGoal({state: 'ready', goal: details.goal});
         this._renderTrainings({state: 'ready', trainings: details.recentTrainings, expandedTrainingId});
         this._renderWeight({state: 'ready', entries: details.weightHistory});
+        this._renderDeviceTokens({state: 'ready', tokens: details.deviceTokens});
     }
 
     _renderGoal({state, goal}) {
@@ -390,6 +396,81 @@ export class UserDetailView {
         return `<span class="weight-delta ${cls}">${sign}${formatNumber(Math.abs(value), {decimals: 1})}</span>`;
     }
 
+    // ── Device tokens section ───────────────────────────
+
+    _renderDeviceTokens({state, tokens}) {
+        const body = this._els.deviceTokensBody;
+        const summary = this._els.deviceTokensSummary;
+        if (!body) return;
+
+        if (state === 'loading') {
+            body.innerHTML = '<div class="user-section-loading"></div><div class="user-section-loading"></div>';
+            this._setText(summary, '');
+            return;
+        }
+        if (!tokens || tokens.length === 0) {
+            body.innerHTML = '<div class="user-section-empty">No device tokens</div>';
+            this._setText(summary, '');
+            return;
+        }
+
+        body.innerHTML = tokens.map(t => this._deviceTokenRow(t)).join('');
+        this._setText(summary, `${tokens.length} token${tokens.length === 1 ? '' : 's'}`);
+    }
+
+    _deviceTokenRow(token) {
+        const dateRel = relativeDate(token.createdAt) || '—';
+        const dateAbs = formatShortDate(token.createdAt);
+        const safeToken = escapeHtml(token.token);
+        return `
+            <div class="device-token-row">
+                <code class="device-token-value" title="${safeToken}">${safeToken}</code>
+                <span class="device-token-date" title="${escapeHtml(dateAbs)}">${escapeHtml(dateRel)}</span>
+                <button type="button" class="device-token-copy"
+                        data-device-token="${safeToken}"
+                        aria-label="Copy device token"
+                        title="Copy token">
+                    <svg viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <rect x="3.5" y="3.5" width="7" height="7" rx="1.2"
+                              stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M5.5 3.5V2.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1"
+                              stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        `;
+    }
+
+    _bindDeviceTokensDelegation() {
+        const body = this._els.deviceTokensBody;
+        if (!body) return;
+        body.addEventListener('click', (e) => {
+            const btn = e.target.closest('.device-token-copy');
+            if (!btn) return;
+            const token = btn.dataset.deviceToken;
+            if (!token) return;
+            this._copyDeviceToken(token, btn);
+        });
+    }
+
+    async _copyDeviceToken(text, btn) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+        Toast.show({title: 'Token copied'});
+        // Short visual confirmation on the button itself — re-render of the
+        // tokens list would drop the class, so we tolerate that as a no-op.
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1200);
+    }
+
     // ── Helpers ──────────────────────────────────────────
 
     _showEmpty() {
@@ -412,6 +493,8 @@ export class UserDetailView {
         if (this._els.trainingsCount) this._setText(this._els.trainingsCount, '');
         if (this._els.weightBody) this._els.weightBody.innerHTML = '';
         if (this._els.weightSummary) this._setText(this._els.weightSummary, '');
+        if (this._els.deviceTokensBody) this._els.deviceTokensBody.innerHTML = '';
+        if (this._els.deviceTokensSummary) this._setText(this._els.deviceTokensSummary, '');
     }
 
     _setText(el, text) {
