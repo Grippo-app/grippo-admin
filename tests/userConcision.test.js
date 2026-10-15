@@ -13,6 +13,14 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return {promise, resolve, reject}; };
 const raw = (id, patch = {}) => ({id, email: `${id}@example.test`, role: 'default', profile: {id: `p-${id}`}, ...patch});
 const user = (id, patch) => UserEntity.normalize(raw(id, patch));
+
+test('account rows distinguish an unavailable workout count from a reported zero, matching the filter evidence', () => {
+    const view = Object.create(UserListView.prototype);
+    const unknown = view._userItem(user('unknown', {workoutsCount: undefined}), false);
+    const zero = view._userItem(user('zero', {workoutsCount: 0}), false);
+    assert.match(unknown, /Workout count unknown/); assert.doesNotMatch(unknown, /0 workouts/);
+    assert.match(zero, /0 workouts/); assert.doesNotMatch(zero, /Workout count unknown/);
+});
 function setup(t, overrides = {}) {
     t.mock.method(Toast, 'show', () => {});
     const store = new UserStore(); const bus = new EventBus();

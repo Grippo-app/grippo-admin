@@ -1,4 +1,5 @@
 import {UserEntity, userProfileState} from '../../domain/user/index.js';
+import {readUserWorkoutCount} from '../../domain/user/userEvidence.js';
 import {diagnosticPanelHtml} from '../../shared/components/diagnosticPresentation.js';
 import {escapeHtml, toTimestamp} from '../../shared/utils/index.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
@@ -137,9 +138,9 @@ export class UserDetailView {
         this._setText(this._els.userEmailEl, active.email && active.email !== title ? active.email : '');
         this._setText(this._els.userCreatedEl, formatShortDate(active.createdAt) || '—');
         this._setText(this._els.userUpdatedEl, formatShortDate(active.updatedAt) || '—');
-        this._setText(this._els.userActivityEl, relativeDate(active.lastActivity) || 'No activity');
+        this._setText(this._els.userActivityEl, relativeDate(active.lastActivity) || 'No date reported');
         if (this._els.userActivityEl) this._els.userActivityEl.title = formatShortDate(active.lastActivity);
-        this._setText(this._els.userWorkoutsEl, formatNumber(UserEntity.workoutsCount(active)));
+        this._setText(this._els.userWorkoutsEl, formatNumber(readUserWorkoutCount(active)));
         const types = active.authTypes || [];
         if (this._els.userAuthPill) {
             this._els.userAuthPill.innerHTML = types.map(type => {

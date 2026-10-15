@@ -1,9 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runDiagnosticRules, matchesDiagnosticFilter, summarizeDiagnosticReports, getDiagnosticFilterOptions} from '../src/domain/diagnostics/index.js';
-import {diagnosticBadgeHtml, diagnosticPanelHtml} from '../src/shared/components/diagnosticPresentation.js';
+import {diagnosticBadgeHtml, diagnosticPanelHtml, diagnosticReasonHtml, primaryAttentionFinding} from '../src/shared/components/diagnosticPresentation.js';
 
 const rule = (id, severity, result) => ({id, severity, title: `Rule ${id}`, evaluate: () => result});
+
+test('row reasons use the highest attention finding and escape title and explanation; info and unknown stay neutral', () => {
+    const report = runDiagnosticRules([rule('warning', 'warning', [{message: 'A warning'}]),
+        {...rule('error', 'error', [{message: '<b>Required</b>'}]), title: '<script>bad</script>'}], {});
+    assert.equal(primaryAttentionFinding(report).severity, 'error');
+    assert.match(diagnosticReasonHtml(report), /title="&lt;b&gt;Required&lt;\/b&gt;">&lt;script&gt;bad&lt;\/script&gt;/);
+    for (const value of [null, runDiagnosticRules([rule('info', 'info', [{message: 'Note'}])], {}), runDiagnosticRules([rule('unknown', 'error', null)], {})]) {
+        assert.equal(primaryAttentionFinding(value), null); assert.equal(diagnosticReasonHtml(value), '');
+    }
+});
 
 test('rules preserve stable IDs, finding order and severity precedence without mutating their inputs', () => {
     const record = Object.freeze({name: 'Fixture'});

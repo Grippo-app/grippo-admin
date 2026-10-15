@@ -51,7 +51,7 @@ let users = [
     {id: 'user-olena', email: 'olena@example.test', profile: {id: 'profile-olena', name: 'Олена Коваль'}, role: 'default', workoutsCount: 56, createdAt: ago(90), updatedAt: ago(0), lastActivity: ago(0), authTypes: ['email']},
     {id: 'user-new', email: 'new.member@example.test', profile: null, role: 'default', workoutsCount: 0, createdAt: ago(2), updatedAt: ago(2), authTypes: ['email']},
     {id: 'user-recent', email: 'recent.member@example.test', profile: null, role: 'default', workoutsCount: 0, createdAt: ago(0.1), updatedAt: ago(0.1), authTypes: ['email']},
-    {id: 'user-unknown', email: 'unknown.profile@example.test', role: 'default', workoutsCount: 0, createdAt: ago(20), updatedAt: ago(20), authTypes: ['email']},
+    {id: 'user-unknown', email: 'unknown.profile@example.test', role: 'default', createdAt: ago(20), updatedAt: ago(20), authTypes: ['email']},
 ];
 const trainings = Array.from({length: 16}, (_, index) => ({id: `training-${index}`, createdAt: ago(index * 3), duration: 45 + index, volume: 3500 + index * 85, repetitions: 64 + index, exercises: [
     {id: 'bench', exerciseExample: {name: 'Bench press'}, iterations: [{externalWeight: 60, repetitions: 10}, {externalWeight: 65, repetitions: 8}, {externalWeight: 65, repetitions: 8}]},

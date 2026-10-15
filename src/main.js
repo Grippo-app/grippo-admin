@@ -2,8 +2,8 @@ import {StorageManager} from './infrastructure/storage/index.js';
 import {ApiClient} from './infrastructure/http/index.js';
 import {EventBus} from './infrastructure/events/EventBus.js';
 
-import {DictionaryStore, ExerciseRepository, ExerciseValidator} from './domain/exercise/index.js';
-import {UserRepository} from './domain/user/index.js';
+import {DictionaryStore, ExerciseRepository, ExerciseValidator, EXERCISE_DIAGNOSTIC_RULES} from './domain/exercise/index.js';
+import {UserRepository, USER_DIAGNOSTIC_RULES} from './domain/user/index.js';
 
 import {AuthService, LoginView} from './features/auth/index.js';
 import {ExerciseController, ExerciseFormView, ExerciseListView, ExerciseStore} from './features/exercises/index.js';
@@ -15,6 +15,7 @@ import {DEFAULT_LANGUAGE} from './shared/constants/index.js';
 import {Events} from './infrastructure/events/events.js';
 import {LoadingIndicator, loadingDescription} from './shared/components/LoadingIndicator.js';
 import {ResponsivePicker} from './shared/components/ResponsivePicker.js';
+import {ReviewQueue} from './shared/components/ReviewQueue.js';
 import {exerciseName} from './features/exercises/exercisePresentation.js';
 
 /* ── 1. Infrastructure ──────────────────────────────────────── */
@@ -221,6 +222,9 @@ const userListView = new UserListView({
         userCount: document.getElementById('userListCount'),
         qualityFilter: document.getElementById('userQualityFilter'),
         qualitySummary: document.getElementById('userQualitySummary'),
+        filters: document.getElementById('userFilters'),
+        filterCount: document.getElementById('userFilterCount'),
+        clearFiltersBtn: document.getElementById('clearUserFilters'),
         userSearch: document.getElementById('userSearch'),
         userSortToggle: document.getElementById('userSortToggle'),
         userSortMenu: document.getElementById('userSortMenu'),
@@ -280,6 +284,58 @@ userController = new UserController({
     bus,
     confirmDialog: ConfirmDialog,
 });
+
+/* Review uses the existing saved-record filters and selection guards. */
+function reviewFilter(value, rules) {
+    return ['attention', 'error', 'warning'].includes(value)
+        || rules.some(rule => value === `rule:${rule.id}` && ['error', 'warning'].includes(rule.severity));
+}
+
+function showChecks(id) {
+    const checks = document.getElementById(id)?.querySelector('.diagnostic-panel');
+    if (!checks) return;
+    checks.open = true;
+    checks.querySelector('summary')?.focus();
+    checks.scrollIntoView({block: 'nearest'});
+}
+
+const exerciseReview = new ReviewQueue({root: document.getElementById('exerciseReviewQueue'),
+    getId: item => item?.entity?.id || item?.id,
+    onSelect: (item, {isCurrent}) => exerciseController.selectItem(item, {canSelect: isCurrent}),
+    onShowReason: () => showChecks('exerciseDiagnostics')});
+const userReview = new ReviewQueue({root: document.getElementById('userReviewQueue'),
+    getId: item => item.id,
+    // User selection is synchronous; slow independent sections must not block the next record.
+    onSelect: (item, {isCurrent}) => { if (isCurrent()) void userController.selectUser(item); },
+    onShowReason: () => showChecks('userDiagnostics')});
+
+function syncExerciseReview(state) {
+    const enabled = reviewFilter(state.qualityFilter, EXERCISE_DIAGNOSTIC_RULES);
+    exerciseReview.update({items: state.filtered, reports: state.diagnosticReports, selectedId: state.isNew ? null : state.current?.id,
+        enabled, busy: state.isLoading || state.isSaving || state.isDetailLoading, loadError: state.loadError});
+    document.getElementById('exerciseReviewBtn').hidden = enabled || !state.diagnosticSummary.attentionCount;
+}
+function syncUserReview(state) {
+    const enabled = reviewFilter(state.diagnosticFilter, USER_DIAGNOSTIC_RULES);
+    userReview.update({items: state.filtered, reports: state.diagnostics, selectedId: state.active?.id,
+        enabled, busy: state.isLoading || state.roleChangeInFlight || state.deleteInFlight, loadError: state.loadError});
+    document.getElementById('userReviewBtn').hidden = enabled || !state.diagnosticSummary.attentionCount;
+}
+exerciseStore.subscribe(syncExerciseReview);
+userStore.subscribe(syncUserReview);
+syncExerciseReview(exerciseStore.getState());
+syncUserReview(userStore.getState());
+for (const [buttonId, rootId, start] of [
+    ['exerciseReviewBtn', 'exerciseReviewQueue', () => exerciseStore.setQualityFilter('attention')],
+    ['userReviewBtn', 'userReviewQueue', () => userStore.setDiagnosticFilter('attention')],
+]) {
+    document.getElementById(buttonId).addEventListener('click', () => {
+        start();
+        const root = document.getElementById(rootId);
+        root.tabIndex = -1;
+        root.focus();
+    });
+}
 
 /* ── 7. Navigation ──────────────────────────────────────────── */
 
@@ -359,7 +415,7 @@ bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
 });
 
 // Close before the action runs so confirmations and validation can take focus safely.
-for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions')) {
+for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions, #userFilters')) {
     menu.addEventListener('click', event => {
         if (event.target.closest('button')) {
             menu.open = false;

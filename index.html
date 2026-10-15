@@ -117,6 +117,7 @@
             <label for="exerciseQualityFilter">Data quality</label>
             <select id="exerciseQualityFilter" aria-describedby="exerciseQualitySummary"><option value="all">All records</option></select>
             <p id="exerciseQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
+            <button id="exerciseReviewBtn" class="btn muted quality-review" type="button" hidden>Review issues</button>
         </div>
         <div id="sortDropdown" class="sort-dropdown">
             <button id="sortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
@@ -146,6 +147,7 @@
 
         <!-- Editor -->
         <section class="panel exercise-panel" aria-label="Exercise editor">
+            <div id="exerciseReviewQueue" hidden></div>
             <div id="exerciseEmpty" class="workspace-empty">
                 <div class="empty-icon" aria-hidden="true">↗</div>
                 <h2>Your exercise library</h2>
@@ -409,6 +411,7 @@
             <label for="userQualityFilter">Data quality</label>
             <select id="userQualityFilter" aria-describedby="userQualitySummary"><option value="all">All records</option></select>
             <p id="userQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
+            <button id="userReviewBtn" class="btn muted quality-review" type="button" hidden>Review issues</button>
         </div>
         <div id="userSortDropdown" class="sort-dropdown">
             <button id="userSortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
@@ -429,6 +432,40 @@
         </div>
         <button id="reloadUsersBtn" class="btn muted" type="button">Reload</button>
 
+        <details id="userFilters" class="user-filters">
+            <summary>Filters <span id="userFilterCount">Any</span></summary>
+            <div class="user-filters__fields">
+                <label>Profile
+                    <select data-user-filter="profile" aria-label="Filter by profile">
+                        <option value="all">Any profile state</option><option value="present">Profile reported</option>
+                        <option value="missing">No profile reported</option><option value="unknown">Unknown or conflicting</option>
+                    </select>
+                </label>
+                <label>Workouts
+                    <select data-user-filter="workouts" aria-label="Filter by workouts">
+                        <option value="all">Any workout count</option><option value="with">Has workouts</option>
+                        <option value="without">Zero workouts reported</option><option value="unknown">Count unknown</option>
+                    </select>
+                </label>
+                <label>Joined
+                    <select data-user-filter="createdAt" aria-label="Filter by registration date">
+                        <option value="all">Any registration date</option><option value="last7d">Last 7 days</option>
+                        <option value="last30d">Last 30 days</option><option value="older30d">More than 30 days ago</option>
+                        <option value="unknown">No reliable date</option>
+                    </select>
+                </label>
+                <label>Last workout
+                    <select data-user-filter="lastActivity" aria-label="Filter by last workout">
+                        <option value="all">Any workout date</option><option value="last7d">Last 7 days</option>
+                        <option value="last30d">Last 30 days</option><option value="older30d">More than 30 days ago</option>
+                        <option value="unknown">No reliable date</option>
+                    </select>
+                </label>
+                <p>Uses the loaded account data. Missing dates do not mean the account was never active.</p>
+                <button id="clearUserFilters" class="btn muted" type="button" disabled>Clear filters</button>
+            </div>
+        </details>
+
             </div>
             <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
                 </div>
@@ -436,6 +473,7 @@
         </section>
 
         <section id="userDetailsPanel" class="panel user-panel" aria-label="User details">
+            <div id="userReviewQueue" hidden></div>
             <div id="userEmptyState" class="workspace-empty">
                 <div class="empty-icon" aria-hidden="true">◎</div>
                 <h2>A clearer view of every user</h2>

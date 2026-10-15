@@ -2,6 +2,16 @@ import {escapeHtml} from '../utils/index.js';
 
 const SEVERITY_LABELS = Object.freeze({error: 'Error', warning: 'Warning', info: 'Information'});
 
+export function primaryAttentionFinding(report) {
+    return report?.findings?.find(finding => finding.severity === 'error')
+        || report?.findings?.find(finding => finding.severity === 'warning') || null;
+}
+
+export function diagnosticReasonHtml(report) {
+    const finding = primaryAttentionFinding(report);
+    return finding ? `<span class="diagnostic-reason" title="${escapeHtml(finding.message)}">${escapeHtml(finding.title)}</span>` : '';
+}
+
 function checkSummary(report) {
     if (!report || report.totalCount === 0) return 'Not checked';
     const remaining = report.totalCount - report.checkedCount;

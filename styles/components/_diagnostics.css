@@ -1,8 +1,26 @@
 /* Read-only record checks share the same presentation across domains. */
+.diagnostic-reason { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .quality-controls { flex: 1 0 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 10px; padding-top: 4px; }
 .quality-controls > label { font-size: 11px; font-weight: 650; color: var(--muted); }
 .quality-controls select { min-width: 0; width: 100%; min-height: 34px; font-size: 12px; text-overflow: ellipsis; }
 .quality-summary { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.quality-review { grid-column: 1 / -1; justify-self: start; min-height: 30px; font-size: 11px; padding: 5px 9px; }
+.review-queue { flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
+.exercise-panel > .review-queue { margin: 12px 20px 0; }
+.user-panel > .review-queue { margin-bottom: 16px; }
+.review-queue p { margin: 0; overflow-wrap: anywhere; }
+.review-queue__position { font-size: 12px; font-weight: 650; }
+.review-queue__reason { font-size: 11px; line-height: 1.5; }
+.review-queue__reason[data-severity="error"] { color: #ffb1b6; }
+.review-queue__reason[data-severity="warning"] { color: #f5d18e; }
+.review-queue__status { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.review-queue__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; flex-wrap: wrap; }
+.review-queue__actions .btn { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+@media (max-width: 760px) {
+    .review-queue { grid-template-columns: minmax(0, 1fr); }
+    .exercise-panel > .review-queue { margin: 10px 12px 0; }
+    .review-queue__actions { grid-column: 1; grid-row: auto; }
+}
 .diagnostic-badge { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid currentColor; border-radius: 6px; padding: 3px 7px; font-size: 10px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
 .diagnostic-badge__label { min-width: 0; }
 .diagnostic-badge__icon { display: inline-grid; place-items: center; flex: 0 0 15px; width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%; font-size: 11px; line-height: 1; font-weight: 800; }

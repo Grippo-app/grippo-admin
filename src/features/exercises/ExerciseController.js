@@ -57,9 +57,9 @@ export class ExerciseController {
         }
     }
 
-    async selectItem(item) {
+    async selectItem(item, {canSelect = () => true} = {}) {
         const id = item?.entity?.id || item?.id;
-        if (!id) return;
+        if (!id || !canSelect()) return;
         const state = this._store.getState();
         if (state.current?.id === id && !state.isNew) {
             this._intentSeq++;
@@ -70,7 +70,7 @@ export class ExerciseController {
             return;
         }
         const intent = ++this._intentSeq;
-        if (!await this._canLeaveDraft() || intent !== this._intentSeq) return;
+        if (!await this._canLeaveDraft() || intent !== this._intentSeq || !canSelect()) return;
         const seq = ++this._selectSeq;
         const sourceVersion = ++this._sourceSeq;
         this._store.setDetailLoading(true, id);

@@ -20,6 +20,19 @@ function setup(repository) {
     return {store, controller};
 }
 
+test('queue eligibility is rechecked after draft confirmation and cannot discard the draft for a removed target', async () => {
+    const confirmation = deferred(); let requests = 0; let eligible = true;
+    const {store, controller} = setup({fetchDetail: async id => { requests++; return record(id); }});
+    controller._form.hasUnsavedChanges = () => true;
+    controller._confirm.ask = () => confirmation.promise;
+    store.setCurrent({...record('a'), description: 'Keep my draft'});
+    const current = store.getState().current;
+    const selecting = controller.selectItem({id: 'b'}, {canSelect: () => eligible});
+    eligible = false; confirmation.resolve(true); await selecting;
+    assert.equal(requests, 0); assert.equal(store.getState().current, current);
+    assert.equal(store.getState().isDetailLoading, false);
+});
+
 test('returning to current A cancels pending B without discarding the current A draft', async () => {
     const pendingB = deferred();
     const {store, controller} = setup({fetchDetail: () => pendingB.promise});

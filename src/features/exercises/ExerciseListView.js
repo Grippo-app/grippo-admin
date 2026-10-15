@@ -2,7 +2,7 @@ import {SortMenu} from '../../shared/components/SortMenu.js';
 import {FIELD} from '../../shared/constants/index.js';
 import {escapeHtml, safeUrl} from '../../shared/utils/index.js';
 import {exerciseName} from './exercisePresentation.js';
-import {diagnosticBadgeHtml} from '../../shared/components/diagnosticPresentation.js';
+import {diagnosticBadgeHtml, diagnosticReasonHtml} from '../../shared/components/diagnosticPresentation.js';
 
 const CATEGORY_PILL = {
     compound: 'pill-compound',
@@ -170,6 +170,7 @@ export class ExerciseListView {
                 <div class="exercise-main">
                     <div class="exercise-name">${escapeHtml(name) || '(no name)'}</div>
                     ${report?.findings.length ? diagnosticBadgeHtml(report) : ''}
+                    ${diagnosticReasonHtml(report)}
                     ${pillsHtml ? `<div class="exercise-pills">${pillsHtml}</div>` : ''}
                     ${statsHtml ? `<div class="exercise-stats">${statsHtml}</div>` : ''}
                 </div>
