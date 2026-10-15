@@ -34,11 +34,17 @@ export class UserStore {
     }
 
     setUsers(users) {
+        const previous = new Map(this._state.users.map(user => [user.id, user]));
+        users = users.map(user => {
+            const cached = previous.get(user.id);
+            return cached && JSON.stringify(cached) === JSON.stringify(user) ? cached : user;
+        });
+        users = this._reuseRows(this._state.users, users);
         const active = this._state.active
             ? users.find(user => user.id === this._state.active.id) || null : null;
         const selection = active ? {active} : this._clearedSelection();
         const diagnostics = this._diagnosticPatch(users, this._now());
-        this._update({users, ...diagnostics, filtered: this._applyFilter(users, diagnostics), ...selection});
+        this._update({users, ...diagnostics, filtered: this._reuseRows(this._state.filtered, this._applyFilter(users, diagnostics)), ...selection});
     }
 
     setActive(user) {
@@ -61,10 +67,10 @@ export class UserStore {
         };
     }
 
-    setDetailsLoading(userId) {
+    setDetailsLoading(userId, keys = ['goal', 'recentTrainings', 'weightHistory', 'deviceTokens']) {
         if (this._state.active?.id !== userId) return;
-        const detailSections = Object.fromEntries(['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'].map(key => [key,
-            {loading: true, loaded: !!this._state.detailSections[key]?.loaded, error: ''}]));
+        const detailSections = {...this._state.detailSections};
+        for (const key of keys) detailSections[key] = {loading: true, loaded: !!detailSections[key]?.loaded, error: ''};
         this._update({detailsForUserId: userId, detailsLoading: true, detailSections});
     }
 
@@ -171,13 +177,18 @@ export class UserStore {
         }
     }
 
+    _reuseRows(previous, next) {
+        return previous.length === next.length && next.every((row, index) => row === previous[index]) ? previous : next;
+    }
+
     _applyFilter(users, patch = {}) {
         const options = {...this._state, ...patch};
         const query = options.searchQuery.trim().toLowerCase();
-        return users.filter(user =>
+        const filtered = users.filter(user =>
             matchesDiagnosticFilter(options.diagnostics.get(user.id), options.diagnosticFilter) &&
             (!query || [user.name, user.email, user.id, user.profileId]
                 .some(value => String(value || '').toLowerCase().includes(query)))
         ).sort(UserEntity.comparator(options.sortKey));
+        return this._reuseRows(this._state.filtered, filtered);
     }
 }

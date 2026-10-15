@@ -82,7 +82,9 @@ export class ExerciseFormView {
         if (!this._store.getState().current) return true;
         try {
             const entity = this.readFormToEntity();
-            this._store.patchCurrent(entity);
+            const preserve = this._preserveFormInputs;
+            this._preserveFormInputs = this._viewMode === 'form';
+            try { this._store.patchCurrent(entity); } finally { this._preserveFormInputs = preserve; }
             return true;
         } catch (error) {
             this._showEditorError(error);
@@ -124,7 +126,7 @@ export class ExerciseFormView {
         const {current, isNew, isSaving, isDetailLoading, createIdentityMissing} = this._store.getState();
         if (this._els.editorStatus) {
             const dirty = this.hasUnsavedChanges();
-            this._els.editorStatus.textContent = isDetailLoading ? 'Loading exercise…' : !current ? '' : createIdentityMissing ? 'Created · refresh the library to locate it' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'New exercise' : 'All changes saved';
+            this._els.editorStatus.textContent = isDetailLoading || !current ? '' : createIdentityMissing ? 'Created · refresh the library to locate it' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'New exercise' : 'All changes saved';
             this._els.editorStatus.classList.toggle('is-dirty', dirty);
         }
     }
@@ -179,6 +181,7 @@ export class ExerciseFormView {
                     if (!this.flush()) return;
                     this._store.setLocale(DEFAULT_LANGUAGE);
                 }
+                for (let disclosure = fields[issue.field]?.closest?.('details'); disclosure; disclosure = disclosure.parentElement?.closest?.('details')) disclosure.open = true;
                 fields[issue.field]?.focus();
                 fields[issue.field]?.scrollIntoView?.({block: 'center', behavior: 'smooth'});
             });
@@ -212,29 +215,10 @@ export class ExerciseFormView {
      */
     writeEntityToForm(entity, locale) {
         if (!entity) return;
-        const loc = locale || this._locale;
-
-        const nameTrans = ExerciseNormalizer.ensureTranslationMap(entity?.nameTranslations);
-        const descTrans = ExerciseNormalizer.ensureTranslationMap(entity?.descriptionTranslations);
-        const localeName = ExerciseNormalizer.getTranslation(nameTrans, loc);
-        const localeDesc = ExerciseNormalizer.getTranslation(descTrans, loc);
-        const defaultName = ExerciseNormalizer.getTranslation(nameTrans, DEFAULT_LANGUAGE) || entity?.name || '';
-        const defaultDesc = ExerciseNormalizer.getTranslation(descTrans, DEFAULT_LANGUAGE) || entity?.description || '';
-
+        this._writeLocalizedText(entity, locale);
         if (this._els.fId) this._els.fId.value = entity?.id || '';
-
-        if (this._els.fName) {
-            this._els.fName.value = localeName;
-            this._els.fName.placeholder = ExerciseNormalizer.buildLocalePlaceholder('Exercise name', defaultName, loc);
-        }
-
         if (this._els.fImage) this._els.fImage.value = entity?.imageUrl || '';
         this._renderImagePreview(entity?.imageUrl || '');
-
-        if (this._els.fDescription) {
-            this._els.fDescription.value = localeDesc;
-            this._els.fDescription.placeholder = ExerciseNormalizer.buildLocalePlaceholder('Short description', defaultDesc, loc);
-        }
 
         if (this._els.fWeightType) this._els.fWeightType.value = entity?.weightType || '';
         if (this._els.fCategory) this._els.fCategory.value = entity?.category || '';
@@ -263,6 +247,27 @@ export class ExerciseFormView {
         this.updateRulesInputsVisibility();
         this._renderEquipmentTokens(entity);
         this._renderBundles(entity);
+    }
+
+    _writeLocalizedText(entity, locale) {
+        const loc = locale || this._locale;
+        const nameTrans = ExerciseNormalizer.ensureTranslationMap(entity?.nameTranslations);
+        const descTrans = ExerciseNormalizer.ensureTranslationMap(entity?.descriptionTranslations);
+        const localeName = ExerciseNormalizer.getTranslation(nameTrans, loc);
+        const localeDesc = ExerciseNormalizer.getTranslation(descTrans, loc);
+        const defaultName = ExerciseNormalizer.getTranslation(nameTrans, DEFAULT_LANGUAGE) || entity?.name || '';
+        const defaultDesc = ExerciseNormalizer.getTranslation(descTrans, DEFAULT_LANGUAGE) || entity?.description || '';
+
+        if (this._els.fName) {
+            this._els.fName.value = localeName;
+            this._els.fName.placeholder = ExerciseNormalizer.buildLocalePlaceholder('Exercise name', defaultName, loc);
+        }
+
+        if (this._els.fDescription) {
+            this._els.fDescription.value = localeDesc;
+            this._els.fDescription.placeholder = ExerciseNormalizer.buildLocalePlaceholder('Short description', defaultDesc, loc);
+        }
+
     }
 
     /**
@@ -417,8 +422,12 @@ export class ExerciseFormView {
                 this._lastRendered = {current, locale: this._locale, isNew};
                 this._updateLocaleUI();
             } else if (shouldRerender) {
-                this._refreshOptionLists();
-                this.writeEntityToForm(current, this._locale);
+                if (localeChanged && !currentChanged && !isNewChanged) this._writeLocalizedText(current, this._locale);
+                else {
+                    this._refreshOptionLists();
+                    this.writeEntityToForm(current, this._locale);
+                }
+                if (current.id !== this._lastRendered.current?.id) this._els.builder?.querySelectorAll('.exercise-reference-fields').forEach(disclosure => { disclosure.open = false; });
                 this._updateLocaleUI();
                 this._updateCurrentId(current, isNew);
                 if (this._viewMode === 'json') this._populateJsonEditor(current);
@@ -455,7 +464,7 @@ export class ExerciseFormView {
         }
         if (this._els.emptyState) this._els.emptyState.hidden = !!current || !!isDetailLoading;
         this._renderDetailLoading(isDetailLoading, detailError, current);
-        if (isDetailLoading && this._els.currentId) this._els.currentId.textContent = 'Opening exercise…';
+        if (isDetailLoading && this._els.currentId) this._els.currentId.textContent = '—';
         else this._updateCurrentId(current, isNew);
         for (const button of [this._els.promptBtn, this._els.promptImgBtn, this._els.promptRulesBtn, ...Array.from(this._els.localeButtons || [])]) {
             if (button) button.disabled = !current || !!isDetailLoading;
@@ -469,14 +478,27 @@ export class ExerciseFormView {
         this._updateDraftState();
         this._updateDictionaryStatus();
         this._diagnostics.render();
-        if (this._els.translationNotice) {
-            const {translationProvenanceKnown, translationSnapshot} = this._store.getState();
-            const notice = translationProvenanceKnown ? ExerciseTranslations.legacyNotice(translationSnapshot)
-                : 'Translation coverage is unknown: the API may return English fallback for UA/RU. Saving replaces text in all three languages; review each language before saving.';
-            this._els.translationNotice.hidden = !current || isNew || !notice;
-            this._els.translationNotice.textContent = notice;
-        }
+        this._renderTranslationNotice(current, isNew);
         this._applyViewMode(viewMode);
+    }
+
+    _renderTranslationNotice(current, isNew) {
+        const container = this._els.translationNotice;
+        if (!container) return;
+        const {translationProvenanceKnown: known, translationSnapshot} = this._store.getState();
+        const explanation = known ? ExerciseTranslations.legacyNotice(translationSnapshot)
+            : 'Translation coverage is unknown: the API may return English fallback for UA/RU. Saving replaces text in all three languages; review each language before saving.';
+        container.hidden = !current || isNew || !explanation;
+        if (container.hidden) {
+            if (this._translationNotice) container.innerHTML = '';
+            this._translationNotice = null;
+            return;
+        }
+        if (this._translationNotice?.id === current.id && this._translationNotice.explanation === explanation) return;
+        const open = this._translationNotice?.id === current.id && container.querySelector('details')?.open;
+        const summary = known ? 'Legacy translation text · Saving will normalize it' : 'Translation coverage unknown · Review before saving';
+        container.innerHTML = `<details${open ? ' open' : ''}><summary>${escapeHtml(summary)}</summary><p>${escapeHtml(explanation)}</p></details>`;
+        this._translationNotice = {id: current.id, explanation};
     }
 
     _renderDetailLoading(loading, error, current) {

@@ -37,6 +37,10 @@
 .diagnostic-panel[open] > summary::before { transform: rotate(90deg); }
 .diagnostic-panel__body { padding: 0 12px 12px; max-height: 300px; overflow: auto; }
 .diagnostic-panel__body > p { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.diagnostic-unverified { margin-top: 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.diagnostic-unverified > summary { cursor: pointer; }
+.diagnostic-unverified > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.diagnostic-unverified > p { margin: 6px 0 0; overflow-wrap: anywhere; }
 .diagnostic-findings { list-style: none; margin: 0; padding: 0; }
 .diagnostic-panel__item { display: grid; gap: 4px; border-left: 3px solid var(--border); border-radius: 0 6px 6px 0; padding: 10px 12px; margin-top: 8px; overflow-wrap: anywhere; }
 .diagnostic-panel__title { color: var(--text); font-size: 12px; font-weight: 650; }

@@ -53,6 +53,13 @@ class Element {
     focus() { if (globalThis.document) document.activeElement = this; }
     appendChild(child) { this.children.push(child); if (this.tagName === 'select' && (this.children.length === 1 || child.selected)) this.value = child.value; }
     replaceChildren(...children) { this.children = children; }
+    removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
+    insertBefore(child, reference) {
+        const existing = this.children.indexOf(child);
+        if (existing >= 0) this.children.splice(existing, 1);
+        const index = reference ? this.children.indexOf(reference) : this.children.length;
+        this.children.splice(index, 0, child);
+    }
 }
 
 function formSetup(current = exercise('a')) {
@@ -490,6 +497,45 @@ test('dictionary refresh keeps live row inputs, token controls, form values and 
     assert.equal(form.hasUnsavedChanges(), true);
 }));
 
+test('text locale switches flush all live values without rebuilding muscle or equipment DOM', withBundleDocument(() => {
+    const {form, store, els, rows} = bundleFormSetup();
+    const ua = new Element(); ua.dataset.locale = 'ua';
+    els.localeButtons = [ua]; form._bindEvents();
+    const before = rows()[0], equipment = els.equipTokens.children[0];
+    let renders = 0;
+    const original = form._renderBundles.bind(form);
+    form._renderBundles = (...args) => { renders++; original(...args); };
+    const percentage = before.querySelector('[data-bundle-percentage]');
+    percentage.value = '63'; percentage.focus();
+    els.fName.value = 'English edit';
+    ua.dispatch('click');
+    assert.equal(store.getState().locale, 'ua');
+    assert.equal(store.getState().current.nameTranslations.en, 'English edit');
+    assert.equal(store.getState().current.exerciseExampleBundles[0].percentage, 63);
+    assert.equal(els.fName.value, 'Присідання');
+    assert.equal(renders, 0);
+    assert.equal(rows()[0], before);
+    assert.equal(els.equipTokens.children[0], equipment);
+    assert.equal(document.activeElement, percentage);
+}));
+
+test('reference fields preserve disclosure state for the same record and validation reveals hidden image input', withBundleDocument(() => {
+    const {form, store, els} = formSetup();
+    const disclosure = {open: true};
+    els.builder.querySelectorAll = selector => selector === '.exercise-reference-fields' ? [disclosure] : [];
+    els.fImage.closest = () => disclosure;
+    els.validationSummary = new Element();
+    store.patchCurrent({category: 'isolation'});
+    store.setLocale('ua');
+    assert.equal(disclosure.open, true);
+    store.setCurrent(exercise('b'));
+    assert.equal(disclosure.open, false);
+    form._showValidation([{field: 'imageUrl', message: 'Check image URL'}]);
+    els.validationSummary.children[1].children[0].children[0].dispatch('click');
+    assert.equal(disclosure.open, true);
+    assert.equal(document.activeElement, els.fImage);
+}));
+
 test('detail loading masks the previous editor without replacing its draft or adding a layout status row', withBundleDocument(() => {
     const {form, store, els, rows} = bundleFormSetup();
     const panel = new Element();
@@ -507,7 +553,7 @@ test('detail loading masks the previous editor without replacing its draft or ad
     assert.match(els.detailLoading.innerHTML, /aria-hidden="true"/);
     assert.equal(els.fName.value, 'Unsaved name');
     assert.equal(rows()[0], row);
-    assert.match(els.currentId.textContent, /Opening/);
+    assert.equal(els.currentId.textContent, '—');
     store.setDetailLoading(false);
     assert.equal(panel.classList.contains('is-detail-loading'), false);
     assert.equal(els.detailLoading.hidden, true);
@@ -592,6 +638,30 @@ test('empty list messaging changes when search or quality filters become active'
     assert.match(list.innerHTML, /No exercises yet/);
     store.setQualityFilter('attention'); view.render();
     assert.match(list.innerHTML, /No matching exercises/);
+}));
+
+test('one diagnostic upgrade preserves unrelated rows and reused callbacks resolve the latest item', withBundleDocument(() => {
+    const store = new ExerciseStore();
+    const raw = id => { const value = {...exercise(id), imageUrl: '/squat.png'}; delete value.nameTranslations; delete value.descriptionTranslations; return value; };
+    const a = {...raw('a'), exerciseExampleBundles: [{muscleId: 'quadriceps', percentage: 90}]}, b = raw('b');
+    store.setItems([a, b], {diagnosticSources: new Map([['a', a], ['b', b]])});
+    const list = new Element(); list.contains = target => list.children.includes(target);
+    const view = Object.create(ExerciseListView.prototype);
+    let selected;
+    view._store = store; view._els = {list}; view._onSelect = item => { selected = item; }; view._rendered = null;
+    view.render();
+    const bRow = list.children[1];
+    assert.doesNotMatch(bRow.innerHTML, /No flags found|not verified/);
+    const bReport = store.getDiagnosticReport('b');
+    store.setDiagnosticSource('a', a, {translationSnapshot: {id: 'a', base: {name: 'Squat', description: 'Controlled squat'}, translations: [{language: 'en', name: 'Squat', description: 'Controlled squat'}]}});
+    view.render();
+    assert.equal(store.getDiagnosticReport('b'), bReport);
+    assert.equal(list.children[1], bRow);
+    const refreshedB = {...b, description: 'New server text'};
+    store.setItems([a, refreshedB]); view.render();
+    assert.equal(list.children[1], bRow);
+    bRow.dispatch('click');
+    assert.equal(selected, refreshedB);
 }));
 
 test('reset clears hidden exercise form, JSON, preview and row data while preserving editor preference', withBundleDocument(() => {
@@ -890,7 +960,8 @@ test('legacy base-only English remains readable, warns about promotion, and neve
     assert.equal(els.fName.value, 'Legacy squat');
     assert.equal(els.fDescription.value, 'Legacy base description');
     assert.equal(els.translationNotice.hidden, false);
-    assert.match(els.translationNotice.textContent, /Saving will store that text in an English translation row/);
+    assert.match(els.translationNotice.innerHTML, /<details><summary>Legacy translation text/);
+    assert.match(els.translationNotice.innerHTML, /Saving will store that text in an English translation row/);
     assert.deepEqual(store.getState().translationSnapshot.translations, []);
     els.fCategory.value = 'isolation';
     await controller.saveItem(form.readFormToEntity());
@@ -905,8 +976,28 @@ test('legacy base versus English divergence is disclosed while stored translatio
     els.translationNotice = new Element();
     await controller.selectItem({id: 'a'});
     assert.equal(store.getState().current.nameTranslations.en, 'Stored English');
-    assert.match(els.translationNotice.textContent, /base text differs/);
-    assert.match(els.translationNotice.textContent, /normalize the base text/);
+    assert.match(els.translationNotice.innerHTML, /base text differs/);
+    assert.match(els.translationNotice.innerHTML, /normalize the base text/);
+});
+
+test('the concise persistent translation disclosure preserves its DOM for the same record and resets for another', async () => {
+    const legacy = rawSnapshot('a', [], {name: 'Legacy squat', description: 'Legacy description'});
+    const {controller, store, els} = rawTranslationSetup(legacy);
+    els.translationNotice = new Element();
+    await controller.selectItem({id: 'a'});
+    assert.match(els.translationNotice.innerHTML, /^<details><summary>Legacy translation text/);
+    assert.match(els.translationNotice.innerHTML, /<p>Legacy English base text/);
+    const disclosure = {open: true};
+    els.translationNotice.querySelector = () => disclosure;
+    const html = els.translationNotice.innerHTML;
+    store.setSearchQuery('squat'); store.setLocale('ua');
+    assert.equal(els.translationNotice.innerHTML, html);
+    assert.equal(disclosure.open, true);
+    store.setCurrent({...store.getState().current, id: 'b'}, {translationProvenanceKnown: true, translationSnapshot: {...legacy, id: 'b'}});
+    assert.match(els.translationNotice.innerHTML, /^<details><summary>/);
+    store.reset();
+    assert.equal(els.translationNotice.hidden, true);
+    assert.equal(els.translationNotice.innerHTML, '');
 });
 
 test('raw 404 compatibility fallback is used only after successful localized reads and stays unverified', async () => {
@@ -917,8 +1008,9 @@ test('raw 404 compatibility fallback is used only after successful localized rea
         const error = new Error('Old deployed API'); error.status = 404; throw error;
     }});
     const selecting = controller.selectItem({id: 'a'});
-    await Promise.resolve();
-    assert.equal(rawRequests, 0);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(rawRequests, 1, 'raw read runs while the localized reads are pending');
+    assert.equal(store.getState().current, null, '404 fallback is not applied before localized success');
     localized.resolve(localizedExercise('a'));
     await selecting;
     assert.equal(rawRequests, 1);
@@ -927,7 +1019,7 @@ test('raw 404 compatibility fallback is used only after successful localized rea
     assert.equal(store.getState().translationSnapshot, null);
 });
 
-test('failed localized reads never reach the raw-route fallback or replace the existing selection', async () => {
+test('failed localized reads cannot apply an already-started raw snapshot or replace the existing selection', async () => {
     let rawRequests = 0;
     const {store, controller} = controllerSetup({fetchDetail: async (_, locale) => {
         if (locale === 'ua') throw new Error('Localized exercise failed');
@@ -936,9 +1028,27 @@ test('failed localized reads never reach the raw-route fallback or replace the e
     const previous = exercise('previous');
     store.setCurrent(previous);
     await controller.selectItem({id: 'candidate'});
-    assert.equal(rawRequests, 0);
+    assert.equal(rawRequests, 1);
     assert.equal(store.getState().current, previous);
     assert.match(store.getState().detailError, /Localized exercise failed/);
+});
+
+test('early parallel raw authorization or service failures remain fail-closed after localized success', async () => {
+    for (const status of [401, 503]) {
+        const localized = deferred(), rawStarted = deferred();
+        const {store, controller} = controllerSetup({fetchDetail: () => localized.promise, fetchTranslations: async () => {
+            rawStarted.resolve();
+            throw Object.assign(new Error(`Raw endpoint failed ${status}`), {status});
+        }});
+        const previous = exercise('previous'); store.setCurrent(previous);
+        const selecting = controller.selectItem({id: 'candidate'});
+        await rawStarted.promise;
+        assert.equal(store.getState().current, previous);
+        localized.resolve(localizedExercise('candidate'));
+        await selecting;
+        assert.equal(store.getState().current, previous);
+        assert.match(store.getState().detailError, new RegExp(String(status)));
+    }
 });
 
 test('malformed, duplicate, mismatched and failed raw snapshots cannot overwrite the current record', async () => {

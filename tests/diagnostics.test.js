@@ -140,3 +140,19 @@ test('severity styling is paired with visible text and decorative icons while un
     }
     assert.doesNotMatch(diagnosticPanelHtml({highestSeverity: 'error" onclick="unsafe', findings: []}), /data-quality=|onclick=/);
 });
+
+test('compact panels keep findings visible and tuck skipped check names into a separate native disclosure', () => {
+    const report = runDiagnosticRules([
+        rule('error', 'error', [{message: 'Required value is missing'}]),
+        {...rule('unknown', 'warning', null), title: '<Unverified title>'},
+    ], {});
+    const html = diagnosticPanelHtml(report);
+    assert.match(html, /^<details class="diagnostic-panel" data-quality="error" open>/);
+    assert.match(html, /<p class="diagnostic-coverage">1 of 2 checks completed; 1 not verified · Checks describe the saved record, not unsaved edits\.<\/p>/);
+    assert.doesNotMatch(html, /class="diagnostic-scope"/);
+    assert.match(html, /<details class="diagnostic-unverified"><summary>Not verified checks \(1\)<\/summary><p>Not verified: &lt;Unverified title&gt;\. This does not mean those checks passed\.<\/p><\/details>/);
+    assert.ok(html.indexOf('Required value is missing') < html.indexOf('<details class="diagnostic-unverified"'));
+    assert.doesNotMatch(html, /<Unverified title>/);
+    const clean = diagnosticPanelHtml(runDiagnosticRules([rule('clean', 'error', [])], {}));
+    assert.doesNotMatch(clean, /diagnostic-unverified/);
+});

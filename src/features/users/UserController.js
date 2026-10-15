@@ -1,6 +1,7 @@
 import {Events} from '../../infrastructure/events/events.js';
 import {UserDetailsEntity, UserEntity} from '../../domain/user/index.js';
 import {Toast} from '../../shared/components/Toast.js';
+const DETAIL_KEYS = ['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'];
 
 export class UserController {
     constructor({store, repository, bus, confirmDialog}) {
@@ -11,6 +12,7 @@ export class UserController {
         this._sessionVersion = 0;
         this._loadVersion = 0;
         this._detailsVersion = 0;
+        this._sectionVersions = new Map();
         this._deleteConfirming = false;
 
         bus.on(Events.AUTH_LOGIN_SUCCESS, () => this.loadUsers());
@@ -18,6 +20,7 @@ export class UserController {
             this._sessionVersion++;
             this._loadVersion++;
             this._detailsVersion++;
+            this._sectionVersions.clear();
             store.reset();
         };
         bus.on(Events.AUTH_LOGOUT, reset);
@@ -53,16 +56,18 @@ export class UserController {
         if (user?.id && !alreadyLoaded) return this._loadDetails(user.id);
     }
 
-    reloadDetails() {
-        const {active, detailsLoading} = this._store.getState();
-        if (active && !detailsLoading) return this._loadDetails(active.id);
+    reloadDetails(key) {
+        const {active, detailsLoading, detailSections} = this._store.getState();
+        if (!active || (key !== undefined && !DETAIL_KEYS.includes(key))) return;
+        if (key ? detailSections[key]?.loading : detailsLoading) return;
+        return this._loadDetails(active.id, key ? [key] : DETAIL_KEYS);
     }
 
-    async _loadDetails(userId) {
-        const version = ++this._detailsVersion;
-        this._store.setDetailsLoading(userId);
+    async _loadDetails(userId, requestedKeys = DETAIL_KEYS) {
+        const version = this._detailsVersion;
+        this._store.setDetailsLoading(userId, requestedKeys);
         const {start, end} = this._defaultTrainingsRange();
-        const keys = ['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'];
+        const keys = DETAIL_KEYS;
         const normalizers = [
             UserDetailsEntity.normalizeGoal,
             UserDetailsEntity.normalizeTrainings,
@@ -75,26 +80,29 @@ export class UserController {
             () => this._repo.fetchWeightHistory(userId),
             () => this._repo.fetchDeviceTokens(userId),
         ];
-        const isCurrent = () => version === this._detailsVersion && this._store.getState().active?.id === userId;
-        await Promise.all(requests.map(async (request, index) => {
-            const key = keys[index];
+        await Promise.all(requestedKeys.map(async key => {
+            const index = keys.indexOf(key);
+            const sectionVersion = (this._sectionVersions.get(key) || 0) + 1;
+            this._sectionVersions.set(key, sectionVersion);
+            const isCurrent = () => version === this._detailsVersion && this._sectionVersions.get(key) === sectionVersion && this._store.getState().active?.id === userId;
+            const complete = result => {
+                this._store.setDetailSection(userId, key, result);
+                const {details, detailsLoading} = this._store.getState();
+                if (!detailsLoading) this._bus.emit(Events.USER_DETAILS_LOADED, {userId, details});
+            };
             try {
-                const raw = await Promise.resolve().then(request);
+                const raw = await Promise.resolve().then(requests[index]);
                 if (!isCurrent()) return;
                 UserDetailsEntity.validateResponse(key, raw);
-                this._store.setDetailSection(userId, key, {value: normalizers[index](raw)});
+                complete({value: normalizers[index](raw)});
             } catch (error) {
                 if (!isCurrent()) return;
                 const message = key === 'deviceTokens' && error?.status === 404
                     ? 'Device token data is unavailable on this API (404). The number of registered devices could not be determined.'
                     : error?.message || 'Please try again.';
-                this._store.setDetailSection(userId, key, {error: message});
+                complete({error: message});
             }
         }));
-        if (version !== this._detailsVersion || this._store.getState().active?.id !== userId) return;
-
-        const {details} = this._store.getState();
-        this._bus.emit(Events.USER_DETAILS_LOADED, {userId, details});
     }
 
     /** Default range for the admin trainings query: last 60 days. */

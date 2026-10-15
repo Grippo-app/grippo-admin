@@ -12,6 +12,34 @@
   z-index: 1000;
 }
 .login-overlay[hidden]{ display: none !important; }
+.login-form[hidden], .login-restore[hidden]{ display: none !important; }
+.login-restore{
+  width: min(100%, 400px);
+  padding: 36px 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted);
+}
+.login-restore p{ margin: 0; }
+.login-restore__spinner{
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: login-restore-spin .8s linear infinite;
+}
+@keyframes login-restore-spin{ to{ transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){
+  .login-restore__spinner{ animation: none; }
+}
 .login-form{
   background: var(--panel);
   border: 1px solid var(--border);

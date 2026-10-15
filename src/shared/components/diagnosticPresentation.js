@@ -37,8 +37,9 @@ export function diagnosticPanelHtml(report, {title = 'Saved record checks'} = {}
         return `<li class="diagnostic-panel__item diagnostic-item--${severity}"><strong class="diagnostic-panel__title">${SEVERITY_LABELS[severity]}: ${escapeHtml(finding.title)}</strong><p class="diagnostic-panel__message">${escapeHtml(finding.message)}</p>${finding.field ? `<span class="diagnostic-field">Field: ${escapeHtml(finding.field)}</span>` : ''}</li>`;
     }).join('')}</ul>` : `<p class="diagnostic-empty">${report?.totalCount > 0 ? 'No flags found in the completed checks.' : 'Checks have not run for this record.'}</p>`;
     const skippedNames = (report?.skippedChecks ?? []).map(check => escapeHtml(check.title)).join('; ');
-    const unavailable = report?.totalCount > report?.checkedCount
-        ? `<p class="diagnostic-unverified">${skippedNames ? `Not verified: ${skippedNames}.` : 'Some checks have not been verified.'} This does not mean those checks passed.</p>` : '';
+    const uncheckedCount = report?.totalCount - report?.checkedCount;
+    const unavailable = uncheckedCount > 0
+        ? `<details class="diagnostic-unverified"><summary>Not verified checks (${escapeHtml(uncheckedCount)})</summary><p>${skippedNames ? `Not verified: ${skippedNames}.` : 'Some checks have not been verified.'} This does not mean those checks passed.</p></details>` : '';
     const quality = Object.hasOwn(SEVERITY_LABELS, report?.highestSeverity) ? ` data-quality="${report.highestSeverity}"` : '';
-    return `<details class="diagnostic-panel"${quality}${report?.highestSeverity === 'error' ? ' open' : ''}><summary class="diagnostic-panel__header"><span>${escapeHtml(title)}</span>${diagnosticBadgeHtml(report)}</summary><div class="diagnostic-panel__body"><p class="diagnostic-coverage">${escapeHtml(checkSummary(report))}</p><p class="diagnostic-scope">Checks describe the saved record, not unsaved edits.</p>${content}${unavailable}</div></details>`;
+    return `<details class="diagnostic-panel"${quality}${report?.highestSeverity === 'error' ? ' open' : ''}><summary class="diagnostic-panel__header"><span>${escapeHtml(title)}</span>${diagnosticBadgeHtml(report)}</summary><div class="diagnostic-panel__body"><p class="diagnostic-coverage">${escapeHtml(checkSummary(report))} · Checks describe the saved record, not unsaved edits.</p>${content}${unavailable}</div></details>`;
 }

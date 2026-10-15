@@ -14,6 +14,8 @@ import {Toast} from './shared/components/Toast.js';
 import {DEFAULT_LANGUAGE} from './shared/constants/index.js';
 import {Events} from './infrastructure/events/events.js';
 import {LoadingIndicator, loadingDescription} from './shared/components/LoadingIndicator.js';
+import {ResponsivePicker} from './shared/components/ResponsivePicker.js';
+import {exerciseName} from './features/exercises/exercisePresentation.js';
 
 /* ── 1. Infrastructure ──────────────────────────────────────── */
 
@@ -59,6 +61,7 @@ const loginView = new LoginView({
         emailInput: document.getElementById('loginEmail'),
         passwordInput: document.getElementById('loginPassword'),
         errorEl: document.getElementById('loginError'),
+        restoreEl: document.getElementById('loginRestore'),
     }
 });
 
@@ -230,6 +233,15 @@ const userListView = new UserListView({
 const userDetailView = new UserDetailView({
     store: userStore,
     els: {
+        panel: document.getElementById('userDetailsPanel'),
+        accountDetails: document.getElementById('userAccountDetails'),
+        accountActions: document.getElementById('userAccountActions'),
+        sectionElements: {
+            goal: document.getElementById('userGoalSection'),
+            recentTrainings: document.getElementById('userTrainingsSection'),
+            weightHistory: document.getElementById('userWeightSection'),
+            deviceTokens: document.getElementById('userDevicesSection'),
+        },
         userDetail: document.getElementById('userDetail'),
         userDiagnostics: document.getElementById('userDiagnostics'),
         userEmptyState: document.getElementById('userEmptyState'),
@@ -258,7 +270,7 @@ const userDetailView = new UserDetailView({
         deviceTokensBody: document.getElementById('userDeviceTokensBody'),
     },
     onRoleChange: (role) => userController.changeRole(role),
-    onRetryDetails: () => userController.reloadDetails(),
+    onRetryDetails: (key) => userController.reloadDetails(key),
     onDelete: () => userController.deleteActiveUser(),
 });
 
@@ -270,6 +282,15 @@ userController = new UserController({
 });
 
 /* ── 7. Navigation ──────────────────────────────────────────── */
+
+const exercisePicker = new ResponsivePicker({details: document.getElementById('exercisePicker'),
+    labelEl: document.getElementById('exercisePickerLabel'), emptyLabel: 'Choose an exercise'});
+const userPicker = new ResponsivePicker({details: document.getElementById('userPicker'),
+    labelEl: document.getElementById('userPickerLabel'), emptyLabel: 'Choose an account'});
+exerciseStore.subscribe(state => exercisePicker.update(state.current
+    ? {id: state.current.id, label: exerciseName(state.current, state.locale)} : null));
+userStore.subscribe(state => userPicker.update(state.active
+    ? {id: state.active.id, label: state.active.name || state.active.email || 'Selected account'} : null));
 
 let activeSection = 'exercise';
 const primaryTabs = [...document.querySelectorAll('.primary-tabs [role="tab"]')];
@@ -337,27 +358,28 @@ bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
     syncLoadingIndicator();
 });
 
-// Prompt tools are secondary actions; close their popover after choosing a tool.
-const promptMenu = document.querySelector('.prompt-menu');
-promptMenu?.addEventListener('click', event => {
-    if (event.target.closest('button')) {
-        promptMenu.open = false;
-        promptMenu.querySelector('summary')?.focus();
-    }
-});
-document.addEventListener('click', event => {
-    if (!promptMenu?.contains(event.target)) promptMenu?.removeAttribute('open');
-});
-document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && promptMenu?.open) {
-        promptMenu.open = false;
-        promptMenu.querySelector('summary')?.focus();
-    }
-});
-promptMenu?.addEventListener('focusout', event => {
-    if (!promptMenu.contains(event.relatedTarget)) promptMenu.open = false;
-});
-bus.on(Events.NAV_SECTION_CHANGED, () => { if (promptMenu) promptMenu.open = false; });
+// Close before the action runs so confirmations and validation can take focus safely.
+for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions')) {
+    menu.addEventListener('click', event => {
+        if (event.target.closest('button')) {
+            menu.open = false;
+            menu.querySelector('summary')?.focus();
+        }
+    }, true);
+    document.addEventListener('click', event => {
+        if (!menu.contains(event.target)) menu.open = false;
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && menu.open) {
+            menu.open = false;
+            menu.querySelector('summary')?.focus();
+        }
+    });
+    menu.addEventListener('focusout', event => {
+        if (!menu.contains(event.relatedTarget)) menu.open = false;
+    });
+    bus.on(Events.NAV_SECTION_CHANGED, () => { menu.open = false; });
+}
 window.addEventListener('beforeunload', event => {
     if (!exerciseFormView.hasUnsavedChanges()) return;
     event.preventDefault();
@@ -408,4 +430,6 @@ document.addEventListener('visibilitychange', refreshUserDiagnostics);
 
 /* ── 10. Start ──────────────────────────────────────────────── */
 
-await authService.tryRestoreSession();
+const restoreView = loginView.setRestoring(true);
+try { await authService.tryRestoreSession(); }
+finally { loginView.setRestoring(false, restoreView); }

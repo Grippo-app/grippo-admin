@@ -4,6 +4,13 @@
 .users-command .role-toggle { display: flex; align-items: center; }
 .users-command .role-toggle .segment { background: var(--field); }
 .users-command #deleteUserBtn { align-self: center; }
+.account-actions { position: relative; }
+.account-actions > summary { list-style: none; }
+.account-actions > summary::-webkit-details-marker { display: none; }
+.account-actions__menu { position: absolute; z-index: 30; right: 0; top: calc(100% + 8px); display: grid; gap: 12px; min-width: 220px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); box-shadow: 0 12px 30px #0004; }
+.account-actions__menu .view-toggle, .account-actions__menu .segment, .account-actions__menu #deleteUserBtn { width: 100%; }
+.account-actions__menu #deleteUserBtn { border-top: 1px solid var(--border); }
+.account-actions:not([open]) > .account-actions__menu { display: none; }
 
 .users-layout {
     position: fixed;
@@ -25,7 +32,7 @@
     overflow: auto;
     container: user-panel / inline-size;
 }
-.user-detail { display: grid; gap: 20px; min-width: 0; width: 100%; }
+.user-detail { display: grid; gap: 14px; min-width: 0; width: 100%; }
 .user-detail[hidden], .training-detail[hidden] { display: none; }
 
 /* ── Search results ────────────────────────────────────── */
@@ -90,6 +97,13 @@
 .user-auth-icon { display: grid; place-items: center; width: 16px; height: 16px; color: var(--muted); }
 .user-auth-icon svg { width: 13px; height: 13px; }
 .user-auth-list { color: var(--muted); font-size: 11px; text-align: right; }
+.user-subtitle:empty { display: none; }
+.user-account-details { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-2); }
+.user-account-details > summary { cursor: pointer; color: var(--text); font-size: 12px; }
+.user-account-details > summary > span { margin-left: 8px; color: var(--muted); font-size: 11px; }
+.user-account-content { display: grid; gap: 14px; padding-top: 14px; }
+.user-account-auth { display: grid; gap: 5px; }
+.user-account-auth .user-auth-list { text-align: left; }
 .auth-icon-email, .auth-icon-apple { fill: currentColor; }
 .auth-icon-google .g-blue { fill: #4285f4; }
 .auth-icon-google .g-red { fill: #ea4335; }
@@ -104,25 +118,30 @@
 .meta-value { font-size: 12px; font-weight: 550; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 
 /* ── Independent detail sections ───────────────────────── */
-.user-details-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
-.user-section { --accent: var(--brand); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; min-width: 0; padding: 18px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.user-details-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
+.user-section { --accent: var(--brand); min-width: 0; padding: 12px 14px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .user-section--goal { grid-column: 1 / -1; }
 .user-section--workouts { --accent: #5dcc9b; grid-column: 1; }
-.user-section--weight { --accent: #e6bd6d; grid-column: 2; }
+.user-section--weight { --accent: #e6bd6d; grid-column: 1; }
 .user-section--devices { --accent: var(--brand-2); grid-column: 1 / -1; }
 .user-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-width: 0; }
+.user-section > summary { list-style: none; cursor: pointer; }
+.user-section > summary::-webkit-details-marker { display: none; }
+.user-section > summary::after { content: ''; width: 7px; height: 7px; flex-shrink: 0; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); }
+.user-section[open] > summary::after { transform: rotate(225deg); }
+.user-section:not([open]) > .user-section-body { display: none; }
+.user-section > .user-section-body { margin-top: 12px; }
 .user-section-title { display: inline-flex; gap: 8px; align-items: center; color: var(--text); font-size: 13px; font-weight: 650; white-space: nowrap; }
 .section-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .user-section-note { color: var(--muted); font-size: 10px; text-align: right; line-height: 1.5; }
 .user-section-head { min-height: 32px; }
 .user-section-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px; }
+.user-section-note { margin-left: auto; max-width: 65%; min-width: 0; }
 .user-refresh-error { color: var(--warning); }
 .user-refresh-retry { padding: 3px 7px; min-height: 24px; font-size: 10px; }
 .user-section-body { display: grid; gap: 9px; align-content: start; min-width: 0; min-height: 0; }
-.user-section-body--scroll { max-height: 620px; overflow: auto; scrollbar-gutter: stable; padding: 2px; }
-.user-section--workouts .user-section-body, .user-section--weight .user-section-body { height: clamp(320px, 44vh, 460px); }
-.user-section--goal .user-section-body { height: 132px; overflow: auto; scrollbar-gutter: stable; }
-.user-section--devices .user-section-body { height: 132px; }
+.user-section-body--scroll { padding: 2px; }
+.user-section--workouts[open] .user-section-body--scroll, .user-section--weight[open] .user-section-body--scroll { max-height: min(52vh, 520px); overflow: auto; scrollbar-gutter: stable; }
 .user-section-empty { display: grid; place-items: center; min-height: 80px; padding: 18px; background: var(--field); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center; }
 .user-section-error { display: grid; gap: 9px; justify-items: start; padding: 16px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--danger) 4%, var(--field)); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .user-section-error strong { color: var(--text); }
@@ -215,8 +234,7 @@
 @container user-panel (max-width: 760px) {
     .user-details-grid { grid-template-columns: minmax(0, 1fr); }
     .user-section--goal, .user-section--workouts, .user-section--weight, .user-section--devices { grid-column: 1; }
-    .user-section--goal .user-section-body { height: 160px; }
-    .user-section-body--scroll { max-height: 520px; }
+    .user-section--workouts[open] .user-section-body--scroll, .user-section--weight[open] .user-section-body--scroll { max-height: min(50vh, 440px); }
 }
 @container user-panel (max-width: 440px) {
     .user-header { flex-direction: column; gap: 12px; }

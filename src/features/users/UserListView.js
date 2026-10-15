@@ -39,16 +39,16 @@ export class UserListView {
         if (!list) return;
         list.setAttribute('aria-busy', String(isLoading));
         this._renderDiagnosticControls(state);
-        this._sortMenu.setActive(state.sortKey);
+        if (this._renderedSort !== state.sortKey) { this._sortMenu.setActive(state.sortKey); this._renderedSort = state.sortKey; }
         if (this._els.userSearch && this._els.userSearch.value !== searchQuery) this._els.userSearch.value = searchQuery;
         if (this._els.reloadUsersBtn) {
             this._els.reloadUsersBtn.disabled = isLoading;
-            this._els.reloadUsersBtn.textContent = isLoading ? 'Loading…' : 'Refresh users';
+            this._setText(this._els.reloadUsersBtn, isLoading ? 'Loading…' : 'Refresh users');
         }
         if (this._els.userCount) {
-            this._els.userCount.textContent = isLoading && !users.length ? 'Loading users…'
+            this._setText(this._els.userCount, isLoading && !users.length ? 'Loading users…'
                 : searchQuery.trim() || state.diagnosticFilter !== 'all' ? `${filtered.length} of ${users.length} users`
-                    : `${users.length} user${users.length === 1 ? '' : 's'}`;
+                    : `${users.length} user${users.length === 1 ? '' : 's'}`);
         }
 
         const previous = this._lastRender;
@@ -63,17 +63,25 @@ export class UserListView {
         const scrollTop = list.scrollTop;
 
         if (isLoading && !users.length) {
+            this._rows = new Map();
             list.innerHTML = `<div class="user-list-skeleton" role="status"><span class="sr-only">Loading users…</span><div class="skeleton-list" aria-hidden="true">${Array.from({length: 6}, () => '<div class="skeleton-row user-list-skeleton-row"><span class="skeleton skeleton-avatar"></span><div class="skeleton-stack"><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line skeleton-line--short"></span></div></div>').join('')}</div></div>`;
             return;
         }
         const error = loadError ? `<div class="user-list-error" role="status"><strong>Could not refresh users</strong><span>${escapeHtml(loadError)}</span><span>Use Refresh users to try again.</span></div>` : '';
         if (!filtered.length) {
+            this._rows = new Map();
             list.innerHTML = error + `<div class="user-list-message"><span class="user-list-message-icon" aria-hidden="true">⌕</span><span class="user-list-message-title">${users.length ? 'No matching users' : 'No users to display'}</span><span>${users.length ? 'Try another name, email or ID, or clear your filters.' : loadError ? 'The user list could not be loaded.' : 'Accounts will appear here when users join.'}</span></div>`;
             return;
         }
 
-        list.innerHTML = error + filtered.map(user => this._userItem(user, user.id === active?.id, state.diagnostics.get(user.id))).join('');
-        this._updateSelection(active?.id);
+        if (this._rows?.size && !loadError && !previous?.loadError) this._reconcileRows(filtered, active?.id, state.diagnostics);
+        else {
+            list.innerHTML = error + filtered.map(user => this._userItem(user, user.id === active?.id, state.diagnostics.get(user.id))).join('');
+            const elements = new Map(Array.from(list.querySelectorAll('.user-item')).map(row => [row.dataset.id, row]));
+            this._rows = new Map(filtered.filter(user => elements.has(user.id)).map(user => [user.id,
+                {element: elements.get(user.id), user, report: state.diagnostics.get(user.id)}]));
+        }
+        this._updateSelection(active?.id, focusedId);
         list.scrollTop = scrollTop;
         if (focusedId) {
             const row = Array.from(list.querySelectorAll('.user-item')).find(item => item.dataset.id === focusedId);
@@ -90,8 +98,8 @@ export class UserListView {
         if (select) select.value = state.diagnosticFilter;
         if (this._els.qualitySummary) {
             const summary = state.diagnosticSummary;
-            this._els.qualitySummary.textContent = !summary.recordCount ? 'Checks run when users load.'
-                : `${summary.attentionCount} of ${summary.recordCount} need review${summary.unverifiedCount ? ` · ${summary.unverifiedCount} partially checked` : ''}`;
+            this._setText(this._els.qualitySummary, !summary.recordCount ? 'Checks run when users load.'
+                : `${summary.attentionCount} of ${summary.recordCount} need review${summary.unverifiedCount ? ` · ${summary.unverifiedCount} partially checked` : ''}`);
         }
     }
 
@@ -115,14 +123,37 @@ export class UserListView {
         </div>`;
     }
 
-    _updateSelection(activeId) {
+    _reconcileRows(users, activeId, diagnostics) {
+        const list = this._els.userList;
+        const next = new Map();
+        for (const [index, user] of users.entries()) {
+            const report = diagnostics.get(user.id);
+            let row = this._rows.get(user.id);
+            if (!row || row.user !== user || row.report !== report) {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = this._userItem(user, user.id === activeId, report);
+                row = {element: wrapper.firstElementChild, user, report};
+            }
+            next.set(user.id, row);
+            if (list.children[index] !== row.element) list.insertBefore(row.element, list.children[index] || null);
+        }
+        for (const [id, row] of this._rows) if (!next.has(id) || next.get(id).element !== row.element) row.element.remove();
+        this._rows = next;
+    }
+
+    _setText(element, value) {
+        if (element.textContent !== value) element.textContent = value;
+    }
+
+    _updateSelection(activeId, focusedId) {
         const rows = Array.from(this._els.userList.querySelectorAll('.user-item'));
         const selectedVisible = rows.some(row => row.dataset.id === activeId);
+        const focusedVisible = focusedId && rows.some(row => row.dataset.id === focusedId);
         rows.forEach((row, index) => {
             const selected = row.dataset.id === activeId;
             row.classList.toggle('active', selected);
             row.setAttribute('aria-selected', String(selected));
-            row.tabIndex = selected || (!selectedVisible && index === 0) ? 0 : -1;
+            row.tabIndex = focusedVisible ? row.dataset.id === focusedId ? 0 : -1 : selected || (!selectedVisible && index === 0) ? 0 : -1;
         });
     }
 

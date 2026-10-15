@@ -27,6 +27,10 @@
 
 <!-- Login overlay -->
 <div id="loginOverlay" class="login-overlay" role="dialog" aria-modal="true" aria-labelledby="loginTitle" hidden>
+    <div id="loginRestore" class="login-restore" role="status" aria-live="polite" tabindex="-1" hidden>
+        <span class="login-restore__spinner" aria-hidden="true"></span>
+        <p>Restoring session…</p>
+    </div>
     <form id="loginForm" class="login-form" aria-labelledby="loginTitle">
         <div class="login-eyebrow">GRIPPO ADMIN</div>
         <h2 id="loginTitle">Welcome back</h2>
@@ -103,6 +107,9 @@
     <main>
         <!-- Sidebar -->
         <section class="sidebar" aria-label="Examples list">
+            <details id="exercisePicker" class="record-picker" open>
+                <summary><span id="exercisePickerLabel" class="record-picker__label">Choose an exercise</span><span class="record-picker__action">Exercises <span aria-hidden="true">⌄</span></span></summary>
+                <div class="record-picker__body">
             <div class="side-controls">
                 <div class="sidebar-heading"><h1>Exercises</h1><span id="exerciseListCount" class="user-count" role="status"></span></div>
         <input id="search" type="search" placeholder="Search exercises…" aria-label="Search exercises"/>
@@ -133,6 +140,8 @@
 
             </div>
             <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
+                </div>
+            </details>
         </section>
 
         <!-- Editor -->
@@ -170,24 +179,27 @@
                         </div>
                         <div class="intro-stack">
                             <div class="field">
-                                <label for="fId">Exercise ID</label>
-                                <input id="fId" type="text" readonly placeholder="Assigned automatically"/>
-                                <div class="hint">Assigned automatically. Copy this ID to reference the exercise.</div>
-                            </div>
-                            <div class="grid two">
-                                <div class="field">
-                                    <label for="fName">Name *</label>
-                                    <input id="fName" type="text" placeholder="e.g., Bench Press"/>
-                                </div>
-                                <div class="field">
-                                    <label for="fImage">Image URL (optional)</label>
-                                    <input id="fImage" type="url" placeholder="https://..."/>
-                                </div>
+                                <label for="fName">Name *</label>
+                                <input id="fName" type="text" placeholder="e.g., Bench Press"/>
                             </div>
                             <div class="field">
                                 <label for="fDescription">Description *</label>
                                 <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
                             </div>
+                            <details class="exercise-reference-fields">
+                                <summary>Image and reference</summary>
+                                <div class="grid two">
+                                    <div class="field">
+                                        <label for="fImage">Image URL (optional)</label>
+                                        <input id="fImage" type="url" placeholder="https://..."/>
+                                    </div>
+                                    <div class="field">
+                                        <label for="fId">Exercise ID</label>
+                                        <input id="fId" type="text" readonly placeholder="Assigned automatically"/>
+                                        <div class="hint">Assigned automatically. Copy to reference this exercise.</div>
+                                    </div>
+                                </div>
+                            </details>
                         </div>
                     </div>
                 </div>
@@ -367,6 +379,9 @@
         <span id="userSelectionHint" class="hint">No user selected</span>
 
         <div class="cmd-actions">
+            <details id="userAccountActions" class="account-actions">
+                <summary class="btn muted">Account actions</summary>
+                <div class="account-actions__menu">
             <div class="view-toggle role-toggle">
                 <div id="roleSegment" class="segment" role="group" aria-label="User role">
                     <button id="roleDefaultBtn" class="seg active" type="button" aria-pressed="false" data-role="default">
@@ -377,11 +392,16 @@
                 </div>
             </div>
             <button id="deleteUserBtn" class="btn danger" type="button">Delete user</button>
+                </div>
+            </details>
         </div>
     </div>
 
     <div class="users-layout">
         <section class="sidebar users-sidebar" aria-label="Users list">
+            <details id="userPicker" class="record-picker" open>
+                <summary><span id="userPickerLabel" class="record-picker__label">Choose an account</span><span class="record-picker__action">Users <span aria-hidden="true">⌄</span></span></summary>
+                <div class="record-picker__body">
             <div class="side-controls">
                 <div class="sidebar-heading"><h1>Users</h1><span id="userListCount" class="user-count" role="status"></span></div>
         <input id="userSearch" type="search" placeholder="Search name, email or ID…" aria-label="Search users"/>
@@ -411,9 +431,11 @@
 
             </div>
             <div id="userList" class="list user-list" role="listbox" aria-label="Users list"></div>
+                </div>
+            </details>
         </section>
 
-        <section class="panel user-panel" aria-label="User details">
+        <section id="userDetailsPanel" class="panel user-panel" aria-label="User details">
             <div id="userEmptyState" class="workspace-empty">
                 <div class="empty-icon" aria-hidden="true">◎</div>
                 <h2>A clearer view of every user</h2>
@@ -421,7 +443,6 @@
                 <span class="hint">Search by name, email or user ID.</span>
             </div>
             <div id="userDetail" class="user-detail" hidden>
-                <div id="userDiagnostics" class="record-diagnostics" aria-label="Saved account checks" hidden></div>
                 <div class="user-header">
                     <div class="user-header-text">
                         <div class="user-label">Selected user</div>
@@ -440,10 +461,13 @@
                     </div>
                     <div class="user-tags">
                         <div id="userAuthPill" class="user-auth-pill" aria-label="Auth types"></div>
-                        <div id="userAuthList" class="user-auth-list" aria-label="Auth types list"></div>
                     </div>
                 </div>
+                <div id="userDiagnostics" class="record-diagnostics" aria-label="Saved account checks" hidden></div>
 
+                <details id="userAccountDetails" class="user-account-details">
+                    <summary>Account details <span>IDs, dates and sign-in methods</span></summary>
+                    <div class="user-account-content">
                 <div class="user-id-fields">
                     <div class="field compact">
                         <label for="userIdField">User ID</label>
@@ -466,50 +490,54 @@
                     </div>
                 </div>
 
+                    <div class="user-account-auth"><span class="meta-label">Sign-in methods</span><div id="userAuthList" class="user-auth-list"></div></div>
+                    </div>
+                </details>
+
                 <div id="userDetailsGrid" class="user-details-grid">
-                    <section class="user-section user-section--goal" id="userGoalSection">
-                        <div class="user-section-head">
+                    <details class="user-section user-section--goal" id="userGoalSection">
+                        <summary class="user-section-head">
                             <div class="user-section-title">
                                 <span class="section-dot section-dot--goal" aria-hidden="true"></span>
                                 Goal
                             </div>
                             <div id="userGoalSummary" class="user-section-note">—</div>
-                        </div>
+                        </summary>
                         <div id="userGoalBody" class="user-section-body"></div>
-                    </section>
+                    </details>
 
-                    <section class="user-section user-section--workouts" id="userTrainingsSection">
-                        <div class="user-section-head">
+                    <details class="user-section user-section--workouts" id="userTrainingsSection">
+                        <summary class="user-section-head">
                             <div class="user-section-title">
                                 <span class="section-dot section-dot--workouts" aria-hidden="true"></span>
                                 Recent workouts
                             </div>
                             <div id="userTrainingsCount" class="user-section-note">—</div>
-                        </div>
+                        </summary>
                         <div id="userTrainingsBody" class="user-section-body user-section-body--scroll"></div>
-                    </section>
+                    </details>
 
-                    <section class="user-section user-section--weight" id="userWeightSection">
-                        <div class="user-section-head">
+                    <details class="user-section user-section--weight" id="userWeightSection">
+                        <summary class="user-section-head">
                             <div class="user-section-title">
                                 <span class="section-dot section-dot--weight" aria-hidden="true"></span>
                                 Weight history
                             </div>
                             <div id="userWeightSummary" class="user-section-note">—</div>
-                        </div>
+                        </summary>
                         <div id="userWeightBody" class="user-section-body user-section-body--scroll"></div>
-                    </section>
+                    </details>
 
-                    <section class="user-section user-section--devices" id="userDevicesSection">
-                        <div class="user-section-head">
+                    <details class="user-section user-section--devices" id="userDevicesSection">
+                        <summary class="user-section-head">
                             <div class="user-section-title">
                                 <span class="section-dot section-dot--devices" aria-hidden="true"></span>
                                 Device tokens
                             </div>
                             <div id="userDeviceTokensSummary" class="user-section-note">—</div>
-                        </div>
+                        </summary>
                         <div id="userDeviceTokensBody" class="user-section-body user-section-body--scroll"></div>
-                    </section>
+                    </details>
                 </div>
 
             </div>

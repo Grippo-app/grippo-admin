@@ -75,6 +75,9 @@ export class ExerciseController {
         const sourceVersion = ++this._sourceSeq;
         this._store.setDetailLoading(true, id);
         try {
+            // Capture failure immediately so an early raw-route rejection cannot become unhandled.
+            const translationRead = Promise.resolve().then(() => this._repo.fetchTranslations(id))
+                .then(raw => ({raw}), error => ({error}));
             // All translations must load before editing: saving a partial record could erase a locale.
             const responses = await Promise.all(SUPPORTED_LANGUAGES.map(async locale => ({
                 locale, raw: await this._repo.fetchDetail(id, locale),
@@ -83,9 +86,10 @@ export class ExerciseController {
             if (responses.some(({raw}) => !raw || typeof raw !== 'object')) throw new Error('Incomplete exercise data. Please try again.');
             let translationSnapshot = null;
             try {
-                const raw = await this._repo.fetchTranslations(id);
+                const result = await translationRead;
                 if (seq !== this._selectSeq) return;
-                translationSnapshot = ExerciseTranslations.validateSnapshot(raw, id);
+                if (result.error) throw result.error;
+                translationSnapshot = ExerciseTranslations.validateSnapshot(result.raw, id);
             } catch (error) {
                 if (seq !== this._selectSeq) return;
                 // Older deployed APIs may not have the admin read route. Other failures must stay visible.

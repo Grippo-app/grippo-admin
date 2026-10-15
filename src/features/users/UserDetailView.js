@@ -16,8 +16,9 @@ export class UserDetailView {
         }));
         els.deleteUserBtn?.addEventListener('click', onDelete);
         els.detailsSections?.addEventListener('click', event => {
-            const action = event.target.closest('[data-user-action]')?.dataset.userAction;
-            if (action === 'retry') onRetryDetails?.();
+            const button = event.target.closest('[data-user-action]');
+            const action = button?.dataset.userAction;
+            if (action === 'retry') onRetryDetails?.(button.dataset.userSection);
             if (action === 'more-trainings') store.showMoreTrainings();
             if (action === 'more-weights') store.showMoreWeights();
         });
@@ -42,6 +43,7 @@ export class UserDetailView {
         const state = this._store.getState();
         const {active, roleChangeInFlight, deleteInFlight, details, detailsLoading} = state;
         const disabled = !active || roleChangeInFlight || deleteInFlight;
+        if (this._els.accountActions) this._els.accountActions.hidden = !active;
         if (this._els.deleteUserBtn) {
             this._els.deleteUserBtn.disabled = disabled;
             this._els.deleteUserBtn.textContent = deleteInFlight && state.deleteUserId === active?.id ? 'Deleting…' : 'Delete user';
@@ -62,6 +64,14 @@ export class UserDetailView {
             return;
         }
         if (this._lastActive !== active) {
+            if (this._lastActive?.id !== active.id) {
+                if (this._els.panel) this._els.panel.scrollTop = 0;
+                if (this._els.accountDetails) this._els.accountDetails.open = false;
+                if (this._els.accountActions) this._els.accountActions.open = false;
+                for (const [key, element] of Object.entries(this._els.sectionElements || {})) {
+                    element.open = key === 'recentTrainings' && UserEntity.workoutsCount(active) > 0;
+                }
+            }
             this._renderHeader(active);
             this._lastActive = active;
         }
@@ -94,14 +104,17 @@ export class UserDetailView {
         for (const [status, body, summary] of [[goal, this._els.goalBody, this._els.goalSummary], [trainings, this._els.trainingsBody, this._els.trainingsCount],
             [weights, this._els.weightBody, this._els.weightSummary], [devices, this._els.deviceTokensBody, this._els.deviceTokensSummary]]) this._renderCachedStatus(body, summary, status);
         this._els.detailsSections?.querySelectorAll('[data-user-action="retry"]').forEach(button => {
-            button.disabled = detailsLoading;
-            button.title = detailsLoading ? 'The remaining account sections are still loading.' : '';
+            button.disabled = state.detailSections?.[button.dataset.userSection]?.loading ?? detailsLoading;
+            button.title = button.disabled ? 'This section is loading.' : '';
         });
     }
 
     _clearSelection() {
         this._sectionNotes?.clear();
         this._sectionStatuses?.clear();
+        if (this._els.accountDetails) this._els.accountDetails.open = false;
+        if (this._els.accountActions) this._els.accountActions.open = false;
+        for (const element of Object.values(this._els.sectionElements || {})) element.open = false;
         const textFields = ['userNameEl', 'userEmailEl', 'userCreatedEl', 'userUpdatedEl',
             'userActivityEl', 'userWorkoutsEl', 'userAuthList', 'goalSummary', 'trainingsCount',
             'weightSummary', 'deviceTokensSummary'];
@@ -117,10 +130,11 @@ export class UserDetailView {
     }
 
     _renderHeader(active) {
-        this._setText(this._els.userNameEl, active.name || active.email || active.id);
+        const title = active.name || active.email || active.id;
+        this._setText(this._els.userNameEl, title);
         if (this._els.userIdEl) this._els.userIdEl.value = active.id;
         if (this._els.profileIdEl) this._els.profileIdEl.value = active.profileId;
-        this._setText(this._els.userEmailEl, active.email || 'No email address');
+        this._setText(this._els.userEmailEl, active.email && active.email !== title ? active.email : '');
         this._setText(this._els.userCreatedEl, formatShortDate(active.createdAt) || '—');
         this._setText(this._els.userUpdatedEl, formatShortDate(active.updatedAt) || '—');
         this._setText(this._els.userActivityEl, relativeDate(active.lastActivity) || 'No activity');
@@ -152,7 +166,7 @@ export class UserDetailView {
         (this._sectionStatuses ??= new Map()).set(summary, signature);
         const hadFocus = typeof document !== 'undefined' && summary.contains?.(document.activeElement);
         if (state === 'refreshing') summary.textContent = 'Updating · Previous data shown';
-        else if (error) summary.innerHTML = `<span class="user-refresh-error" title="${escapeHtml(error)}">Refresh failed · Previous data shown</span><span class="sr-only">${escapeHtml(error)}</span><button type="button" class="btn user-refresh-retry" data-user-action="retry">Retry</button>`;
+        else if (error) summary.innerHTML = `<span class="user-refresh-error" title="${escapeHtml(error)}">Refresh failed · Previous data shown</span><span class="sr-only">${escapeHtml(error)}</span><button type="button" class="btn user-refresh-retry" data-user-action="retry" data-user-section="${this._sectionKey(body)}">Retry</button>`;
         else summary.textContent = this._sectionNotes?.get(summary) ?? '';
         if (hadFocus) { summary.tabIndex = -1; summary.focus?.({preventScroll: true}); }
     }
@@ -161,6 +175,7 @@ export class UserDetailView {
         if (!body) return true;
         body.setAttribute('aria-busy', String(state === 'loading' || state === 'refreshing'));
         body.classList?.toggle('is-initial-loading', state === 'loading');
+        body.classList?.toggle('is-empty', !error && state !== 'loading' && !!empty);
         if (state === 'loading') {
             const isHistory = body === this._els.trainingsBody || body === this._els.weightBody;
             const count = isHistory ? 4 : 2;
@@ -170,13 +185,14 @@ export class UserDetailView {
             return true;
         }
         if (error) {
-            this._setBody(body, `<div class="user-section-error" role="status"><strong>Could not load this section</strong><span>${escapeHtml(error)}</span><button class="btn user-retry" type="button" data-user-action="retry">Try again</button></div>`);
+            this._setBody(body, `<div class="user-section-error" role="status"><strong>Could not load this section</strong><span>${escapeHtml(error)}</span><button class="btn user-retry" type="button" data-user-action="retry" data-user-section="${this._sectionKey(body)}">Try again</button></div>`);
             this._setText(summary, 'Unavailable');
             return true;
         }
         if (empty) {
             this._setBody(body, `<div class="user-section-empty">${escapeHtml(empty)}</div>`);
-            this._setSectionNote(summary, '');
+            const labels = {goal: 'Not set', recentTrainings: 'No recent workouts', weightHistory: 'No records', deviceTokens: 'No devices'};
+            this._setSectionNote(summary, labels[this._sectionKey(body)] || 'No records');
             return true;
         }
         return false;
@@ -195,7 +211,7 @@ export class UserDetailView {
         const confidence = Number.isFinite(goal.confidence)
             ? `<div class="goal-confidence"><span>Confidence <strong>${Math.round(goal.confidence * 100)}%</strong></span><meter min="0" max="1" value="${goal.confidence}" aria-label="Goal confidence">${Math.round(goal.confidence * 100)}%</meter></div>` : '';
         this._setBody(body, `<div class="goal-row">${pills.join('')}</div>${tags ? `<div class="goal-tags">${tags}</div>` : ''}${confidence}`);
-        const note = goal.lastConfirmedAt ? `Confirmed ${relativeDate(goal.lastConfirmedAt)}` : goal.updatedAt ? `Updated ${relativeDate(goal.updatedAt)}` : '';
+        const note = humanizeEnum(goal.primaryGoal) || 'Goal available';
         this._setSectionNote(summary, note);
     }
 
@@ -356,7 +372,11 @@ export class UserDetailView {
     }
 
     _setText(element, text) {
-        if (element) element.textContent = text ?? '';
+        if (element && element.textContent !== (text ?? '')) element.textContent = text ?? '';
+    }
+
+    _sectionKey(body) {
+        return [['goal', this._els.goalBody], ['recentTrainings', this._els.trainingsBody], ['weightHistory', this._els.weightBody], ['deviceTokens', this._els.deviceTokensBody]].find(([, element]) => element === body)?.[0] || '';
     }
 
     _setSectionNote(element, text) {

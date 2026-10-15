@@ -98,7 +98,7 @@ test('malformed JSON dates never abort A-to-B rendering or retain the previous p
     assert.match(view._els.trainingsBody.innerHTML, /private-workout-a/);
     assert.match(view._els.deviceTokensBody.innerHTML, /private-device-token-a/);
     await controller.selectUser(b);
-    assert.equal(view._els.userEmailEl.textContent, 'b@example.test');
+    assert.equal(view._els.userNameEl.textContent, 'b@example.test');
     assert.equal(view._els.userCreatedEl.textContent, '—');
     assert.doesNotMatch(view._els.trainingsBody.innerHTML, /private-workout-a/);
     assert.doesNotMatch(view._els.deviceTokensBody.innerHTML, /private-device-token-a/);
