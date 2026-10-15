@@ -15,7 +15,7 @@ export class UserStore {
             diagnostics: new Map(), diagnosticSummary: summarizeDiagnosticReports([]),
             diagnosticFilterOptions: getDiagnosticFilterOptions([], USER_DIAGNOSTIC_RULES),
             isLoading: false, loadError: '', roleChangeInFlight: false, deleteInFlight: false, deleteUserId: null,
-            details: null, detailsForUserId: null, detailsLoading: false,
+            details: null, detailsForUserId: null, detailsLoading: false, detailSections: {},
             expandedTrainingId: null, trainingsLimit: 10, weightsLimit: 12,
         };
     }
@@ -56,18 +56,33 @@ export class UserStore {
     _clearedSelection() {
         return {
             active: null, details: null, detailsForUserId: null,
-            detailsLoading: false, expandedTrainingId: null,
+            detailsLoading: false, detailSections: {}, expandedTrainingId: null,
             trainingsLimit: 10, weightsLimit: 12,
         };
     }
 
     setDetailsLoading(userId) {
-        this._update({detailsForUserId: userId, detailsLoading: true});
+        if (this._state.active?.id !== userId) return;
+        const detailSections = Object.fromEntries(['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'].map(key => [key,
+            {loading: true, loaded: !!this._state.detailSections[key]?.loaded, error: ''}]));
+        this._update({detailsForUserId: userId, detailsLoading: true, detailSections});
+    }
+
+    setDetailSection(userId, key, {value, error = ''}) {
+        if (this._state.active?.id !== userId || this._state.detailsForUserId !== userId || !Object.hasOwn(this._state.detailSections, key)) return;
+        const previous = this._state.detailSections[key];
+        const details = {...(this._state.details || {}), errors: {...this._state.details?.errors}};
+        if (!error) { details[key] = value; delete details.errors[key]; }
+        else { if (!previous.loaded) details[key] = key === 'goal' ? null : []; details.errors[key] = error; }
+        const detailSections = {...this._state.detailSections, [key]: {loading: false, loaded: !error || previous.loaded, error}};
+        this._update({details, detailSections, detailsLoading: Object.values(detailSections).some(section => section.loading)});
     }
 
     setDetails(userId, details) {
         if (this._state.active?.id !== userId) return;
-        this._update({details, detailsForUserId: userId, detailsLoading: false});
+        const detailSections = Object.fromEntries(['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'].map(key => [key,
+            {loading: false, loaded: Object.hasOwn(details, key) && !details.errors?.[key], error: details.errors?.[key] || ''}]));
+        this._update({details, detailsForUserId: userId, detailsLoading: false, detailSections});
     }
 
     toggleExpandedTraining(trainingId) {

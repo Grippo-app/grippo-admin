@@ -22,6 +22,9 @@ const WEIGHT_LABEL = {
     body_weight: 'bodyweight',
 };
 
+const LIST_SKELETON = `<span class="sr-only">Loading exercises…</span><div class="skeleton-list exercise-list-skeleton" aria-hidden="true">${Array.from({length: 6}, () =>
+    '<div class="skeleton-row"><div class="skeleton-stack"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton skeleton-line skeleton-line--short"></span></div><span class="skeleton exercise-skeleton-thumb"></span></div>').join('')}</div>`;
+
 export class ExerciseListView {
     /**
      * @param {{
@@ -61,7 +64,7 @@ export class ExerciseListView {
     render() {
         const {filtered, items, current, isLoading, searchQuery, loadError, selectingId, qualityFilter, diagnosticReports, diagnosticOptions, diagnosticSummary} = this._store.getState();
         if (!this._els.list) return;
-        if (this._els.count) this._els.count.textContent = isLoading ? 'Loading exercises…' : loadError ? `${items.length} exercises · Refresh failed` : searchQuery.trim() || qualityFilter !== 'all' ? `${filtered.length} of ${items.length} exercises` : `${items.length} exercises`;
+        if (this._els.count) this._els.count.textContent = isLoading && !items.length ? 'Loading exercises…' : loadError ? `${items.length} exercises · Refresh failed` : searchQuery.trim() || qualityFilter !== 'all' ? `${filtered.length} of ${items.length} exercises` : `${items.length} exercises`;
         if (this._els.qualityFilter && this._diagnosticOptions !== diagnosticOptions) {
             this._els.qualityFilter.innerHTML = diagnosticOptions.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
             this._diagnosticOptions = diagnosticOptions;
@@ -69,20 +72,36 @@ export class ExerciseListView {
         if (this._els.qualityFilter) this._els.qualityFilter.value = qualityFilter;
         if (this._els.qualitySummary) {
             const {recordCount, attentionCount, counts, unverifiedCount} = diagnosticSummary;
-            this._els.qualitySummary.textContent = `${attentionCount} of ${recordCount} stored exercises need attention · ${counts.error} with errors · ${counts.warning} with warnings · ${counts.info} with notes${unverifiedCount ? ` · ${unverifiedCount} partly unchecked` : ''}`;
+            this._els.qualitySummary.textContent = recordCount
+                ? `${attentionCount} of ${recordCount} need review · ${counts.error} errors · ${counts.warning} warnings · ${counts.info} notes${unverifiedCount ? ` · ${unverifiedCount} partly unchecked` : ''}`
+                : 'Checks run when exercises load.';
         }
         if (this._els.loadBtn) {
             this._els.loadBtn.disabled = isLoading;
             this._els.loadBtn.textContent = isLoading ? 'Loading…' : 'Refresh';
         }
         const currentId = current?.id;
-        if (this._rendered?.filtered === filtered && this._rendered.reports === diagnosticReports && this._rendered.currentId === currentId && this._rendered.isLoading === isLoading && this._rendered.loadError === loadError && this._rendered.selectingId === selectingId) return;
-        this._rendered = {filtered, currentId, isLoading, loadError, selectingId, reports: diagnosticReports};
+        const initialLoading = isLoading && !items.length;
+        const signature = this._rendered?.filtered === filtered && this._rendered.reports === diagnosticReports
+            ? this._rendered.signature : JSON.stringify(filtered.map(item => {
+                const entity = item.entity || item;
+                return [entity.id || item.id, exerciseName(item), entity.imageUrl || entity.image_url, entity.category,
+                    entity.experience, entity.weightType, entity[FIELD.equipmentRefs]?.length, entity[FIELD.bundles]?.length,
+                    diagnosticReports.get(entity.id || item.id)];
+            }));
+        const emptyError = filtered.length ? '' : loadError;
+        const emptyFiltered = !filtered.length && Boolean(searchQuery.trim() || qualityFilter !== 'all');
+        const previous = this._rendered;
+        this._rendered = {filtered, signature, currentId, initialLoading, emptyError, emptyFiltered, selectingId, reports: diagnosticReports};
+        this._els.list.setAttribute('aria-busy', String(isLoading || !!selectingId));
+        if (previous?.signature === signature && previous.initialLoading === initialLoading && previous.emptyError === emptyError && previous.emptyFiltered === emptyFiltered) {
+            if (previous.currentId !== currentId || previous.selectingId !== selectingId) this._syncRowState(currentId, selectingId, previous);
+            return;
+        }
         const focusedId = this._els.list.contains(document.activeElement) ? document.activeElement?.dataset.id : null;
         const scrollTop = this._els.list.scrollTop;
-        this._els.list.setAttribute('aria-busy', String(isLoading || !!selectingId));
-        if (isLoading && !items.length) {
-            this._els.list.innerHTML = '<div class="list-loading" role="status">Loading exercises…</div>';
+        if (initialLoading) {
+            this._els.list.innerHTML = LIST_SKELETON;
             return;
         }
         if (!filtered.length) {
@@ -92,7 +111,8 @@ export class ExerciseListView {
         }
 
         this._els.list.innerHTML = '';
-        const tabstopId = focusedId || (filtered.some(item => (item.entity?.id || item.id) === currentId) ? currentId : filtered[0]?.entity?.id || filtered[0]?.id);
+        const visibleFocus = filtered.some(item => (item.entity?.id || item.id) === focusedId) ? focusedId : null;
+        const tabstopId = visibleFocus || (filtered.some(item => (item.entity?.id || item.id) === currentId) ? currentId : filtered[0]?.entity?.id || filtered[0]?.id);
         for (const item of filtered) {
             const el = document.createElement('div');
             // Compare via entity.id (real exercise ID), not the list-wrapper item.id
@@ -102,10 +122,12 @@ export class ExerciseListView {
             el.setAttribute('role', 'option');
             el.setAttribute('aria-selected', String(current != null && entityId === current.id));
             el.classList.toggle('is-loading', entityId === selectingId);
+            el.setAttribute('aria-busy', String(entityId === selectingId));
             el.tabIndex = entityId === tabstopId ? 0 : -1;
 
             const name = exerciseName(item);
             const report = diagnosticReports.get(entityId);
+            if (['error', 'warning', 'info'].includes(report?.highestSeverity)) el.dataset.quality = report.highestSeverity;
             el.title = name + (report?.findings.length ? ` — ${report.findings.map(finding => finding.title).filter((value, index, all) => all.indexOf(value) === index).join('; ')}` : '');
             const entity = item?.entity || item;
             const imageUrl = entity?.imageUrl || entity?.image_url || '';
@@ -175,6 +197,25 @@ export class ExerciseListView {
         }
         this._els.list.scrollTop = scrollTop;
         if (focusedId) [...this._els.list.children].find(el => el.dataset.id === focusedId)?.focus({preventScroll: true});
+    }
+
+    _syncRowState(currentId, selectingId, previous) {
+        const rows = [...this._els.list.children].filter(row => row.dataset.id);
+        const focusedId = this._els.list.contains(document.activeElement) ? document.activeElement?.dataset.id : null;
+        const tabstopId = focusedId || (rows.some(row => row.dataset.id === currentId) ? currentId : rows[0]?.dataset.id);
+        for (const row of rows) {
+            const id = row.dataset.id;
+            if ([previous.currentId, currentId].includes(id)) {
+                row.classList.toggle('active', id === currentId);
+                row.setAttribute('aria-selected', String(id === currentId));
+            }
+            if ([previous.selectingId, selectingId].includes(id)) {
+                row.classList.toggle('is-loading', id === selectingId);
+                row.setAttribute('aria-busy', String(id === selectingId));
+            }
+            const tabIndex = id === tabstopId ? 0 : -1;
+            if (row.tabIndex !== tabIndex) row.tabIndex = tabIndex;
+        }
     }
 
     _bindEvents(onNew, onLoad) {

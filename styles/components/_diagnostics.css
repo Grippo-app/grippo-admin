@@ -3,29 +3,49 @@
 .quality-controls > label { font-size: 11px; font-weight: 650; color: var(--muted); }
 .quality-controls select { min-width: 0; width: 100%; min-height: 34px; font-size: 12px; text-overflow: ellipsis; }
 .quality-summary { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
-.diagnostic-badge { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: 1px solid currentColor; border-radius: 6px; padding: 2px 6px; font-size: 10px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
-.diagnostic-badge--error { color: #ff9da2; background: rgba(229,72,77,.08); border-color: rgba(255,157,162,.3); }
-.diagnostic-badge--warning { color: #edc783; background: rgba(229,166,62,.08); border-color: rgba(237,199,131,.3); }
+.diagnostic-badge { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid currentColor; border-radius: 6px; padding: 3px 7px; font-size: 10px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
+.diagnostic-badge__label { min-width: 0; }
+.diagnostic-badge__icon { display: inline-grid; place-items: center; flex: 0 0 15px; width: 15px; height: 15px; border: 1px solid currentColor; border-radius: 50%; font-size: 11px; line-height: 1; font-weight: 800; }
+.diagnostic-badge--error { color: #ffb1b6; background: rgba(229,72,77,.17); border-color: rgba(255,157,162,.6); font-size: 11px; }
+.diagnostic-badge--error .diagnostic-badge__icon { border-radius: 4px; }
+.diagnostic-badge--warning { color: #f5d18e; background: rgba(229,166,62,.14); border-color: rgba(237,199,131,.55); font-size: 11px; }
 .diagnostic-badge--info { color: #9cc7ff; background: rgba(91,156,245,.08); border-color: rgba(156,199,255,.25); }
 .diagnostic-badge--unchecked { color: var(--muted); background: var(--panel-2); border-color: var(--border); }
 .diagnostic-badge--clean { color: var(--muted); background: transparent; border-color: var(--border); font-weight: 500; }
+
+/* The rail and badge remain visible when the blue selection treatment is applied. */
+.item[data-quality="error"] { --quality-rail: #f77c86; --quality-tint: rgba(229,72,77,.11); --quality-hover: rgba(229,72,77,.18); --quality-border: rgba(247,124,134,.35); }
+.item[data-quality="warning"] { --quality-rail: #e5b861; --quality-tint: rgba(229,166,62,.09); --quality-hover: rgba(229,166,62,.16); --quality-border: rgba(229,184,97,.3); }
+.item:is([data-quality="error"], [data-quality="warning"]) { border-color: var(--quality-border); background: var(--quality-tint); box-shadow: inset 4px 0 0 var(--quality-rail); }
+.item:is([data-quality="error"], [data-quality="warning"]):hover:not(.active) { background: var(--quality-hover); border-color: var(--quality-rail); }
+.item:is([data-quality="error"], [data-quality="warning"]).active { border-color: #79b2ff; background: linear-gradient(90deg, var(--quality-tint), rgba(91,156,245,.16)); box-shadow: inset 4px 0 0 var(--quality-rail), 0 0 0 1px rgba(121,178,255,.35); }
+.item[data-quality]:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
 .record-diagnostics { min-width: 0; flex-shrink: 0; }
 .exercise-panel > .record-diagnostics { margin: 12px 20px; }
 .user-detail > .record-diagnostics { margin: 0; }
 .diagnostic-panel { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
-.diagnostic-panel > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; font-size: 12px; cursor: pointer; list-style: none; }
+.diagnostic-panel[data-quality="error"] { border-color: rgba(247,124,134,.5); }
+.diagnostic-panel[data-quality="warning"] { border-color: rgba(229,184,97,.4); }
+.diagnostic-panel > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-radius: inherit; font-size: 12px; font-weight: 650; cursor: pointer; list-style: none; }
+.diagnostic-panel[data-quality="error"] > summary { background: rgba(229,72,77,.08); }
+.diagnostic-panel[data-quality="warning"] > summary { background: rgba(229,166,62,.06); }
+.diagnostic-panel > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.diagnostic-panel[open] > summary { margin-bottom: 10px; border-bottom: 1px solid var(--border); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .diagnostic-panel > summary::-webkit-details-marker { display: none; }
 .diagnostic-panel > summary::before { content: '›'; font-size: 18px; line-height: 1; color: var(--muted); }
 .diagnostic-panel[open] > summary::before { transform: rotate(90deg); }
 .diagnostic-panel__body { padding: 0 12px 12px; max-height: 300px; overflow: auto; }
 .diagnostic-panel__body > p { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .diagnostic-findings { list-style: none; margin: 0; padding: 0; }
-.diagnostic-panel__item { display: grid; gap: 4px; border-left: 2px solid var(--border); padding: 8px 10px; margin-top: 8px; overflow-wrap: anywhere; }
+.diagnostic-panel__item { display: grid; gap: 4px; border-left: 3px solid var(--border); border-radius: 0 6px 6px 0; padding: 10px 12px; margin-top: 8px; overflow-wrap: anywhere; }
 .diagnostic-panel__title { color: var(--text); font-size: 12px; font-weight: 650; }
 .diagnostic-panel__message { color: #bfc1cb; font-size: 12px; line-height: 1.6; margin: 0; }
 .diagnostic-field { color: var(--muted); font-size: 10px; font-family: ui-monospace, monospace; }
-.diagnostic-item--error { border-left-color: #ff9da2; }
-.diagnostic-item--warning { border-left-color: #edc783; }
+.diagnostic-item--error { border-left-color: #f77c86; background: rgba(229,72,77,.07); }
+.diagnostic-item--error .diagnostic-panel__title { color: #ffb1b6; }
+.diagnostic-item--warning { border-left-color: #e5b861; background: rgba(229,166,62,.05); }
+.diagnostic-item--warning .diagnostic-panel__title { color: #f5d18e; }
 .diagnostic-item--info { border-left-color: #9cc7ff; }
 .exercise-main .diagnostic-badge { margin-top: 7px; }
 .user-copy .diagnostic-badge { margin-top: 5px; }

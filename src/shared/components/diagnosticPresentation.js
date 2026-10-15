@@ -25,7 +25,9 @@ export function diagnosticBadgeHtml(report) {
             : report?.totalCount > 0 ? 'No flags found' : 'Not checked';
     const severity = Object.hasOwn(SEVERITY_LABELS, report?.highestSeverity) ? report.highestSeverity
         : unchecked === 0 ? 'clean' : 'unchecked';
-    return `<span class="diagnostic-badge diagnostic-badge--${severity}" title="${escapeHtml(checkSummary(report))}">${escapeHtml(label)}</span>`;
+    const icon = Object.hasOwn(SEVERITY_LABELS, severity)
+        ? `<span class="diagnostic-badge__icon" aria-hidden="true">${severity === 'info' ? 'i' : '!'}</span>` : '';
+    return `<span class="diagnostic-badge diagnostic-badge--${severity}" title="${escapeHtml(checkSummary(report))}">${icon}<span class="diagnostic-badge__label">${escapeHtml(label)}</span></span>`;
 }
 
 export function diagnosticPanelHtml(report, {title = 'Saved record checks'} = {}) {
@@ -37,5 +39,6 @@ export function diagnosticPanelHtml(report, {title = 'Saved record checks'} = {}
     const skippedNames = (report?.skippedChecks ?? []).map(check => escapeHtml(check.title)).join('; ');
     const unavailable = report?.totalCount > report?.checkedCount
         ? `<p class="diagnostic-unverified">${skippedNames ? `Not verified: ${skippedNames}.` : 'Some checks have not been verified.'} This does not mean those checks passed.</p>` : '';
-    return `<details class="diagnostic-panel"${report?.highestSeverity === 'error' ? ' open' : ''}><summary class="diagnostic-panel__header"><span>${escapeHtml(title)}</span>${diagnosticBadgeHtml(report)}</summary><div class="diagnostic-panel__body"><p class="diagnostic-coverage">${escapeHtml(checkSummary(report))}</p><p class="diagnostic-scope">Checks describe the saved record, not unsaved edits.</p>${content}${unavailable}</div></details>`;
+    const quality = Object.hasOwn(SEVERITY_LABELS, report?.highestSeverity) ? ` data-quality="${report.highestSeverity}"` : '';
+    return `<details class="diagnostic-panel"${quality}${report?.highestSeverity === 'error' ? ' open' : ''}><summary class="diagnostic-panel__header"><span>${escapeHtml(title)}</span>${diagnosticBadgeHtml(report)}</summary><div class="diagnostic-panel__body"><p class="diagnostic-coverage">${escapeHtml(checkSummary(report))}</p><p class="diagnostic-scope">Checks describe the saved record, not unsaved edits.</p>${content}${unavailable}</div></details>`;
 }

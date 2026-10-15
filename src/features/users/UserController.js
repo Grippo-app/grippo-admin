@@ -75,25 +75,25 @@ export class UserController {
             () => this._repo.fetchWeightHistory(userId),
             () => this._repo.fetchDeviceTokens(userId),
         ];
-        const results = await Promise.allSettled(requests.map((request, index) =>
-            Promise.resolve().then(request).then(raw => {
-                UserDetailsEntity.validateResponse(keys[index], raw);
-                return normalizers[index](raw);
-            })
-        ));
+        const isCurrent = () => version === this._detailsVersion && this._store.getState().active?.id === userId;
+        await Promise.all(requests.map(async (request, index) => {
+            const key = keys[index];
+            try {
+                const raw = await Promise.resolve().then(request);
+                if (!isCurrent()) return;
+                UserDetailsEntity.validateResponse(key, raw);
+                this._store.setDetailSection(userId, key, {value: normalizers[index](raw)});
+            } catch (error) {
+                if (!isCurrent()) return;
+                const message = key === 'deviceTokens' && error?.status === 404
+                    ? 'Device token data is unavailable on this API (404). The number of registered devices could not be determined.'
+                    : error?.message || 'Please try again.';
+                this._store.setDetailSection(userId, key, {error: message});
+            }
+        }));
         if (version !== this._detailsVersion || this._store.getState().active?.id !== userId) return;
 
-        const details = {errors: {}};
-        results.forEach((result, index) => {
-            const key = keys[index];
-            details[key] = result.status === 'fulfilled' ? result.value : key === 'goal' ? null : [];
-            if (result.status === 'rejected') {
-                details.errors[key] = key === 'deviceTokens' && result.reason?.status === 404
-                    ? 'Device token data is unavailable on this API (404). The number of registered devices could not be determined.'
-                    : result.reason?.message || 'Please try again.';
-            }
-        });
-        this._store.setDetails(userId, details);
+        const {details} = this._store.getState();
         this._bus.emit(Events.USER_DETAILS_LOADED, {userId, details});
     }
 

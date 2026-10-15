@@ -26,3 +26,4 @@
 /* Integrated responsive workspace */
 @import './components/_workspace.css';
 @import './components/_diagnostics.css';
+@import './components/_loading.css';

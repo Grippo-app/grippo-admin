@@ -90,15 +90,15 @@ test('unverified coverage is separately filterable without implying a problem or
 test('HTML labels distinguish clean, skipped and unconfigured checks without relying on color', () => {
     const clean = runDiagnosticRules([rule('clean', 'error', [])], {});
     const skipped = runDiagnosticRules([rule('unavailable', 'error', null)], {});
-    assert.match(diagnosticBadgeHtml(clean), /diagnostic-badge--clean[^>]*>No flags found/);
-    assert.match(diagnosticBadgeHtml(skipped), /diagnostic-badge--unchecked[^>]*>No flags found · 1 not verified/);
-    assert.match(diagnosticBadgeHtml(null), /diagnostic-badge--unchecked[^>]*>Not checked/);
+    assert.match(diagnosticBadgeHtml(clean), /diagnostic-badge--clean[^>]*><span[^>]*>No flags found/);
+    assert.match(diagnosticBadgeHtml(skipped), /diagnostic-badge--unchecked[^>]*><span[^>]*>No flags found · 1 not verified/);
+    assert.match(diagnosticBadgeHtml(null), /diagnostic-badge--unchecked[^>]*><span[^>]*>Not checked/);
     assert.match(diagnosticBadgeHtml(runDiagnosticRules([], {})), />Not checked/);
     assert.match(diagnosticPanelHtml(skipped), /0 of 1 checks completed; 1 not verified/);
     assert.match(diagnosticPanelHtml(skipped), /does not mean those checks passed/);
     assert.match(diagnosticPanelHtml(null), /Checks have not run/);
     assert.match(diagnosticPanelHtml(null), /^<details class="diagnostic-panel"><summary/);
-    assert.match(diagnosticPanelHtml(runDiagnosticRules([rule('error', 'error', [{message: 'Problem'}])], {})), /^<details class="diagnostic-panel" open>/);
+    assert.match(diagnosticPanelHtml(runDiagnosticRules([rule('error', 'error', [{message: 'Problem'}])], {})), /^<details class="diagnostic-panel" data-quality="error" open>/);
     assert.match(diagnosticPanelHtml(clean), /saved record, not unsaved edits/);
 });
 
@@ -125,4 +125,18 @@ test('unverified checks expose their escaped rule titles without inventing expla
     assert.doesNotMatch(html, /Rule clean|failed request|dictionary unavailable/);
     const {skippedChecks, ...legacyReport} = report;
     assert.match(diagnosticPanelHtml(legacyReport), /Some checks have not been verified/);
+});
+
+test('severity styling is paired with visible text and decorative icons while unknown checks stay neutral', () => {
+    for (const [severity, label] of [['error', '1 error'], ['warning', '1 warning'], ['info', '1 note']]) {
+        const report = runDiagnosticRules([rule('finding', severity, [{message: 'Review the stored value'}])], {});
+        assert.match(diagnosticBadgeHtml(report), /class="diagnostic-badge__icon" aria-hidden="true">[!i]/);
+        assert.ok(diagnosticBadgeHtml(report).includes(`<span class="diagnostic-badge__label">${label}</span>`));
+        assert.ok(diagnosticPanelHtml(report).includes(`data-quality="${severity}"`));
+    }
+    for (const report of [null, runDiagnosticRules([rule('unavailable', 'error', null)], {}), runDiagnosticRules([rule('clean', 'error', [])], {})]) {
+        assert.doesNotMatch(diagnosticPanelHtml(report), /data-quality=/);
+        assert.doesNotMatch(diagnosticBadgeHtml(report), /diagnostic-badge__icon|diagnostic-badge--error|diagnostic-badge--warning/);
+    }
+    assert.doesNotMatch(diagnosticPanelHtml({highestSeverity: 'error" onclick="unsafe', findings: []}), /data-quality=|onclick=/);
 });

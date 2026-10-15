@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="./styles/main.css"/>
 </head>
 <body>
+<div id="globalLoading" class="global-loading" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <div class="global-loading__track" aria-hidden="true"></div>
+    <div class="global-loading__message"><span class="global-loading__dot" aria-hidden="true"></span><span id="globalLoadingLabel"></span></div>
+</div>
 <!-- Header -->
 <header class="app-header">
     <a class="app-brand" href="#exerciseView" aria-label="Grippo Admin home"><span class="brand-mark" aria-hidden="true">g</span><span>grippo <small>admin</small></span></a>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {ExerciseController} from '../src/features/exercises/ExerciseController.js';
 import {ExerciseStore} from '../src/features/exercises/ExerciseStore.js';
 import {ExerciseFormView} from '../src/features/exercises/ExerciseFormView.js';
+import {ExerciseListView} from '../src/features/exercises/ExerciseListView.js';
 import {ExerciseNormalizer as Normalizer} from '../src/domain/exercise/ExerciseNormalizer.js';
 import {ExerciseValidator} from '../src/domain/exercise/ExerciseValidator.js';
 import {ExerciseRepository} from '../src/domain/exercise/ExerciseRepository.js';
@@ -33,7 +34,8 @@ class Element {
     setAttribute(name, value) { this[name] = value; }
     removeAttribute(name) { delete this[name]; }
     querySelectorAll(selector) {
-        const key = {'[data-bundle-index]': 'bundleIndex', '[data-bundle-muscle]': 'bundleMuscle', '[data-bundle-percentage]': 'bundlePercentage'}[selector];
+        const key = {'[data-bundle-index]': 'bundleIndex', '[data-bundle-muscle]': 'bundleMuscle', '[data-bundle-percentage]': 'bundlePercentage',
+            '[data-equipment-id]': 'equipmentId', '[data-equipment-label]': 'equipmentLabel'}[selector];
         if (!key) return [];
         const matches = [];
         const visit = element => {
@@ -48,7 +50,7 @@ class Element {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     set innerHTML(value) { this.children = []; this._innerHTML = value; }
     get innerHTML() { return this._innerHTML || ''; }
-    focus() {}
+    focus() { if (globalThis.document) document.activeElement = this; }
     appendChild(child) { this.children.push(child); if (this.tagName === 'select' && (this.children.length === 1 || child.selected)) this.value = child.value; }
     replaceChildren(...children) { this.children = children; }
 }
@@ -458,6 +460,138 @@ test('typing a percentage updates state and total without replacing focused rows
     assert.match(els.bundleSumInfo.textContent, /95% allocated/);
     removeTriceps.dispatch('click');
     assert.deepEqual(store.getState().current.exerciseExampleBundles, [{muscleId: 'chest', percentage: 65}]);
+}));
+
+test('dictionary refresh keeps live row inputs, token controls, form values and scroll in place', withBundleDocument(() => {
+    const {form, store, els, rows} = bundleFormSetup();
+    form._dicts.equipment = new Map([['barbell', 'Barbell']]);
+    store.patchCurrent({equipmentRefs: [{equipmentId: 'barbell'}]});
+    const row = rows()[0];
+    const percentage = row.querySelector('[data-bundle-percentage]');
+    const equipmentDom = els.equipTokens.children[0];
+    percentage.value = '63';
+    els.fName.value = 'Unsaved name';
+    els.builder.scrollTop = 240;
+    form._dicts.muscles = new Map([['chest', 'Chest refreshed'], ['triceps', 'Triceps']]);
+    form._dicts.equipment = new Map([['barbell', 'Barbell refreshed']]);
+    form.refreshOptionLists();
+    assert.equal(rows()[0], row);
+    assert.equal(row.querySelector('[data-bundle-percentage]'), percentage);
+    assert.equal(percentage.value, '63');
+    assert.equal(els.equipTokens.children[0], equipmentDom);
+    assert.equal(els.fName.value, 'Unsaved name');
+    assert.equal(els.builder.scrollTop, 240);
+    assert.equal(form.readFormToEntity().exerciseExampleBundles[0].percentage, 63);
+    assert.match(row.querySelector('[data-bundle-muscle]').children.find(option => option.value === 'chest').textContent, /refreshed/);
+    els.viewJson.dispatch('click');
+    els.editor.value = '{incomplete';
+    form.refreshOptionLists();
+    assert.equal(els.editor.value, '{incomplete');
+    assert.equal(form.hasUnsavedChanges(), true);
+}));
+
+test('detail loading masks the previous editor without replacing its draft or adding a layout status row', withBundleDocument(() => {
+    const {form, store, els, rows} = bundleFormSetup();
+    const panel = new Element();
+    els.builder.closest = () => panel;
+    els.detailLoading = new Element();
+    form._bindEvents();
+    els.currentId = new Element();
+    const row = rows()[0];
+    els.fName.value = 'Unsaved name';
+    els.builder.scrollTop = 240;
+    store.setDetailLoading(true, 'b');
+    assert.equal(panel.classList.contains('is-detail-loading'), true);
+    assert.equal(panel['aria-busy'], 'true');
+    assert.match(els.detailLoading.innerHTML, /skeleton/);
+    assert.match(els.detailLoading.innerHTML, /aria-hidden="true"/);
+    assert.equal(els.fName.value, 'Unsaved name');
+    assert.equal(rows()[0], row);
+    assert.match(els.currentId.textContent, /Opening/);
+    store.setDetailLoading(false);
+    assert.equal(panel.classList.contains('is-detail-loading'), false);
+    assert.equal(els.detailLoading.hidden, true);
+    assert.equal(els.fName.value, 'Unsaved name');
+    assert.equal(els.builder.scrollTop, 240);
+    assert.equal(rows()[0], row);
+    assert.equal(form.hasUnsavedChanges(), true);
+    store.setDetailError('Network unavailable');
+    assert.equal(panel.classList.contains('is-detail-loading'), false);
+    assert.match(els.detailLoading.innerHTML, /Your previous exercise is still open/);
+    assert.equal(els.detailLoading.classList.contains('error'), true);
+    assert.equal(els.fName.value, 'Unsaved name');
+    assert.match(els.detailLoading.innerHTML, /Dismiss/);
+    els.detailLoading.dispatch('click', {target: {closest: () => ({dataset: {exerciseAction: 'dismiss-detail-error'}})}});
+    assert.equal(store.getState().detailError, '');
+    assert.equal(els.detailLoading.hidden, true);
+    assert.equal(document.activeElement, els.fName);
+    assert.equal(els.fName.value, 'Unsaved name');
+    assert.equal(els.builder.scrollTop, 240);
+    assert.equal(rows()[0], row);
+}));
+
+test('dictionary loading without a current record stays in the global indicator while errors remain visible', withBundleDocument(() => {
+    const {form, els} = formSetup(null);
+    els.dictionaryStatus = new Element();
+    form._dicts.loading = true;
+    form._dicts.errors = [];
+    form._updateDictionaryStatus();
+    assert.equal(els.dictionaryStatus.hidden, true);
+    form._dicts.errors = ['Equipment unavailable'];
+    form._updateDictionaryStatus();
+    assert.equal(els.dictionaryStatus.hidden, false);
+}));
+
+test('initial list skeletons are decorative and cached rows survive list and selection refresh states', withBundleDocument(() => {
+    const store = new ExerciseStore();
+    const list = new Element(); list.contains = target => list.children.includes(target);
+    const view = Object.create(ExerciseListView.prototype);
+    view._store = store; view._els = {list, count: new Element(), qualitySummary: new Element()}; view._onSelect = () => {}; view._rendered = null;
+    store.setLoading(true); view.render();
+    assert.match(list.innerHTML, /skeleton-list/);
+    assert.match(list.innerHTML, /aria-hidden="true"/);
+    assert.match(list.innerHTML, /sr-only/);
+    assert.equal(view._els.qualitySummary.textContent, 'Checks run when exercises load.');
+    const a = exercise('a'), b = exercise('b');
+    store.setItems([a, b]); store.setLoading(false); view.render();
+    const row = list.children[0];
+    const other = list.children[1];
+    row.focus(); list.scrollTop = 168;
+    const count = view._els.count.textContent;
+    store.setLoading(true); view.render();
+    assert.equal(list.children[0], row);
+    assert.equal(list['aria-busy'], 'true');
+    assert.equal(view._els.count.textContent, count);
+    store.setItems([{...a}, {...b}]); store.setLoading(false); view.render();
+    assert.equal(list.children[0], row);
+    store.setDetailLoading(true, 'a'); view.render();
+    assert.equal(list.children[0], row);
+    assert.equal(row.classList.contains('is-loading'), true);
+    assert.equal(row['aria-busy'], 'true');
+    store.setCurrent(b); view.render();
+    assert.equal(list.children[0], row);
+    assert.equal(list.children[1], other);
+    assert.equal(document.activeElement, row);
+    assert.equal(list.scrollTop, 168);
+    assert.equal(other['aria-selected'], 'true');
+    assert.equal(other.classList.contains('active'), true);
+    assert.equal(row['aria-selected'], 'false');
+    assert.equal(row.dataset.quality, undefined);
+}));
+
+test('empty list messaging changes when search or quality filters become active', withBundleDocument(() => {
+    const store = new ExerciseStore();
+    const list = new Element(); list.contains = () => false;
+    const view = Object.create(ExerciseListView.prototype);
+    view._store = store; view._els = {list}; view._onSelect = () => {}; view._rendered = null;
+    view.render();
+    assert.match(list.innerHTML, /No exercises yet/);
+    store.setSearchQuery('squat'); view.render();
+    assert.match(list.innerHTML, /No matching exercises/);
+    store.setSearchQuery(''); view.render();
+    assert.match(list.innerHTML, /No exercises yet/);
+    store.setQualityFilter('attention'); view.render();
+    assert.match(list.innerHTML, /No matching exercises/);
 }));
 
 test('reset clears hidden exercise form, JSON, preview and row data while preserving editor preference', withBundleDocument(() => {

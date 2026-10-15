@@ -63,7 +63,7 @@ export class UserListView {
         const scrollTop = list.scrollTop;
 
         if (isLoading && !users.length) {
-            list.innerHTML = '<div class="user-list-message" role="status"><span class="user-list-message-title">Loading users…</span><span>Getting accounts and activity.</span></div>';
+            list.innerHTML = `<div class="user-list-skeleton" role="status"><span class="sr-only">Loading users…</span><div class="skeleton-list" aria-hidden="true">${Array.from({length: 6}, () => '<div class="skeleton-row user-list-skeleton-row"><span class="skeleton skeleton-avatar"></span><div class="skeleton-stack"><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line skeleton-line--short"></span></div></div>').join('')}</div></div>`;
             return;
         }
         const error = loadError ? `<div class="user-list-error" role="status"><strong>Could not refresh users</strong><span>${escapeHtml(loadError)}</span><span>Use Refresh users to try again.</span></div>` : '';
@@ -103,7 +103,8 @@ export class UserListView {
             const {label, svg} = getAuthIcon(type);
             return `<span class="user-auth-icon" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${svg}</span>`;
         }).join('');
-        return `<div class="item user-item${selected ? ' active' : ''}" data-id="${escapeHtml(user.id)}" role="option" aria-selected="${selected}" tabindex="-1">
+        const quality = ['error', 'warning', 'info'].includes(report?.highestSeverity) ? ` data-quality="${report.highestSeverity}"` : '';
+        return `<div class="item user-item${selected ? ' active' : ''}" data-id="${escapeHtml(user.id)}"${quality} role="option" aria-selected="${selected}" tabindex="-1">
             <div class="user-badge user-badge--${this._avatarColor(key)}" aria-hidden="true">${escapeHtml(Array.from(key)[0].toUpperCase())}</div>
             <div class="user-copy">
                 <div class="user-name-row"><span class="user-name" title="${escapeHtml(key)}">${escapeHtml(key)}</span>${report?.findings.length ? diagnosticBadgeHtml(report) : ''}</div>

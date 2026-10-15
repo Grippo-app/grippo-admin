@@ -7,6 +7,15 @@ const banner = document.createElement('div');
 banner.className = 'fixture-banner';
 banner.textContent = 'LOCAL PREVIEW · Synthetic data · API requests mocked';
 document.body.prepend(banner);
+// Optional controlled latency makes loading, refresh and partial completion inspectable.
+const previewParams = new URL(location.href).searchParams;
+const previewDelay = (key, fallback) => {
+    const value = Number(previewParams.get(key));
+    return previewParams.has(key) && Number.isFinite(value) ? Math.max(0, Math.min(value, 15000)) : fallback;
+};
+const latency = previewDelay('latency', 140);
+const deviceLatency = previewDelay('deviceLatency', latency);
+let exerciseFailurePending = previewParams.get('failExercise');
 
 class MemoryStorage {
     constructor() { this.values = new Map([['grippo_admin_refresh_v2', 'fixture-refresh']]); }
@@ -62,7 +71,8 @@ const response = value => Response.json(value);
 window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
     if (url.origin !== 'https://grippo-app.com') throw new Error('Fixture preview blocks external requests.');
-    await new Promise(resolve => setTimeout(resolve, 140));
+    const authRequest = ['/auth/login', '/auth/refresh', '/users'].includes(url.pathname);
+    await new Promise(resolve => setTimeout(resolve, authRequest ? 140 : url.pathname.endsWith('/device-tokens') ? deviceLatency : latency));
     const path = url.pathname;
     const method = options.method || 'GET';
     const payload = options.body ? JSON.parse(options.body) : null;
@@ -82,7 +92,14 @@ window.fetch = async (input, options = {}) => {
     if (path === '/equipments') return response([{id: 'weights', name: 'Free weights', equipments: [{id: 'barbell', name: 'Barbell'}, {id: 'dumbbell', name: 'Dumbbells'}, {id: 'bench', name: 'Flat bench'}, {id: 'pullup-bar', name: 'Pull-up bar'}]}]);
     if (path === '/muscles') return response([{id: 'upper', name: 'Upper body', muscles: [{id: 'chest', name: 'Chest'}, {id: 'triceps', name: 'Triceps'}, {id: 'back', name: 'Back'}, {id: 'biceps', name: 'Biceps'}, {id: 'quads', name: 'Quadriceps'}, {id: 'glutes', name: 'Glutes'}]}]);
     if (path === '/exercise-examples') return response(exercises.map((entity, i) => ({id: `wrapper-${entity.id}`, entity: localized(entity), usageCount: 10 + i * 13})));
-    if (path.startsWith('/exercise-examples/')) return response({entity: localized(exercises.find(exercise => exercise.id === path.split('/').pop()))});
+    if (path.startsWith('/exercise-examples/')) {
+        const id = path.split('/').pop();
+        if (exerciseFailurePending === id) {
+            exerciseFailurePending = null;
+            return new Response(null, {status: 503, statusText: 'Fixture exercise temporarily unavailable'});
+        }
+        return response({entity: localized(exercises.find(exercise => exercise.id === id))});
+    }
     const rawTranslationRoute = path.match(/^\/admin\/exercise-examples\/([^/]+)\/translations$/);
     if (rawTranslationRoute && method === 'GET') {
         const id = decodeURIComponent(rawTranslationRoute[1]);

@@ -73,19 +73,35 @@ export class UserDetailView {
                 ? '<p class="diagnostic-unverified">Profile data was not supplied. Profile checks are incomplete.</p>' : '';
             this._setBody(this._els.userDiagnostics, diagnosticPanelHtml(report, {title: 'Account checks'}) + profileNote);
         });
-        const errors = details?.errors || {};
-        const section = key => ({state: detailsLoading ? 'loading' : 'ready', error: errors[key]});
-        this._renderSection('goal', [active.id, detailsLoading, details?.goal, errors.goal], () =>
-            this._renderGoal({...section('goal'), goal: details?.goal}));
-        this._renderSection('trainings', [active.id, detailsLoading, details?.recentTrainings, errors.recentTrainings, state.expandedTrainingId, state.trainingsLimit], () =>
-            this._renderTrainings({...section('recentTrainings'), trainings: details?.recentTrainings, expandedTrainingId: state.expandedTrainingId, limit: state.trainingsLimit}));
-        this._renderSection('weights', [active.id, userProfileState(active), detailsLoading, details?.weightHistory, errors.weightHistory, state.weightsLimit], () =>
-            this._renderWeight({...section('weightHistory'), entries: details?.weightHistory, userHasProfile: userProfileState(active) !== 'missing', limit: state.weightsLimit}));
-        this._renderSection('devices', [active.id, detailsLoading, details?.deviceTokens, errors.deviceTokens], () =>
-            this._renderDeviceTokens({...section('deviceTokens'), tokens: details?.deviceTokens}));
+        const section = key => {
+            const status = state.detailSections?.[key];
+            const error = status?.error || details?.errors?.[key];
+            const loading = status?.loading ?? (detailsLoading || !details);
+            const hasCached = status?.loaded ?? (!!details && Object.hasOwn(details, key) && !error);
+            return {state: loading ? hasCached ? 'refreshing' : 'loading' : 'ready', error, hasCached};
+        };
+        const goal = section('goal'), trainings = section('recentTrainings'), weights = section('weightHistory'), devices = section('deviceTokens');
+        const content = status => status.hasCached ? {...status, state: 'ready', error: ''} : status;
+        const dependencies = status => [content(status).state, content(status).error];
+        this._renderSection('goal', [active.id, ...dependencies(goal), details?.goal], () =>
+            this._renderGoal({...content(goal), goal: details?.goal}));
+        this._renderSection('trainings', [active.id, ...dependencies(trainings), details?.recentTrainings, state.expandedTrainingId, state.trainingsLimit], () =>
+            this._renderTrainings({...content(trainings), trainings: details?.recentTrainings, expandedTrainingId: state.expandedTrainingId, limit: state.trainingsLimit}));
+        this._renderSection('weights', [active.id, userProfileState(active), ...dependencies(weights), details?.weightHistory, state.weightsLimit], () =>
+            this._renderWeight({...content(weights), entries: details?.weightHistory, userHasProfile: userProfileState(active) !== 'missing', limit: state.weightsLimit}));
+        this._renderSection('devices', [active.id, ...dependencies(devices), details?.deviceTokens], () =>
+            this._renderDeviceTokens({...content(devices), tokens: details?.deviceTokens}));
+        for (const [status, body, summary] of [[goal, this._els.goalBody, this._els.goalSummary], [trainings, this._els.trainingsBody, this._els.trainingsCount],
+            [weights, this._els.weightBody, this._els.weightSummary], [devices, this._els.deviceTokensBody, this._els.deviceTokensSummary]]) this._renderCachedStatus(body, summary, status);
+        this._els.detailsSections?.querySelectorAll('[data-user-action="retry"]').forEach(button => {
+            button.disabled = detailsLoading;
+            button.title = detailsLoading ? 'The remaining account sections are still loading.' : '';
+        });
     }
 
     _clearSelection() {
+        this._sectionNotes?.clear();
+        this._sectionStatuses?.clear();
         const textFields = ['userNameEl', 'userEmailEl', 'userCreatedEl', 'userUpdatedEl',
             'userActivityEl', 'userWorkoutsEl', 'userAuthList', 'goalSummary', 'trainingsCount',
             'weightSummary', 'deviceTokensSummary'];
@@ -127,11 +143,29 @@ export class UserDetailView {
         this._renderedSections.set(name, dependencies);
     }
 
+    _renderCachedStatus(body, summary, {state, error, hasCached}) {
+        if (!body || !hasCached) return;
+        body.setAttribute('aria-busy', String(state === 'refreshing'));
+        if (!summary) return;
+        const signature = JSON.stringify([state, error || '', this._sectionNotes?.get(summary)]);
+        if (this._sectionStatuses?.get(summary) === signature) return;
+        (this._sectionStatuses ??= new Map()).set(summary, signature);
+        const hadFocus = typeof document !== 'undefined' && summary.contains?.(document.activeElement);
+        if (state === 'refreshing') summary.textContent = 'Updating · Previous data shown';
+        else if (error) summary.innerHTML = `<span class="user-refresh-error" title="${escapeHtml(error)}">Refresh failed · Previous data shown</span><span class="sr-only">${escapeHtml(error)}</span><button type="button" class="btn user-refresh-retry" data-user-action="retry">Retry</button>`;
+        else summary.textContent = this._sectionNotes?.get(summary) ?? '';
+        if (hadFocus) { summary.tabIndex = -1; summary.focus?.({preventScroll: true}); }
+    }
+
     _sectionState(body, summary, {state, error, empty}) {
         if (!body) return true;
-        body.setAttribute('aria-busy', String(state === 'loading'));
+        body.setAttribute('aria-busy', String(state === 'loading' || state === 'refreshing'));
+        body.classList?.toggle('is-initial-loading', state === 'loading');
         if (state === 'loading') {
-            this._setBody(body, '<div class="user-section-loading"></div><div class="user-section-loading"></div><span class="sr-only">Loading section…</span>');
+            const isHistory = body === this._els.trainingsBody || body === this._els.weightBody;
+            const count = isHistory ? 4 : 2;
+            const skeleton = `<div class="skeleton-stack user-section-skeleton" aria-hidden="true">${Array.from({length: count}, () => '<div class="skeleton-row user-detail-skeleton-row"><div class="skeleton-stack"><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton skeleton-line skeleton-line--short"></span></div></div>').join('')}</div>`;
+            this._setBody(body, skeleton + '<span class="sr-only">Loading section…</span>');
             this._setText(summary, 'Loading…');
             return true;
         }
@@ -142,7 +176,7 @@ export class UserDetailView {
         }
         if (empty) {
             this._setBody(body, `<div class="user-section-empty">${escapeHtml(empty)}</div>`);
-            this._setText(summary, '');
+            this._setSectionNote(summary, '');
             return true;
         }
         return false;
@@ -162,7 +196,7 @@ export class UserDetailView {
             ? `<div class="goal-confidence"><span>Confidence <strong>${Math.round(goal.confidence * 100)}%</strong></span><meter min="0" max="1" value="${goal.confidence}" aria-label="Goal confidence">${Math.round(goal.confidence * 100)}%</meter></div>` : '';
         this._setBody(body, `<div class="goal-row">${pills.join('')}</div>${tags ? `<div class="goal-tags">${tags}</div>` : ''}${confidence}`);
         const note = goal.lastConfirmedAt ? `Confirmed ${relativeDate(goal.lastConfirmedAt)}` : goal.updatedAt ? `Updated ${relativeDate(goal.updatedAt)}` : '';
-        this._setText(summary, note);
+        this._setSectionNote(summary, note);
     }
 
     _goalPill(label, value) {
@@ -180,7 +214,7 @@ export class UserDetailView {
         const more = trainings.length > limit
             ? `<button type="button" class="btn user-show-more" data-user-action="more-trainings">Show ${Math.min(10, trainings.length - limit)} more workouts <span>${visible.length} of ${trainings.length}</span></button>` : '';
         this._setBody(body, rows + more);
-        this._setText(note, `${trainings.length} workout${trainings.length === 1 ? '' : 's'} · last 60 days`);
+        this._setSectionNote(note, `${trainings.length} workout${trainings.length === 1 ? '' : 's'} · last 60 days`);
     }
 
     _trainingItem(training, index, isOpen, key = training.id) {
@@ -235,7 +269,7 @@ export class UserDetailView {
         const rows = entries.slice(0, limit).map((entry, index) => this._weightRow(entry, entries[index + 1] ? entry.weight - entries[index + 1].weight : null)).join('');
         const more = entries.length > limit ? `<button type="button" class="btn user-show-more" data-user-action="more-weights">Show ${Math.min(12, entries.length - limit)} more records <span>${Math.min(limit, entries.length)} of ${entries.length}</span></button>` : '';
         this._setBody(body, `${overview}${this._weightTrend(entries)}<div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}`);
-        this._setText(summary, `${entries.length} record${entries.length === 1 ? '' : 's'}`);
+        this._setSectionNote(summary, `${entries.length} record${entries.length === 1 ? '' : 's'}`);
     }
 
     _weightTrend(entries) {
@@ -269,7 +303,7 @@ export class UserDetailView {
         const {deviceTokensBody: body, deviceTokensSummary: summary} = this._els;
         if (this._sectionState(body, summary, {state, error, empty: !tokens.length && 'No devices registered for push notifications.'})) return;
         this._setBody(body, tokens.map((token, index) => `<div class="device-token-row"><div class="device-token-info"><span class="device-token-label">Device ${index + 1}</span><code class="device-token-value" title="${escapeHtml(token.token)}">${escapeHtml(token.token)}</code></div><span class="device-token-date" title="${escapeHtml(formatShortDate(token.createdAt))}">${escapeHtml(relativeDate(token.createdAt) || 'Unknown date')}</span><button type="button" class="device-token-copy" data-device-token="${escapeHtml(token.token)}" aria-label="Copy token for device ${index + 1}" title="Copy token"><svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 3.5V2.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`).join(''));
-        this._setText(summary, `${tokens.length} device${tokens.length === 1 ? '' : 's'}`);
+        this._setSectionNote(summary, `${tokens.length} device${tokens.length === 1 ? '' : 's'}`);
     }
 
     async _copyDeviceToken(text, button) {
@@ -323,5 +357,12 @@ export class UserDetailView {
 
     _setText(element, text) {
         if (element) element.textContent = text ?? '';
+    }
+
+    _setSectionNote(element, text) {
+        if (!element) return;
+        (this._sectionNotes ??= new Map()).set(element, text);
+        this._sectionStatuses?.delete(element);
+        this._setText(element, text);
     }
 }

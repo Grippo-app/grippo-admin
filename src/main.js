@@ -13,6 +13,7 @@ import {ConfirmDialog} from './shared/components/index.js';
 import {Toast} from './shared/components/Toast.js';
 import {DEFAULT_LANGUAGE} from './shared/constants/index.js';
 import {Events} from './infrastructure/events/events.js';
+import {LoadingIndicator, loadingDescription} from './shared/components/LoadingIndicator.js';
 
 /* ── 1. Infrastructure ──────────────────────────────────────── */
 
@@ -272,6 +273,18 @@ userController = new UserController({
 
 let activeSection = 'exercise';
 const primaryTabs = [...document.querySelectorAll('.primary-tabs [role="tab"]')];
+const loadingIndicator = new LoadingIndicator({root: document.getElementById('globalLoading'), labelEl: document.getElementById('globalLoadingLabel')});
+let loadingSessionActive = false;
+function syncLoadingIndicator() {
+    loadingIndicator.update(loadingDescription({authenticated: loadingSessionActive, section: activeSection,
+        exercise: exerciseStore.getState(), users: userStore.getState(), dictionaryLoading: dictionaries.loading}));
+}
+exerciseStore.subscribe(syncLoadingIndicator);
+userStore.subscribe(syncLoadingIndicator);
+bus.on(Events.AUTH_LOGIN_SUCCESS, () => { loadingSessionActive = true; syncLoadingIndicator(); });
+for (const event of [Events.AUTH_LOGOUT, Events.AUTH_SESSION_EXPIRED]) {
+    bus.on(event, () => { loadingSessionActive = false; loadingIndicator.reset(); });
+}
 
 async function confirmDiscard() {
     if (!exerciseFormView.hasUnsavedChanges()) return true;
@@ -321,6 +334,7 @@ bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
         tab.tabIndex = selected ? 0 : -1;
     });
     document.title = `${section === 'exercise' ? 'Exercises' : 'Users'} · Grippo Admin`;
+    syncLoadingIndicator();
 });
 
 // Prompt tools are secondary actions; close their popover after choosing a tool.
@@ -370,13 +384,16 @@ async function loadDictionaries() {
     const retry = document.getElementById('dictionaryRetry');
     retry.disabled = true;
     retry.textContent = 'Loading dictionaries…';
+    const request = dictionaries.loadAll();
     updateDiagnosticDictionaries(false);
-    await dictionaries.loadAll();
+    syncLoadingIndicator();
+    await request;
     if (seq !== dictionaryLoadSeq) return;
     updateDiagnosticDictionaries(dictionaries.isReady && !dictionaries.loading && !dictionaries.errors.length);
     exerciseFormView.refreshOptionLists();
     retry.disabled = false;
     retry.textContent = 'Reload dictionaries';
+    syncLoadingIndicator();
     bus.emit(Events.DICTS_LOADED, {equipments: dictionaries.equipment, muscles: dictionaries.muscles});
 }
 document.getElementById('dictionaryRetry')?.addEventListener('click', loadDictionaries);

@@ -35,6 +35,7 @@
     gap: 10px;
     padding: 12px 10px;
     min-width: 0;
+    min-height: 84px;
 }
 .user-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .user-copy, .user-name-row { min-width: 0; }
@@ -113,8 +114,15 @@
 .user-section-title { display: inline-flex; gap: 8px; align-items: center; color: var(--text); font-size: 13px; font-weight: 650; white-space: nowrap; }
 .section-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .user-section-note { color: var(--muted); font-size: 10px; text-align: right; line-height: 1.5; }
+.user-section-head { min-height: 32px; }
+.user-section-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px; }
+.user-refresh-error { color: var(--warning); }
+.user-refresh-retry { padding: 3px 7px; min-height: 24px; font-size: 10px; }
 .user-section-body { display: grid; gap: 9px; align-content: start; min-width: 0; min-height: 0; }
 .user-section-body--scroll { max-height: 620px; overflow: auto; scrollbar-gutter: stable; padding: 2px; }
+.user-section--workouts .user-section-body, .user-section--weight .user-section-body { height: clamp(320px, 44vh, 460px); }
+.user-section--goal .user-section-body { height: 132px; overflow: auto; scrollbar-gutter: stable; }
+.user-section--devices .user-section-body { height: 132px; }
 .user-section-empty { display: grid; place-items: center; min-height: 80px; padding: 18px; background: var(--field); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center; }
 .user-section-error { display: grid; gap: 9px; justify-items: start; padding: 16px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--danger) 4%, var(--field)); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .user-section-error strong { color: var(--text); }
@@ -197,13 +205,17 @@
 .device-token-copy svg { width: 15px; height: 15px; }
 .clipboard-fallback { position: fixed; top: -1000px; left: -1000px; opacity: 0; }
 
-/* ── Loading and compact detail layouts ─────────────────── */
-.user-section-loading { height: 14px; border-radius: 4px; background: linear-gradient(90deg, var(--field) 0%, var(--field-hover) 50%, var(--field) 100%); background-size: 200% 100%; animation: user-section-shimmer 1.4s ease-in-out infinite; }
-.user-section-loading:nth-child(2) { width: 70%; }
-@keyframes user-section-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+/* Fixed section frames preserve the workspace while independent requests settle. */
+.user-list-skeleton { width: 100%; }
+.user-list-skeleton-row { align-items: center; padding: 12px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.user-list-skeleton-row > .skeleton-stack, .user-detail-skeleton-row > .skeleton-stack { flex: 1; min-width: 0; }
+.user-section .user-detail-skeleton-row { align-items: center; min-height: 72px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
+.user-section--goal .user-detail-skeleton-row { min-height: 38px; padding: 0; border: 0; }
+.user-section--devices .user-detail-skeleton-row { min-height: 48px; padding: 8px 12px; }
 @container user-panel (max-width: 760px) {
     .user-details-grid { grid-template-columns: minmax(0, 1fr); }
     .user-section--goal, .user-section--workouts, .user-section--weight, .user-section--devices { grid-column: 1; }
+    .user-section--goal .user-section-body { height: 160px; }
     .user-section-body--scroll { max-height: 520px; }
 }
 @container user-panel (max-width: 440px) {
@@ -215,4 +227,3 @@
     .training-iteration { grid-template-columns: 30px minmax(0, 1fr); }
     .training-iteration strong { grid-column: 2; }
 }
-@media (prefers-reduced-motion: reduce) { .user-section-loading { animation: none; } }

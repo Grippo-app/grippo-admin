@@ -1,0 +1,25 @@
+/* Fixed progress never changes workspace geometry or captures clicks. */
+.global-loading { position: fixed; z-index: 1150; inset: 0 0 auto; height: 3px; pointer-events: none; }
+.global-loading__track { height: 3px; overflow: hidden; background: rgba(106, 164, 255, .15); }
+.global-loading__track::after { content: ''; display: block; width: 35%; height: 100%; background: #83b7ff; box-shadow: 0 0 12px #528de9; animation: app-progress 1.4s ease-in-out infinite; }
+.global-loading__message { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; width: max-content; max-width: calc(100vw - 32px); padding: 10px 16px; border: 1px solid #426596; border-radius: 10px; background: #192538; color: #e5efff; box-shadow: 0 6px 28px #0005; font-size: 12px; line-height: 1.5; }
+.global-loading__dot { flex: 0 0 8px; height: 8px; border-radius: 50%; background: #83b7ff; box-shadow: 0 0 0 4px #83b7ff20; }
+@keyframes app-progress { from { transform: translateX(-100%); } to { transform: translateX(390%); } }
+
+/* Shared decorative shapes; feature styles provide the actual record geometry. */
+.skeleton { background: linear-gradient(100deg, #ffffff06 15%, #ffffff11 40%, #ffffff06 65%); background-size: 240% 100%; animation: app-shimmer 1.6s ease-in-out infinite; border-radius: 5px; }
+.skeleton-line { display: block; width: 100%; height: 14px; }
+.skeleton-line--short { width: 40%; }
+.skeleton-line--medium { width: 68%; }
+.skeleton-avatar { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px; }
+.skeleton-block { display: block; min-height: 88px; }
+.skeleton-stack { display: grid; gap: 12px; min-width: 0; }
+.skeleton-list { display: grid; gap: 8px; }
+.skeleton-row { display: flex; align-items: center; gap: 12px; min-height: 84px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.skeleton-row > .skeleton-stack { flex: 1; }
+@keyframes app-shimmer { from { background-position: 150% 0; } to { background-position: -150% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton, .global-loading__track::after { animation: none; }
+    .global-loading__track::after { width: 100%; opacity: .6; }
+}

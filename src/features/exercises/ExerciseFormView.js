@@ -4,8 +4,14 @@ import {Toast} from '../../shared/components/Toast.js';
 import {buildReviewPrompt, buildImagePrompt, buildRulesPrompt} from './exercisePrompts.js';
 import {draftSignature} from './exercisePresentation.js';
 import {readBundleRows, updateBundleSummary} from './exerciseBundleFields.js';
-import {sanitizeUrl} from '../../shared/utils/index.js';
+import {escapeHtml, sanitizeUrl} from '../../shared/utils/index.js';
 import {ExerciseDiagnosticsView} from './ExerciseDiagnosticsView.js';
+
+const DETAIL_SKELETON = `<span class="sr-only">Loading exercise details and translations…</span>
+    <div class="exercise-detail-skeleton" aria-hidden="true">
+        <div class="exercise-skeleton-card exercise-skeleton-basics"><span class="skeleton exercise-skeleton-preview"></span><div class="skeleton-stack"><span class="skeleton skeleton-line skeleton-line--short"></span><span class="skeleton exercise-skeleton-field"></span><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton exercise-skeleton-description"></span></div></div>
+        <div class="exercise-skeleton-columns">${Array.from({length: 2}, () => '<div class="exercise-skeleton-card skeleton-stack"><span class="skeleton skeleton-line skeleton-line--medium"></span><span class="skeleton exercise-skeleton-field"></span><span class="skeleton exercise-skeleton-field"></span><span class="skeleton exercise-skeleton-field"></span></div>').join('')}</div>
+    </div>`;
 
 export class ExerciseFormView {
     /**
@@ -115,10 +121,10 @@ export class ExerciseFormView {
     }
 
     _updateDraftState() {
-        const {current, isNew, isSaving, createIdentityMissing} = this._store.getState();
+        const {current, isNew, isSaving, isDetailLoading, createIdentityMissing} = this._store.getState();
         if (this._els.editorStatus) {
             const dirty = this.hasUnsavedChanges();
-            this._els.editorStatus.textContent = !current ? '' : createIdentityMissing ? 'Created · refresh the library to locate it' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'New exercise' : 'All changes saved';
+            this._els.editorStatus.textContent = isDetailLoading ? 'Loading exercise…' : !current ? '' : createIdentityMissing ? 'Created · refresh the library to locate it' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'New exercise' : 'All changes saved';
             this._els.editorStatus.classList.toggle('is-dirty', dirty);
         }
     }
@@ -128,7 +134,7 @@ export class ExerciseFormView {
         const notReady = this._dicts.isReady === false;
         const errors = this._dicts.errors || [];
         if (this._els.dictionaryStatus) {
-            this._els.dictionaryStatus.hidden = !this._dicts.loading && !errors.length && (!notReady || !current);
+            this._els.dictionaryStatus.hidden = !errors.length && (!current || (!this._dicts.loading && !notReady));
             const message = this._els.dictionaryStatus.querySelector('span');
             if (message) message.textContent = this._dicts.loading ? 'Loading muscle and equipment dictionaries…'
                 : errors.length ? `Dictionaries could not load. ${errors.join(' ')}${this._dicts.isReady ? ' Last loaded options are still available.' : ' Retry before saving.'}`
@@ -189,16 +195,11 @@ export class ExerciseFormView {
      * Call this once after dictionaries have been loaded so the options are ready
      * before the user opens any exercise (not deferred until first selectItem).
      *
-     * Также пересобирает equipment tokens и bundle rows у текущего entity —
-     * иначе элементы, отрендеренные до загрузки словарей, остаются с классом 'invalid'.
+     * Refresh labels in place so dictionary retries preserve live inputs and focus.
      */
     refreshOptionLists() {
         this._refreshOptionLists();
-        const {current} = this._store.getState();
-        if (current) {
-            this._renderEquipmentTokens(current);
-            this._renderBundles(current);
-        }
+        this._refreshDictionaryLabels();
         this._updateDictionaryStatus();
         this._diagnostics.render();
     }
@@ -453,11 +454,9 @@ export class ExerciseFormView {
             this._els.deleteBtn.disabled = !canDelete || !!isSaving || !!isDetailLoading;
         }
         if (this._els.emptyState) this._els.emptyState.hidden = !!current || !!isDetailLoading;
-        if (this._els.detailLoading) {
-            this._els.detailLoading.hidden = !isDetailLoading && !detailError;
-            this._els.detailLoading.textContent = isDetailLoading ? 'Loading exercise and translations…' : `Could not open exercise: ${detailError}. Select it again to retry.`;
-            this._els.detailLoading.classList.toggle('error', !!detailError);
-        }
+        this._renderDetailLoading(isDetailLoading, detailError, current);
+        if (isDetailLoading && this._els.currentId) this._els.currentId.textContent = 'Opening exercise…';
+        else this._updateCurrentId(current, isNew);
         for (const button of [this._els.promptBtn, this._els.promptImgBtn, this._els.promptRulesBtn, ...Array.from(this._els.localeButtons || [])]) {
             if (button) button.disabled = !current || !!isDetailLoading;
         }
@@ -478,6 +477,25 @@ export class ExerciseFormView {
             this._els.translationNotice.textContent = notice;
         }
         this._applyViewMode(viewMode);
+    }
+
+    _renderDetailLoading(loading, error, current) {
+        const panel = this._els.builder?.closest?.('.exercise-panel');
+        panel?.classList.toggle('is-detail-loading', !!loading);
+        panel?.setAttribute('aria-busy', String(!!loading));
+        const placeholder = this._els.detailLoading;
+        if (!placeholder) return;
+        placeholder.hidden = !loading && !error;
+        placeholder.classList.toggle('error', !loading && !!error);
+        if (loading) {
+            if (this._detailPlaceholder !== 'loading') placeholder.innerHTML = DETAIL_SKELETON;
+            this._detailPlaceholder = 'loading';
+        } else {
+            const message = error ? `Could not open exercise: ${error}. ${current ? 'Your previous exercise is still open. ' : ''}Select it again to retry.` : '';
+            if (this._detailPlaceholder !== message) placeholder.innerHTML = message
+                ? `<span>${escapeHtml(message)}</span><button type="button" class="btn muted" data-exercise-action="dismiss-detail-error">Dismiss</button>` : '';
+            this._detailPlaceholder = message;
+        }
     }
 
     _applyViewMode(mode) {
@@ -612,8 +630,10 @@ export class ExerciseFormView {
 
             const token = document.createElement('span');
             token.className = 'token';
+            token.dataset.equipmentId = id;
             if (!this._dicts.equipment.has(id)) token.classList.add('invalid');
             const nameEl = document.createElement('span');
+            nameEl.dataset.equipmentLabel = '';
             nameEl.textContent = name;
             token.appendChild(nameEl);
 
@@ -634,6 +654,48 @@ export class ExerciseFormView {
         });
 
         this._els.equipTokens.appendChild(frag);
+    }
+
+    _refreshDictionaryLabels() {
+        for (const token of this._els.equipTokens?.querySelectorAll('[data-equipment-id]') || []) {
+            const id = token.dataset.equipmentId;
+            const name = this._dicts.getEquipmentName(id) || id;
+            const label = token.querySelector('[data-equipment-label]');
+            if (label) label.textContent = name;
+            token.classList.toggle('invalid', !this._dicts.equipment.has(id));
+            token.querySelector('button')?.setAttribute('aria-label', `Remove ${name || 'equipment'}`);
+        }
+        for (const row of this._els.bundles?.querySelectorAll('[data-bundle-index]') || []) {
+            const select = row.querySelector('[data-bundle-muscle]');
+            if (!select) continue;
+            const id = select.value;
+            this._fillMuscleOptions(select, id);
+            const name = this._dicts.getMuscleName(id) || id;
+            const percentage = row.querySelector('[data-bundle-percentage]');
+            percentage?.setAttribute('aria-label', `Contribution for ${name}, percent`);
+            row.querySelector('button')?.setAttribute('aria-label', `Remove ${name || 'muscle contribution'}`);
+            row.querySelector('progress')?.setAttribute('aria-label', `${name || 'Muscle'} contribution: ${percentage?.value || '0'}%`);
+        }
+    }
+
+    _fillMuscleOptions(select, id) {
+        const options = [];
+        if (!this._dicts.muscles.has(id)) {
+            const unknown = document.createElement('option');
+            unknown.value = id;
+            unknown.textContent = `Unknown muscle: ${id || '(missing ID)'}`;
+            options.push(unknown);
+        }
+        for (const [value, name] of this._dicts.muscles) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = name;
+            option.title = value;
+            options.push(option);
+        }
+        select.replaceChildren(...options);
+        select.value = id;
+        select.classList.toggle('invalid', !this._dicts.muscles.has(id));
     }
 
     _refreshOptionLists() {
@@ -675,24 +737,7 @@ export class ExerciseFormView {
             muscleEl.dataset.bundleMuscle = '';
             muscleEl.setAttribute('aria-label', `Muscle ${index + 1}`);
             const currentMuscleId = String(bundle?.muscleId || '');
-            if (!this._dicts.muscles.has(currentMuscleId)) {
-                const unknown = document.createElement('option');
-                unknown.value = currentMuscleId;
-                unknown.textContent = `Unknown muscle: ${currentMuscleId || '(missing ID)'}`;
-                unknown.selected = true;
-                muscleEl.appendChild(unknown);
-            }
-            for (const [id, name] of this._dicts.muscles.entries()) {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = name;
-                opt.title = id;
-                if (String(bundle?.muscleId || '') === id) opt.selected = true;
-                muscleEl.appendChild(opt);
-            }
-            if (!this._dicts.muscles.has(String(bundle?.muscleId || ''))) {
-                muscleEl.classList.add('invalid');
-            }
+            this._fillMuscleOptions(muscleEl, currentMuscleId);
 
             // Percentage input
             const percentEl = document.createElement('input');
@@ -791,6 +836,13 @@ export class ExerciseFormView {
     // ── Private: event binding ───────────────────────────────────────────────
 
     _bindEvents() {
+        this._els.detailLoading?.addEventListener('click', event => {
+            if (!event.target.closest?.('[data-exercise-action="dismiss-detail-error"]')) return;
+            this._store.setDetailError('');
+            const {current, viewMode} = this._store.getState();
+            const target = !current ? this._els.viewForm : viewMode === 'json' ? this._els.editor : this._els.fName;
+            target?.focus({preventScroll: true});
+        });
         this._els.builder?.addEventListener('input', () => this._updateDraftState());
         this._els.builder?.addEventListener('change', () => this._updateDraftState());
         // Save
