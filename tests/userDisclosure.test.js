@@ -4,6 +4,8 @@ import {UserEntity} from '../src/domain/user/UserEntity.js';
 import {UserDetailsEntity} from '../src/domain/user/UserDetailsEntity.js';
 import {UserStore} from '../src/features/users/UserStore.js';
 import {UserDetailView} from '../src/features/users/UserDetailView.js';
+import {UserController} from '../src/features/users/UserController.js';
+import {EventBus} from '../src/infrastructure/events/EventBus.js';
 
 class Element {
     constructor(parent = null) {
@@ -43,6 +45,36 @@ class WeightBody extends Element {
     closest(selector) { return selector === 'details:not([open])' && !this.section?.open ? this.section : null; }
 }
 
+class DiagnosticsBody extends Element {
+    get innerHTML() { return this._html || ''; }
+    set innerHTML(value) {
+        if (this.contains(document.activeElement)) document.activeElement = null;
+        this._html = value; this.panel = null; this.skipped = null;
+        if (!value.includes('<details class="diagnostic-panel"')) return;
+        this.panel = new Element(this); this.panel.summary = new Element(this.panel);
+        this.panel.open = /<details class="diagnostic-panel"[^>]*\bopen>/.test(value);
+        if (value.includes('<details class="diagnostic-unverified"')) {
+            this.skipped = new Element(this.panel); this.skipped.summary = new Element(this.skipped);
+            this.skipped.querySelector = selector => selector === 'summary' ? this.skipped.summary : null;
+        }
+        this.panel.querySelector = selector => selector === 'summary' ? this.panel.summary : selector === 'details.diagnostic-unverified' ? this.skipped : null;
+    }
+    querySelector(selector) { return selector === '.diagnostic-panel' ? this.panel : null; }
+}
+
+class DevicesBody extends Element {
+    get innerHTML() { return this._html || ''; }
+    set innerHTML(value) {
+        if (this.contains(document.activeElement)) document.activeElement = null;
+        this._html = value; this.buttons = [];
+        for (const token of value.matchAll(/<button[^>]+data-device-token="([^"]+)"/g)) {
+            const button = new Element(this); button.dataset.deviceToken = token[1]; this.buttons.push(button);
+        }
+    }
+    querySelectorAll(selector) { return selector === 'button' ? this.buttons || [] : []; }
+    closest(selector) { return selector === 'details' || selector === 'details:not([open])' && !this.section.open ? this.section : null; }
+}
+
 const user = (id, workoutsCount = 3) => UserEntity.normalize({id, role: 'default', email: `${id}@example.test`, workoutsCount, profile: {id: `p-${id}`}});
 const weights = (length = 30, start = 80) => UserDetailsEntity.normalizeWeightHistory(Array.from({length}, (_, index) =>
     ({weight: start + index / 10, createdAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString()})));
@@ -58,14 +90,72 @@ function setup(t, entries = weights()) {
     view._els = Object.fromEntries(['panel', 'userDetail', 'accountDetails', 'accountActions', 'userEmailEl', 'goalBody', 'goalSummary',
         'trainingsBody', 'trainingsCount', 'weightSummary', 'deviceTokensBody', 'deviceTokensSummary'].map(key => [key, new Element()]));
     view._els.weightBody = new WeightBody();
+    view._els.userDiagnostics = new DiagnosticsBody();
+    view._els.deviceTokensBody = new DevicesBody();
     view._els.sectionElements = Object.fromEntries(['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'].map(key => [key, new Element()]));
     view._els.weightBody.section = view._els.sectionElements.weightHistory;
     view._els.weightBody.section.summary = new Element(view._els.weightBody.section);
     view._els.weightBody.section.querySelector = selector => selector === 'summary' ? view._els.weightBody.section.summary : null;
+    view._els.deviceTokensBody.section = view._els.sectionElements.deviceTokens;
+    view._els.deviceTokensBody.section.summary = new Element(view._els.deviceTokensBody.section);
+    view._els.deviceTokensBody.section.querySelector = selector => selector === 'summary' ? view._els.deviceTokensBody.section.summary : null;
     store.subscribe(() => view.render()); view.render();
     const a = user('a'); store.setUsers([a]); store.setActive(a); store.setDetails(a.id, details(entries));
     return {store, view, body: view._els.weightBody, a};
 }
+
+test('same-user report changes preserve Account checks and skipped-check disclosures with focused summaries', t => {
+    const {store, view, a} = setup(t);
+    const body = view._els.userDiagnostics;
+    body.panel.open = body.skipped.open = true;
+    body.skipped.summary.focus();
+    store.setUsers([UserEntity.normalize({...a.raw, role: 'synthetic-unrecognized-role'})]);
+    assert.equal(body.panel.open, true); assert.equal(body.skipped.open, true);
+    assert.equal(document.activeElement, body.skipped.summary);
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+    body.panel.open = body.skipped.open = false;
+    body.panel.summary.focus();
+    store.setUsers([UserEntity.normalize({...a.raw, role: 'another-synthetic-role'})]);
+    assert.equal(body.panel.open, false); assert.equal(body.skipped.open, false);
+    assert.equal(document.activeElement, body.panel.summary);
+    body.panel.open = body.skipped.open = true;
+    const b = user('b'); store.setUsers([store.getState().active, b]); store.setActive(b);
+    assert.equal(body.panel.open, false, 'a true user switch resets prior manual disclosure state');
+    assert.equal(body.skipped.open, false);
+    assert.doesNotMatch(body.innerHTML, /synthetic-role|synthetic-unrecognized-role/);
+    store.reset(); assert.equal(body.innerHTML, ''); assert.equal(body.panel, null);
+});
+
+test('when skipped checks disappear, focus returns to the still-open Account checks summary', t => {
+    const {store, view, a} = setup(t);
+    const body = view._els.userDiagnostics;
+    body.panel.open = body.skipped.open = true; body.skipped.summary.focus();
+    store.setUsers([UserEntity.normalize({...a.raw, createdAt: '2020-01-01T00:00:00Z', profileId: 'p-a'})]);
+    assert.equal(body.skipped, null);
+    assert.equal(body.panel.open, true);
+    assert.equal(document.activeElement, body.panel.summary);
+});
+
+test('successful device retry restores the same copy button, or the visible section summary when its token disappears', async t => {
+    const {store, view, a} = setup(t);
+    const body = view._els.deviceTokensBody;
+    store.setDetails(a.id, {...store.getState().details, deviceTokens: [{token: 'synthetic-device-token'}]});
+    body.section.open = true; body.buttons[0].focus();
+    let resolve;
+    const controller = new UserController({store, bus: new EventBus(), confirmDialog: {}, repository: {
+        fetchDeviceTokens: () => new Promise(done => { resolve = done; }),
+    }});
+    const loading = controller.reloadDetails('deviceTokens'); await new Promise(done => setImmediate(done));
+    assert.equal(document.activeElement, body.buttons[0], 'cached loading retains the existing focused button');
+    resolve([{token: 'synthetic-device-token'}]); await loading;
+    assert.equal(document.activeElement, body.buttons[0]);
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+    const removal = controller.reloadDetails('deviceTokens'); await new Promise(done => setImmediate(done));
+    resolve([]); await removal;
+    assert.equal(body.buttons.length, 0);
+    assert.equal(document.activeElement, body.section.summary);
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+});
 
 test('weight overview and caveats remain visible while the exact measurement table starts closed', t => {
     const entries = [{weight: 50, createdAt: ''}, {weight: 80, createdAt: '2026-01-01'}, {weight: 81, createdAt: '2026-01-01'}];

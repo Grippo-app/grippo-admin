@@ -36,11 +36,11 @@ class Element {
     querySelectorAll(selector) {
         const key = {'[data-bundle-index]': 'bundleIndex', '[data-bundle-muscle]': 'bundleMuscle', '[data-bundle-percentage]': 'bundlePercentage',
             '[data-equipment-id]': 'equipmentId', '[data-equipment-label]': 'equipmentLabel'}[selector];
-        if (!key) return [];
+        if (!key && selector !== 'button') return [];
         const matches = [];
         const visit = element => {
             for (const child of element.children) {
-                if (Object.hasOwn(child.dataset, key)) matches.push(child);
+                if (key ? Object.hasOwn(child.dataset, key) : child.tagName === 'button') matches.push(child);
                 visit(child);
             }
         };
@@ -50,7 +50,7 @@ class Element {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     set innerHTML(value) { this.children = []; this._innerHTML = value; }
     get innerHTML() { return this._innerHTML || ''; }
-    focus() { if (globalThis.document) document.activeElement = this; }
+    focus(options) { if (globalThis.document) document.activeElement = this; this.focusOptions = options; }
     appendChild(child) { this.children.push(child); if (this.tagName === 'select' && (this.children.length === 1 || child.selected)) this.value = child.value; }
     replaceChildren(...children) { this.children = children; }
     removeChild(child) { this.children.splice(this.children.indexOf(child), 1); }
@@ -421,26 +421,98 @@ test('editor mode tabs support keyboard selection and keep invalid JSON selected
     assert.equal(els.viewForm.tabIndex, -1);
 });
 
-test('a successful create acknowledges identity while preserving invalid JSON typed during the request', async () => {
+for (const action of ['save', 'form', 'locale']) test(`a repaired in-flight JSON draft uses the generated create identity when continuing with ${action}`, async () => {
+    const localId = '11111111-1111-4111-8111-111111111111';
+    const serverId = '22222222-2222-4222-8222-222222222222';
     const {store, form, els} = formSetup(null);
-    store.setNew(exercise('new'));
+    store.setNew(exercise(localId));
     let creates = 0;
-    let updates = 0;
+    const updates = [];
     const pending = deferred();
     const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {},
-        repository: {create: () => { creates++; return pending.promise; }, update: async () => { updates++; return exercise('new'); }}});
+        repository: {create: () => { creates++; return pending.promise; }, update: async (id, payload) => {
+            updates.push({id, payload}); return {id: serverId};
+        }}});
     els.viewJson.dispatch('click');
     const saving = controller.saveItem(form.readFormToEntity());
-    els.editor.value = '{invalid draft';
-    pending.resolve(exercise('new'));
+    const edited = {...exercise(localId), nameTranslations: {...exercise(localId).nameTranslations, en: 'Keep my later JSON edit'}};
+    const repaired = JSON.stringify(edited, null, 2);
+    const invalid = repaired.replace(/\n}$/, ',\n}');
+    els.editor.value = invalid;
+    pending.resolve({id: serverId});
     await saving;
+    assert.equal(store.getState().current.id, serverId);
     assert.equal(store.getState().isNew, false);
-    assert.equal(els.editor.value, '{invalid draft');
+    assert.equal(els.editor.value, invalid, 'acknowledgement must not rewrite invalid JSON or lose later edits');
     assert.equal(form.hasUnsavedChanges(), true);
-    els.editor.value = JSON.stringify(exercise('new'));
-    await controller.saveItem(form.readFormToEntity());
+    els.editor.value = repaired;
+    assert.equal(form.hasUnsavedChanges(), true); assert.equal(form.hasUnsavedChanges(), true);
+    assert.equal(form.readFormToEntity().id, serverId, 'dirty checks must not consume the exact old-to-new ID acknowledgement');
+    els.editor.value = JSON.stringify({...edited, id: '33333333-3333-4333-8333-333333333333'});
+    assert.throws(() => form.readFormToEntity(), /ID cannot be changed/);
+    els.editor.value = repaired;
+    if (action === 'save') {
+        await controller.saveItem(form.readFormToEntity());
+        assert.equal(updates.length, 1); assert.equal(updates[0].id, serverId);
+        assert.equal(updates[0].payload.name.find(row => row.language === 'en').value, 'Keep my later JSON edit');
+    } else if (action === 'form') {
+        els.viewForm.dispatch('click');
+        assert.equal(store.getState().viewMode, 'form');
+        assert.equal(els.fName.value, 'Keep my later JSON edit');
+        els.viewJson.dispatch('click');
+    } else {
+        const ua = new Element(); ua.dataset.locale = 'ua'; els.localeButtons = [ua]; form._bindEvents();
+        ua.dispatch('click'); assert.equal(store.getState().locale, 'ua');
+        assert.equal(store.getState().current.nameTranslations.en, 'Keep my later JSON edit');
+    }
     assert.equal(creates, 1);
-    assert.equal(updates, 1);
+    assert.equal(JSON.parse(els.editor.value).id, serverId);
+    els.editor.value = repaired;
+    assert.throws(() => form.readFormToEntity(), /ID cannot be changed/, 'the old ID is no longer accepted after canonical JSON has been written');
+});
+
+for (const reset of ['select', 'new', 'logout']) test(`created JSON identity acknowledgement is revoked after ${reset}`, async () => {
+    const {store, form, els} = formSetup(null);
+    const bus = new EventBus(), pending = deferred();
+    const controller = new ExerciseController({store, formView: form, bus, confirmDialog: {ask: async () => true},
+        repository: {create: () => pending.promise}});
+    store.setNew(exercise('local-id')); els.viewJson.dispatch('click');
+    const repaired = els.editor.value;
+    const saving = controller.saveItem(form.readFormToEntity());
+    els.editor.value = repaired.replace(/\n}$/, ',\n}');
+    pending.resolve({id: 'saved-id'}); await saving;
+    if (reset === 'select') store.setCurrent(exercise('other-id'));
+    else if (reset === 'new') await controller.newItem();
+    else bus.emit(Events.AUTH_LOGOUT);
+    store.setCurrent(exercise('saved-id'));
+    els.editor.value = repaired;
+    assert.throws(() => form.readFormToEntity(), /ID cannot be changed/);
+});
+
+test('an acknowledged created draft remains recoverable if JSON becomes invalid again during its first update', async () => {
+    const {store, form, els} = formSetup(null);
+    const create = deferred(), update = deferred();
+    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {},
+        repository: {create: () => create.promise, update: () => update.promise}});
+    store.setNew(exercise('local-id')); els.viewJson.dispatch('click');
+    const draft = JSON.parse(els.editor.value);
+    const saving = controller.saveItem(form.readFormToEntity());
+    els.editor.value = JSON.stringify(draft, null, 2).replace(/\n}$/, ',\n}');
+    create.resolve({id: 'saved-id'}); await saving;
+    draft.nameTranslations.en = 'First repaired edit';
+    els.editor.value = JSON.stringify(draft, null, 2);
+    const updating = controller.saveItem(form.readFormToEntity());
+    draft.descriptionTranslations.en = 'Another edit while updating';
+    const repaired = JSON.stringify(draft, null, 2);
+    els.editor.value = repaired.replace(/\n}$/, ',\n}');
+    update.resolve({id: 'saved-id'}); await updating;
+    els.editor.value = repaired;
+    assert.equal(form.readFormToEntity().id, 'saved-id');
+    assert.equal(form.readFormToEntity().descriptionTranslations.en, 'Another edit while updating');
+    assert.equal(form.hasUnsavedChanges(), true);
+    els.viewForm.dispatch('click');
+    assert.equal(store.getState().viewMode, 'form');
+    assert.equal(els.fDescription.value, 'Another edit while updating');
 });
 
 test('a list response started before save cannot replace the updated local list', async () => {
@@ -551,6 +623,56 @@ function withBundleDocument(fn) {
         }
     };
 }
+
+test('removing a focused muscle moves to the nearest surviving row, then the Add selector when no rows remain', withBundleDocument(() => {
+    const {store, els, rows} = bundleFormSetup();
+    const removeFirst = rows()[0].querySelector('button');
+    removeFirst.focus(); removeFirst.dispatch('click');
+    assert.equal(store.getState().current.exerciseExampleBundles.length, 1);
+    assert.equal(document.activeElement, rows()[0].querySelector('[data-bundle-muscle]'));
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+    const removeLast = rows()[0].querySelector('button');
+    removeLast.focus(); removeLast.dispatch('click');
+    assert.equal(store.getState().current.exerciseExampleBundles.length, 0);
+    assert.equal(document.activeElement, els.muscleSelect);
+    assert.deepEqual(els.muscleSelect.focusOptions, {preventScroll: true});
+}));
+
+test('removing the final focused row keeps the preceding muscle row reachable', withBundleDocument(() => {
+    const {rows} = bundleFormSetup();
+    const removeLast = rows()[1].querySelector('button');
+    removeLast.focus(); removeLast.dispatch('click');
+    assert.equal(document.activeElement, rows()[0].querySelector('[data-bundle-muscle]'));
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+}));
+
+test('removing focused equipment uses a surviving token, then the Add selector, without collapsing settings', withBundleDocument(() => {
+    const {store, form, els} = bundleFormSetup();
+    form._dicts.equipment = new Map([['barbell', 'Barbell'], ['bench', 'Bench']]);
+    els.equipSingle = new Element();
+    store.setCurrent({...store.getState().current, equipmentRefs: [{equipmentId: 'barbell'}, {equipmentId: 'bench'}]});
+    els.equipmentSection.open = true;
+    const tokens = () => els.equipTokens.querySelectorAll('[data-equipment-id]');
+    const first = tokens()[0].querySelector('button'); first.focus(); first.dispatch('click');
+    assert.deepEqual(store.getState().current.equipmentRefs, [{equipmentId: 'bench'}]);
+    assert.equal(document.activeElement, tokens()[0].querySelector('button'));
+    assert.deepEqual(document.activeElement.focusOptions, {preventScroll: true});
+    const last = tokens()[0].querySelector('button'); last.focus(); last.dispatch('click');
+    assert.equal(store.getState().current.equipmentRefs.length, 0);
+    assert.equal(document.activeElement, els.equipSingle);
+    assert.deepEqual(els.equipSingle.focusOptions, {preventScroll: true});
+    assert.equal(els.equipmentSection.open, true);
+}));
+
+test('removal never steals focus when the removed button was not active', withBundleDocument(() => {
+    const {store, form, els, rows} = bundleFormSetup();
+    els.fName.focus(); rows()[0].querySelector('button').dispatch('click');
+    assert.equal(document.activeElement, els.fName);
+    form._dicts.equipment = new Map([['barbell', 'Barbell']]); els.equipSingle = new Element();
+    store.setCurrent({...store.getState().current, equipmentRefs: [{equipmentId: 'barbell'}]});
+    els.fName.focus(); els.equipTokens.querySelectorAll('[data-equipment-id]')[0].querySelector('button').dispatch('click');
+    assert.equal(document.activeElement, els.fName);
+}));
 
 test('Save reads all live muscle percentages without waiting for blur', withBundleDocument(async () => {
     const {els, rows, savedEntity} = bundleFormSetup();

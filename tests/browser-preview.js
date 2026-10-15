@@ -15,6 +15,7 @@ const previewDelay = (key, fallback) => {
 };
 const latency = previewDelay('latency', 140);
 const deviceLatency = previewDelay('deviceLatency', latency);
+const mutationLatency = previewDelay('mutationLatency', latency);
 let exerciseFailurePending = previewParams.get('failExercise');
 
 class MemoryStorage {
@@ -81,7 +82,9 @@ window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
     if (url.origin !== 'https://grippo-app.com') throw new Error('Fixture preview blocks external requests.');
     const authRequest = ['/auth/login', '/auth/refresh', '/users'].includes(url.pathname);
-    await new Promise(resolve => setTimeout(resolve, authRequest ? 140 : url.pathname.endsWith('/device-tokens') ? deviceLatency : latency));
+    const requestDelay = authRequest ? 140 : ['POST', 'PUT', 'DELETE'].includes(options.method) ? mutationLatency
+        : url.pathname.endsWith('/device-tokens') ? deviceLatency : latency;
+    await new Promise(resolve => setTimeout(resolve, requestDelay));
     const path = url.pathname;
     const method = options.method || 'GET';
     const payload = options.body ? JSON.parse(options.body) : null;
@@ -115,7 +118,7 @@ window.fetch = async (input, options = {}) => {
         return id !== 'fly' && rawSnapshots.has(id) ? response(rawSnapshots.get(id)) : new Response(null, {status: 404, statusText: 'Raw translation route unavailable'});
     }
     if (path === '/admin/exercise-examples' && method !== 'GET') {
-        const id = url.searchParams.get('id') || payload.id || `exercise-${Date.now()}`;
+        const id = method === 'POST' ? crypto.randomUUID() : url.searchParams.get('id') || payload.id;
         const nameTranslations = Object.fromEntries(payload.name.map(entry => [entry.language, entry.value || '']));
         const descriptionTranslations = Object.fromEntries(payload.description.map(entry => [entry.language, entry.value || '']));
         const entity = {...payload, id, name: nameTranslations.en, description: descriptionTranslations.en, nameTranslations, descriptionTranslations};

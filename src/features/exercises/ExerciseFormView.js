@@ -52,6 +52,7 @@ export class ExerciseFormView {
         this._bodyWeightMultiplier = 1;
         this._baselineId = null;
         this._baseline = '';
+        this._jsonCreatedIdentity = null;
         this._issues = [];
 
         // Кеш для дедупликации перерисовок формы. _onStateChange срабатывает
@@ -104,13 +105,21 @@ export class ExerciseFormView {
     }
 
     preserveDraftAfterSave(saved, {translationSnapshot = null} = {}) {
-        let draft = this._store.getState().current;
+        const {current, isNew} = this._store.getState();
+        let draft = current;
         let invalidJson = null;
+        let invalidIdentity = null;
         try { draft = this.readFormToEntity(); }
-        catch { invalidJson = this._els.editor?.value ?? ''; }
+        catch {
+            invalidJson = this._els.editor?.value ?? '';
+            if (isNew && current.id !== saved.id) invalidIdentity = {fromId: current.id, toId: saved.id};
+            else if (this._jsonCreatedIdentity?.toId === current.id && saved.id === current.id) invalidIdentity = this._jsonCreatedIdentity;
+        }
         this._store.setCurrent({...draft, id: saved.id}, {translationProvenanceKnown: true, translationSnapshot});
         if (invalidJson !== null && this._els.editor) {
             this._els.editor.value = invalidJson;
+            // setCurrent synchronously writes canonical JSON; restore this exact acknowledgement afterwards.
+            this._jsonCreatedIdentity = invalidIdentity;
             this._validateJsonEditor();
         }
     }
@@ -304,7 +313,11 @@ export class ExerciseFormView {
                 }
             }
             const current = this._store.getState().current;
-            if (current && parsed.id !== current.id) throw new Error('The exercise ID cannot be changed. Restore the original ID.');
+            if (current && parsed.id !== current.id) {
+                const identity = this._jsonCreatedIdentity;
+                if (identity?.fromId !== parsed.id || identity?.toId !== current.id) throw new Error('The exercise ID cannot be changed. Restore the original ID.');
+                parsed.id = current.id;
+            } else this._jsonCreatedIdentity = null;
             const normalized = ExerciseNormalizer.normalizeEntityShape(parsed);
             return {...parsed, name: normalized.name, description: normalized.description,
                 nameTranslations: normalized.nameTranslations, descriptionTranslations: normalized.descriptionTranslations};
@@ -417,6 +430,7 @@ export class ExerciseFormView {
         const sameCreatedDraft = created && created.fromId === this._lastRendered.current?.id && created.toId === current?.id;
         const selectionChanged = current?.id !== this._lastRendered.current?.id && !sameCreatedDraft;
         if (selectionChanged) {
+            this._jsonCreatedIdentity = null;
             for (const section of [this._els.inputsSection, this._els.equipmentSection]) if (section) section.open = false;
             this._els.builder?.querySelectorAll('.exercise-reference-fields').forEach(disclosure => { disclosure.open = false; });
         }
@@ -579,6 +593,7 @@ export class ExerciseFormView {
     _populateJsonEditor(entity) {
         if (!this._els.editor) return;
         this._els.editor.value = JSON.stringify(entity, null, 2);
+        this._jsonCreatedIdentity = null;
         this._validateJsonEditor();
     }
 
@@ -705,10 +720,16 @@ export class ExerciseFormView {
             removeBtn.title = 'Remove';
             removeBtn.setAttribute('aria-label', `Remove ${name || 'equipment'}`);
             removeBtn.addEventListener('click', () => {
+                const focusIndex = document.activeElement === removeBtn
+                    ? Array.from(this._els.equipTokens.querySelectorAll('[data-equipment-id]')).indexOf(token) : -1;
                 const formEntity = this.readFormToEntity();
                 const arr = [...(formEntity?.[FIELD.equipmentRefs] || [])];
                 arr.splice(index, 1);
                 this._store.patchCurrent({...formEntity, [FIELD.equipmentRefs]: arr});
+                if (focusIndex >= 0) {
+                    const tokens = this._els.equipTokens.querySelectorAll('[data-equipment-id]');
+                    (tokens[Math.min(focusIndex, tokens.length - 1)]?.querySelector('button') || this._els.equipSingle)?.focus({preventScroll: true});
+                }
             });
 
             token.appendChild(removeBtn);
@@ -844,10 +865,16 @@ export class ExerciseFormView {
                 updateBundleSummary(this._els.bundleSumInfo, formEntity[FIELD.bundles].reduce((total, bundle) => total + (Number.isFinite(bundle?.percentage) ? bundle.percentage : 0), 0));
             });
             removeBtn.addEventListener('click', () => {
+                const focusIndex = document.activeElement === removeBtn
+                    ? Array.from(this._els.bundles.querySelectorAll('[data-bundle-index]')).indexOf(row) : -1;
                 const formEntity = this.readFormToEntity();
                 const bundles = [...(formEntity?.[FIELD.bundles] || [])];
                 bundles.splice(index, 1);
                 this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
+                if (focusIndex >= 0) {
+                    const rows = this._els.bundles.querySelectorAll('[data-bundle-index]');
+                    (rows[Math.min(focusIndex, rows.length - 1)]?.querySelector('[data-bundle-muscle]') || this._els.muscleSelect)?.focus({preventScroll: true});
+                }
             });
 
             row.appendChild(muscleEl);

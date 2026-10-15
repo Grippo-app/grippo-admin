@@ -6,7 +6,7 @@ import {EventBus} from '../src/infrastructure/events/EventBus.js';
 import {Toast} from '../src/shared/components/Toast.js';
 
 Toast.show = () => {};
-const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; };
+const deferred = () => { let resolve, reject; const promise = new Promise((done, fail) => { resolve = done; reject = fail; }); return {promise, resolve, reject}; };
 const record = (id, percentage = 100) => ({id, name: 'Squat', description: 'Controlled movement',
     weightType: 'free', category: 'compound', experience: 'beginner', forceType: 'push', imageUrl: 'https://example.test/a.png',
     components: {externalWeight: {required: true}, bodyWeight: null, extraWeight: null, assistWeight: null},
@@ -31,6 +31,76 @@ test('queue eligibility is rechecked after draft confirmation and cannot discard
     eligible = false; confirmation.resolve(true); await selecting;
     assert.equal(requests, 0); assert.equal(store.getState().current, current);
     assert.equal(store.getState().isDetailLoading, false);
+});
+
+for (const delayedRead of ['localized', 'raw']) test(`queue invalidation during ${delayedRead} reads preserves the draft and saved checks`, async () => {
+    const response = deferred();
+    const started = deferred();
+    const {store, controller} = setup({
+        fetchDetail: async id => {
+            if (delayedRead === 'localized') { started.resolve(); await response.promise; }
+            return record(id);
+        },
+        fetchTranslations: async id => {
+            if (delayedRead === 'raw') { started.resolve(); await response.promise; }
+            return snapshot(id);
+        },
+    });
+    store.setItems([record('a'), record('b', 90)]);
+    store.setCurrent({...record('a'), description: 'Keep this current draft'}, {
+        translationProvenanceKnown: true, translationSnapshot: snapshot('a'),
+    });
+    store.setQualityFilter('attention');
+    const queuedItems = store.getState().filtered;
+    const current = store.getState().current;
+    const savedChecks = store.getDiagnosticReport('b');
+    const canSelect = () => store.getState().qualityFilter === 'attention' && store.getState().filtered === queuedItems;
+    const selecting = controller.selectItem({id: 'b'}, {canSelect});
+    await started.promise;
+    assert.equal(store.getState().selectingId, 'b');
+    store.setQualityFilter('all');
+    assert.equal(canSelect(), false);
+    response.resolve();
+    await selecting;
+    assert.equal(store.getState().current, current);
+    assert.equal(store.getState().translationSnapshot.id, 'a');
+    assert.equal(store.getDiagnosticReport('b'), savedChecks);
+    assert.equal(store.getState().isDetailLoading, false);
+    assert.equal(store.getState().selectingId, null);
+
+    await controller.selectItem({id: 'b'}, {canSelect: () => true});
+    assert.equal(store.getState().current.id, 'b', 'a later eligible selection still completes');
+    assert.equal(store.getState().translationSnapshot.id, 'b');
+    assert.notEqual(store.getDiagnosticReport('b'), savedChecks);
+    assert.equal(store.getState().isDetailLoading, false);
+});
+
+test('a failed invalidated queue selection cannot add an error over the retained record', async t => {
+    const response = deferred();
+    const started = deferred();
+    const show = Toast.show;
+    let notifications = 0;
+    Toast.show = () => { notifications++; };
+    t.after(() => { Toast.show = show; });
+    const {store, controller} = setup({fetchDetail: async id => record(id),
+        fetchTranslations: () => { started.resolve(); return response.promise; }});
+    store.setItems([record('a'), record('b', 90)]);
+    store.setCurrent(record('a'), {translationProvenanceKnown: true, translationSnapshot: snapshot('a')});
+    store.setQualityFilter('attention');
+    const current = store.getState().current;
+    const savedChecks = store.getDiagnosticReport('b');
+    const selecting = controller.selectItem({id: 'b'}, {canSelect: () => store.getState().qualityFilter === 'attention'});
+    await started.promise;
+    store.setQualityFilter('all');
+    response.reject(new Error('Failure from the cancelled selection'));
+    await selecting;
+    assert.equal(store.getState().current, current);
+    assert.equal(store.getState().translationSnapshot.id, 'a');
+    assert.equal(store.getDiagnosticReport('b'), savedChecks);
+    assert.equal(store.getState().detailError, '');
+    assert.equal(notifications, 0);
+    assert.equal(store.getState().isDetailLoading, false);
+    assert.equal(store.getState().selectingId, null);
 });
 
 test('returning to current A cancels pending B without discarding the current A draft', async () => {

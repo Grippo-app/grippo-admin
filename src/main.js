@@ -423,23 +423,29 @@ bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
 
 // Close before the action runs so confirmations and validation can take focus safely.
 for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions, #userFilters')) {
+    const inlineFilters = menu.id === 'userFilters';
     menu.addEventListener('click', event => {
         if (event.target.closest('button')) {
             menu.open = false;
             menu.querySelector('summary')?.focus();
         }
     }, true);
-    document.addEventListener('click', event => {
-        if (!menu.contains(event.target)) menu.open = false;
-    });
+    // Inline filters occupy layout space: collapsing on pointer focus moves the row before its click.
+    if (!inlineFilters) {
+        document.addEventListener('click', event => {
+            if (!menu.contains(event.target)) menu.open = false;
+        });
+        menu.addEventListener('focusout', event => {
+            if (!menu.contains(event.relatedTarget)) menu.open = false;
+        });
+    }
     document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && menu.open) {
+        if (event.key === 'Escape' && !event.defaultPrevented && menu.open
+            && (!inlineFilters || menu.contains(event.target))) {
+            event.preventDefault();
             menu.open = false;
             menu.querySelector('summary')?.focus();
         }
-    });
-    menu.addEventListener('focusout', event => {
-        if (!menu.contains(event.relatedTarget)) menu.open = false;
     });
     bus.on(Events.NAV_SECTION_CHANGED, () => { menu.open = false; });
 }

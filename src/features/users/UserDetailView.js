@@ -65,8 +65,9 @@ export class UserDetailView {
             this._renderedSections.clear();
             return;
         }
+        const sameUser = this._lastActive?.id === active.id;
         if (this._lastActive !== active) {
-            if (this._lastActive?.id !== active.id) {
+            if (!sameUser) {
                 if (this._els.panel) this._els.panel.scrollTop = 0;
                 if (this._els.accountDetails) this._els.accountDetails.open = false;
                 if (this._els.accountActions) this._els.accountActions.open = false;
@@ -84,7 +85,7 @@ export class UserDetailView {
             this._els.userDiagnostics.hidden = false;
             const profileNote = userProfileState(active) === 'unknown'
                 ? '<p class="diagnostic-unverified">Profile data was not supplied. Profile checks are incomplete.</p>' : '';
-            this._setBody(this._els.userDiagnostics, diagnosticPanelHtml(report, {title: 'Account checks'}) + profileNote);
+            this._setDiagnosticsBody(this._els.userDiagnostics, diagnosticPanelHtml(report, {title: 'Account checks'}) + profileNote, sameUser);
         });
         const section = key => {
             const status = state.detailSections?.[key];
@@ -334,6 +335,26 @@ export class UserDetailView {
         this._setSectionNote(summary, `${tokens.length} device${tokens.length === 1 ? '' : 's'}`);
     }
 
+    _setDiagnosticsBody(body, html, sameUser) {
+        const panel = sameUser ? body.querySelector?.('.diagnostic-panel') : null;
+        const skipped = panel?.querySelector('details.diagnostic-unverified');
+        const focused = typeof document === 'undefined' ? null : document.activeElement;
+        const focusedPanel = panel && focused === panel.querySelector('summary');
+        const focusedSkipped = skipped && focused === skipped.querySelector('summary');
+        const state = panel ? {open: panel.open, skippedOpen: skipped?.open} : null;
+        this._setBody(body, html);
+        if (!state) return;
+        const next = body.querySelector('.diagnostic-panel');
+        if (!next) return;
+        next.open = state.open;
+        const nextSkipped = next.querySelector('details.diagnostic-unverified');
+        if (nextSkipped && skipped) nextSkipped.open = state.skippedOpen;
+        if (focusedPanel || focusedSkipped) {
+            const target = focusedSkipped && next.open ? nextSkipped?.querySelector('summary') : null;
+            (target || next.querySelector('summary'))?.focus({preventScroll: true});
+        }
+    }
+
     async _copyDeviceToken(text, button) {
         let copied = false;
         try {
@@ -372,7 +393,8 @@ export class UserDetailView {
         const measurementsState = measurements ? {open: measurements.open, scrollTop: measurements.scrollTop} : null;
         const focusedSummary = focused && focused === measurements?.querySelector('summary');
         const focusKey = focused?.dataset?.trainingId !== undefined ? ['trainingId', focused.dataset.trainingId]
-            : focused?.dataset?.userAction ? ['userAction', focused.dataset.userAction] : null;
+            : focused?.dataset?.userAction ? ['userAction', focused.dataset.userAction]
+                : focused?.dataset?.deviceToken ? ['deviceToken', focused.dataset.deviceToken] : null;
         const scrollTop = body.scrollTop;
         body.innerHTML = html;
         const nextMeasurements = measurements ? body.querySelector?.('.weight-measurements') : null;
@@ -388,7 +410,7 @@ export class UserDetailView {
             const target = body.closest?.('details:not([open])')?.querySelector('summary') || requested;
             if (target) target.focus({preventScroll: true});
             else {
-                const fallback = nextSummary || body;
+                const fallback = nextSummary || (focusKey?.[0] === 'deviceToken' ? body.closest?.('details')?.querySelector('summary') : null) || body;
                 if (fallback === body) body.tabIndex = -1;
                 fallback.focus({preventScroll: true});
             }

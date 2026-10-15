@@ -101,13 +101,14 @@ export class ExerciseController {
                 canonical = ExerciseNormalizer.mergeLocalizedEntity(canonical, normalized);
             }
             if (translationSnapshot) canonical = ExerciseTranslations.applySnapshot(canonical, translationSnapshot);
+            if (!canSelect()) return;
             const englishRaw = responses.find(response => response.locale === DEFAULT_LANGUAGE).raw;
             this._store.setDiagnosticSource(id, englishRaw.entity || englishRaw, {translationSnapshot, sourceVersion});
             this._store.setCurrent(canonical, {translationProvenanceKnown: !!translationSnapshot, translationSnapshot});
             this._form?.markSaved?.(canonical);
             this._bus.emit(Events.EXERCISE_SELECTED, canonical);
         } catch (err) {
-            if (seq !== this._selectSeq) return;
+            if (seq !== this._selectSeq || !canSelect()) return;
             this._store.setDetailError(err.message);
             Toast.show({title: 'Failed to load exercise', message: err.message, type: 'error'});
         } finally {
