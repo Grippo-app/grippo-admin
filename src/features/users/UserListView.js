@@ -1,10 +1,8 @@
-import {userProfileState} from '../../domain/user/index.js';
 import {readUserWorkoutCount} from '../../domain/user/userEvidence.js';
 import {diagnosticBadgeHtml, diagnosticReasonHtml} from '../../shared/components/diagnosticPresentation.js';
 import {SortMenu} from '../../shared/components/SortMenu.js';
-import {getAuthIcon} from '../../shared/utils/authIcons.js';
 import {escapeHtml} from '../../shared/utils/index.js';
-import {humanizeEnum, relativeDate, formatNumber} from './userFormatters.js';
+import {formatNumber} from './userFormatters.js';
 
 export class UserListView {
     constructor({store, els, onSelect, sortOptions}) {
@@ -112,7 +110,8 @@ export class UserListView {
 
     _renderUserFilters(state) {
         const filters = state.userFilters || {};
-        const activeCount = Object.values(filters).filter(value => value !== 'all').length;
+        const activeCount = Object.values(filters).filter(value => value !== 'all').length
+            + (state.diagnosticFilter && state.diagnosticFilter !== 'all' ? 1 : 0);
         this._els.filters?.querySelectorAll('[data-user-filter]').forEach(select => {
             const value = filters[select.dataset.userFilter] || 'all';
             if (select.value !== value) select.value = value;
@@ -124,22 +123,18 @@ export class UserListView {
 
     _userItem(user, selected, report) {
         const key = user.name || user.email || user.id || '?';
-        const roleClass = user.role === 'admin' ? 'pill pill-admin' : 'pill pill-subtle';
         const count = readUserWorkoutCount(user);
-        const authIcons = (user.authTypes || []).map(type => {
-            const {label, svg} = getAuthIcon(type);
-            return `<span class="user-auth-icon" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${svg}</span>`;
-        }).join('');
+        const admin = user.role === 'admin';
         const quality = ['error', 'warning', 'info'].includes(report?.highestSeverity) ? ` data-quality="${report.highestSeverity}"` : '';
-        return `<div class="item user-item${selected ? ' active' : ''}" data-id="${escapeHtml(user.id)}"${quality} role="option" aria-selected="${selected}" tabindex="-1">
+        return `<div class="item user-item${admin ? ' user-item--admin' : ''}${selected ? ' active' : ''}" data-id="${escapeHtml(user.id)}"${quality} role="option" aria-selected="${selected}" tabindex="-1">
             <div class="user-badge user-badge--${this._avatarColor(key)}" aria-hidden="true">${escapeHtml(Array.from(key)[0].toUpperCase())}</div>
             <div class="user-copy">
                 <div class="user-name-row"><span class="user-name" title="${escapeHtml(key)}">${escapeHtml(key)}</span>${report?.findings.length ? diagnosticBadgeHtml(report) : ''}</div>
                 ${diagnosticReasonHtml(report)}
                 ${user.name && user.email ? `<div class="user-email" title="${escapeHtml(user.email)}">${escapeHtml(user.email)}</div>` : ''}
-                <div class="user-meta"><span class="user-workouts">${count === null ? 'Workout count unknown' : `${formatNumber(count)} workout${count === 1 ? '' : 's'}`}</span>${user.createdAt ? `<span class="user-meta-sep">·</span><span class="user-item-date" title="Joined ${escapeHtml(user.createdAt)}">${escapeHtml(relativeDate(user.createdAt))}</span>` : ''}</div>
+                <div class="user-meta"><span class="user-workouts">${count === null ? 'Workout count unknown' : `${formatNumber(count)} workout${count === 1 ? '' : 's'}`}</span></div>
             </div>
-            <div class="user-tags"><div class="user-auth-icons">${authIcons}</div><span class="${roleClass} user-role">${escapeHtml(humanizeEnum(user.role))}</span>${userProfileState(user) === 'missing' ? '<span class="pill pill-no-profile">No profile</span>' : ''}</div>
+            ${admin ? '<span class="pill pill-admin user-role">Admin</span>' : ''}
         </div>`;
     }
 

@@ -21,6 +21,20 @@ test('account rows distinguish an unavailable workout count from a reported zero
     assert.match(unknown, /Workout count unknown/); assert.doesNotMatch(unknown, /0 workouts/);
     assert.match(zero, /0 workouts/); assert.doesNotMatch(zero, /Workout count unknown/);
 });
+
+test('compact rows retain identity, workouts and actionable diagnostics, with only Admin marked as an account role', () => {
+    const view = Object.create(UserListView.prototype);
+    const report = {findings: [{severity: 'warning', title: 'Review profile', message: 'Saved profile data needs review.'}],
+        highestSeverity: 'warning', counts: {error: 0, warning: 1, info: 0}, checkedCount: 1, totalCount: 1};
+    const normal = view._userItem(user('a', {name: 'Alice <Example>', workoutsCount: 7,
+        createdAt: '2026-10-10T00:00:00Z', authTypes: ['google'], profile: null}), false, report);
+    assert.match(normal, /Alice &lt;Example&gt;/); assert.match(normal, /a@example\.test/); assert.match(normal, /7 workouts/);
+    assert.match(normal, /diagnostic-badge--warning/); assert.match(normal, /Review profile/);
+    assert.doesNotMatch(normal, /user-item-date|Joined |user-auth-icon|user-role|pill-no-profile|>Default</);
+    const admin = view._userItem(user('admin', {role: 'admin'}), true);
+    assert.match(admin, /pill-admin user-role">Admin/);
+    assert.match(admin, /user-item--admin/); assert.match(admin, /aria-selected="true"/);
+});
 function setup(t, overrides = {}) {
     t.mock.method(Toast, 'show', () => {});
     const store = new UserStore(); const bus = new EventBus();
@@ -79,6 +93,21 @@ test('stable live count and quality labels are not rewritten on unrelated notifi
     view._setText(label, '3 users'); assert.equal(writes, 1);
 });
 
+test('the single filter disclosure counts data quality and facets together and enables an honest reset', () => {
+    const view = Object.create(UserListView.prototype);
+    const filters = {open: true, querySelectorAll: () => []};
+    view._els = {filters, filterCount: {textContent: ''}, clearFiltersBtn: {disabled: true}};
+    view._renderUserFilters({users: [], userFilters: {}, diagnosticFilter: 'attention'});
+    assert.equal(view._els.filterCount.textContent, '1 active');
+    assert.equal(view._els.clearFiltersBtn.disabled, false);
+    assert.equal(filters.open, true, 'an active quality filter is not silently folded away during a failed/empty load');
+    view._renderUserFilters({users: [{}], userFilters: {profile: 'missing', workouts: 'with', createdAt: 'all'}, diagnosticFilter: 'warning'});
+    assert.equal(view._els.filterCount.textContent, '3 active');
+    view._renderUserFilters({users: [], userFilters: {}, diagnosticFilter: 'all'});
+    assert.equal(view._els.filterCount.textContent, 'Any');
+    assert.equal(view._els.clearFiltersBtn.disabled, true);
+});
+
 test('a failed section retries independently while its slow sibling remains pending and does not restart healthy sections', async t => {
     const slow = deferred(); const calls = {goal: 0, trainings: 0, weight: 0, devices: 0};
     const {store, controller, bus} = setup(t, {
@@ -116,11 +145,13 @@ test('scoped retries reject duplicates and cannot replace data after a user/sess
 
 test('real user ID changes reset outer scroll and disclosures, while refresh and local interactions preserve them', () => {
     const store = new UserStore(); const view = detailView(store);
-    const a = user('a', {workoutsCount: 5}), b = user('b'); store.setUsers([a, b]); store.setActive(a);
-    assert.equal(view._els.sectionElements.recentTrainings.open, true); assert.equal(view._els.sectionElements.goal.open, false);
+    const a = user('a', {workoutsCount: 5}), b = user('b', {workoutsCount: 7}); store.setUsers([a, b]); store.setActive(a);
+    assert.equal(Object.values(view._els.sectionElements).some(section => section.open), false);
     view._els.panel.scrollTop = 727; view._els.accountDetails.open = true; view._els.accountActions.open = true; view._els.sectionElements.goal.open = true;
-    store.setUsers([user('a', {workoutsCount: 5}), user('b')]); store.toggleExpandedTraining('t');
+    view._els.sectionElements.recentTrainings.open = true;
+    store.setUsers([user('a', {workoutsCount: 5, name: 'Updated name'}), b]); store.toggleExpandedTraining('t');
     assert.equal(view._els.panel.scrollTop, 727); assert.equal(view._els.accountDetails.open, true); assert.equal(view._els.sectionElements.goal.open, true);
+    assert.equal(view._els.sectionElements.recentTrainings.open, true, 'a same-ID metadata refresh preserves manual disclosure state');
     store.setActive(b); assert.equal(view._els.panel.scrollTop, 0); assert.equal(view._els.accountDetails.open, false); assert.equal(view._els.accountActions.open, false);
     assert.equal(Object.values(view._els.sectionElements).some(section => section.open), false);
     view._els.accountDetails.open = true; view._els.sectionElements.weightHistory.open = true; store.reset();

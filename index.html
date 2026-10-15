@@ -74,12 +74,6 @@
 
         <span id="jsonStatus" class="status warn" role="status">Select an exercise</span>
 
-        <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" hidden>
-            <button type="button" class="locale-btn" data-locale="en">EN</button>
-            <button type="button" class="locale-btn" data-locale="ua">UA</button>
-            <button type="button" class="locale-btn" data-locale="ru">RU</button>
-        </div>
-
         <div class="view-toggle">
             <div class="segment" role="tablist" aria-label="Editor mode">
                 <button id="viewForm" class="seg active" role="tab" aria-selected="true" aria-controls="builder" title="Form builder">Form
@@ -90,16 +84,14 @@
 
         <div class="cmd-actions">
             <details class="prompt-menu">
-                <summary class="btn muted">Prompt tools <span aria-hidden="true">⌄</span></summary>
+                <summary class="btn muted">More actions <span aria-hidden="true">⌄</span></summary>
                 <div class="prompt-menu-content">
-            <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
-            <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
-            <button id="promptRulesBtn" class="btn gpt" title="Build Rules Prompt">GPT Rules</button>
+                    <button id="promptBtn" class="btn gpt" title="Build GPT prompt">GPT Review</button>
+                    <button id="promptImgBtn" class="btn gpt" title="Build Image Prompt">GPT Image</button>
+                    <button id="promptRulesBtn" class="btn gpt" title="Build Rules Prompt">GPT Rules</button>
+                    <button id="deleteExerciseBtn" class="btn danger" type="button" title="Delete exercise example" hidden>Delete exercise</button>
                 </div>
             </details>
-            <button id="deleteExerciseBtn" class="btn danger" type="button" title="Delete exercise example" hidden>
-                Delete
-            </button>
             <button id="saveBtn" class="btn" type="button" title="Save changes">Save</button>
         </div>
     </div>
@@ -168,24 +160,24 @@
                 <div class="section section-card intro-main">
                     <div class="section-header">
                         <div class="section-title">Exercise basics</div>
-                        <div class="section-note">Identity & text</div>
-                    </div>
-                    <div class="basics-row">
-                        <div class="preview-card" id="exercisePreviewCard">
-                            <div class="preview-label">Exercise image</div>
-                            <button id="previewFrame" type="button" class="preview-frame"
-                                    aria-label="Open image preview" aria-disabled="true">
-                                <img id="exercisePreview" alt="Exercise image preview"/>
-                                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
-                            </button>
+                        <div class="content-language">
+                            <span class="section-note">Text language</span>
+                            <div id="localeSwitcher" class="locale-switcher" role="group" aria-label="Content language" hidden>
+                                <button type="button" class="locale-btn" data-locale="en">EN</button>
+                                <button type="button" class="locale-btn" data-locale="ua">UA</button>
+                                <button type="button" class="locale-btn" data-locale="ru">RU</button>
+                            </div>
                         </div>
+                    </div>
+                    <p id="exerciseLocaleHint" class="section-help">Only name and description change by language. Save includes all languages.</p>
+                    <div class="basics-row">
                         <div class="intro-stack">
                             <div class="field">
-                                <label for="fName">Name *</label>
+                                <label id="exerciseNameLabel" for="fName">English name *</label>
                                 <input id="fName" type="text" placeholder="e.g., Bench Press"/>
                             </div>
                             <div class="field">
-                                <label for="fDescription">Description *</label>
+                                <label id="exerciseDescriptionLabel" for="fDescription">English description *</label>
                                 <textarea id="fDescription" rows="3" placeholder="Short description..."></textarea>
                             </div>
                             <details class="exercise-reference-fields">
@@ -202,6 +194,14 @@
                                     </div>
                                 </div>
                             </details>
+                        </div>
+                        <div class="preview-card" id="exercisePreviewCard">
+                            <div class="preview-label">Exercise image</div>
+                            <button id="previewFrame" type="button" class="preview-frame"
+                                    aria-label="Open image preview" aria-disabled="true">
+                                <img id="exercisePreview" alt="Exercise image preview"/>
+                                <div id="exercisePreviewEmpty" class="preview-empty">No image selected yet</div>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -257,12 +257,26 @@
                         </div>
                     </div>
 
-                    <div class="section section-card">
-                        <div class="section-header">
-                            <div class="section-title">Exercise components</div>
-                            <div class="section-note">Inputs</div>
-                        </div>
+                <!-- Muscles -->
+                <div class="section section-card">
+                    <div class="section-header">
+                        <div class="section-title">Working muscles *</div>
+                        <div class="section-note">Total must be 100%</div>
+                    </div>
 
+                    <div id="bundles" class="bundle-list"></div>
+
+                    <div class="bundle-row">
+                        <select id="muscleSelect" aria-label="Muscle to add"></select>
+                        <input id="percentInput" aria-label="Muscle contribution percentage" type="number" min="0" max="100" step="1" placeholder="%"/>
+                        <button id="bundleAdd" class="btn" type="button">Add muscle</button>
+                    </div>
+                    <div id="bundleSumInfo" class="sum">Sum: 0%</div>
+                </div>
+                </div>
+                    <details id="exerciseInputsSection" class="section section-card exercise-config">
+                        <summary><span class="section-title">Workout inputs</span><span id="exerciseInputsSummary" class="section-note"></span></summary>
+                        <div class="exercise-config__body">
                         <div class="grid two">
                             <div class="field">
                                 <label class="checkbox-row" for="fRulesExternalWeightEnabled">
@@ -315,16 +329,12 @@
                                 </label>
                             </div>
                         </div>
-                    </div>
-                </div>
-
+                        </div>
+                    </details>
                 <!-- Equipment (reorganized: left chips, right single select + add) -->
-                <div class="section section-card">
-                    <div class="section-header">
-                        <div class="section-title">Equipment</div>
-                        <div class="section-note">Select as needed</div>
-                    </div>
-
+                <details id="exerciseEquipmentSection" class="section section-card exercise-config">
+                    <summary><span class="section-title">Equipment</span><span id="exerciseEquipmentSummary" class="section-note"></span></summary>
+                    <div class="exercise-config__body">
                     <div class="grid two">
                         <div class="field">
                             <label>Selected</label>
@@ -341,25 +351,9 @@
                         </div>
                     </div>
 
-                    <hr class="divider"/>
-                </div>
-
-                <!-- Muscles -->
-                <div class="section section-card">
-                    <div class="section-header">
-                        <div class="section-title">Muscle bundles (sum must be 100%) *</div>
-                        <div class="section-note">Distribution</div>
                     </div>
+                </details>
 
-                    <div id="bundles" class="bundle-list"></div>
-
-                    <div class="bundle-row">
-                        <select id="muscleSelect" aria-label="Muscle to add"></select>
-                        <input id="percentInput" aria-label="Muscle contribution percentage" type="number" min="0" max="100" step="1" placeholder="%"/>
-                        <button id="bundleAdd" class="btn" type="button">Add bundle</button>
-                    </div>
-                    <div id="bundleSumInfo" class="sum">Sum: 0%</div>
-                </div>
             </div>
 
             <!-- RAW JSON -->
@@ -407,12 +401,7 @@
             <div class="side-controls">
                 <div class="sidebar-heading"><h1>Users</h1><span id="userListCount" class="user-count" role="status"></span></div>
         <input id="userSearch" type="search" placeholder="Search name, email or ID…" aria-label="Search users"/>
-        <div class="quality-controls">
-            <label for="userQualityFilter">Data quality</label>
-            <select id="userQualityFilter" aria-describedby="userQualitySummary"><option value="all">All records</option></select>
-            <p id="userQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
-            <button id="userReviewBtn" class="btn muted quality-review" type="button" hidden>Review issues</button>
-        </div>
+        <button id="userReviewBtn" class="btn muted quality-review" type="button" hidden>Review issues</button>
         <div id="userSortDropdown" class="sort-dropdown">
             <button id="userSortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
                 <svg class="sort-toggle__icon" width="13" height="13" viewBox="0 0 13 13" fill="none"
@@ -435,6 +424,11 @@
         <details id="userFilters" class="user-filters">
             <summary>Filters <span id="userFilterCount">Any</span></summary>
             <div class="user-filters__fields">
+                <div class="quality-controls">
+                    <label for="userQualityFilter">Data quality</label>
+                    <select id="userQualityFilter" aria-describedby="userQualitySummary"><option value="all">All records</option></select>
+                    <p id="userQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
+                </div>
                 <label>Profile
                     <select data-user-filter="profile" aria-label="Filter by profile">
                         <option value="all">Any profile state</option><option value="present">Profile reported</option>
@@ -476,8 +470,8 @@
             <div id="userReviewQueue" hidden></div>
             <div id="userEmptyState" class="workspace-empty">
                 <div class="empty-icon" aria-hidden="true">◎</div>
-                <h2>A clearer view of every user</h2>
-                <p>Select a user to explore their goals, workout activity, weight history and devices.</p>
+                <h2>Choose a user</h2>
+                <p>View their profile and activity, or use Review issues to check flagged accounts.</p>
                 <span class="hint">Search by name, email or user ID.</span>
             </div>
             <div id="userDetail" class="user-detail" hidden>

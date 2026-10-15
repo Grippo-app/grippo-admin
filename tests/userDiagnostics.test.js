@@ -202,15 +202,14 @@ test('malformed or unavailable workout counts stay unverified instead of coercin
 
 test('list badges escape API values, keep young accounts neutral, and do not call unknown profiles missing', () => {
     const view = Object.create(UserListView.prototype);
-    const malicious = account('a', {role: '<script>alert(1)</script>'});
+    const malicious = account('a', {role: '<script>alert(1)</script>', profile: {id: 'profile-a'}, profileId: 'profile-a'});
     const html = view._userItem(malicious, false, report(malicious));
     assert.match(html, /diagnostic-badge--warning/);
     assert.match(html, /&lt;script&gt;/);
     assert.doesNotMatch(html, /<script>/);
     const young = account('young', {createdAt: new Date(NOW - DAY / 2).toISOString()});
     const youngHtml = view._userItem(young, false, report(young));
-    assert.match(youngHtml, /No profile/);
-    assert.doesNotMatch(youngHtml, /diagnostic-badge/);
+    assert.doesNotMatch(youngHtml, /No profile|diagnostic-badge/);
     const unknown = account('unknown', {profile: undefined, profileId: undefined});
     assert.doesNotMatch(view._userItem(unknown, false, report(unknown)), /No profile|diagnostic-badge/);
 });

@@ -65,6 +65,7 @@ class Element {
 function formSetup(current = exercise('a')) {
     const store = new ExerciseStore();
     const keys = ['builder', 'editorWrap', 'editor', 'viewForm', 'viewJson', 'saveBtn', 'deleteBtn', 'jsonStatus',
+        'currentId', 'nameLabel', 'descriptionLabel', 'localeHint', 'inputsSection', 'equipmentSection', 'inputsSummary', 'equipmentSummary',
         'fId', 'fName', 'fDescription', 'fImage', 'fWeightType', 'fCategory', 'fExperience', 'fForceType',
         'fRulesExternalWeightEnabled', 'fRulesExternalWeightRequired', 'fRulesBodyWeightEnabled',
         'fRulesBodyWeightMultiplier', 'fRulesBodyWeightMultiplierValue', 'fRulesExtraWeightEnabled',
@@ -73,10 +74,137 @@ function formSetup(current = exercise('a')) {
     let saves = 0;
     let savedEntity;
     const form = new ExerciseFormView({store, els, validator: {validate: () => ({ok: true, errors: [], warnings: []})},
-        dictionaries: {equipment: new Map(), muscles: new Map()}, onSave: async entity => { saves++; savedEntity = entity; }});
+        dictionaries: {equipment: new Map(), muscles: new Map(), getEquipmentName(id) { return this.equipment.get(id); }}, onSave: async entity => { saves++; savedEntity = entity; }});
     if (current) store.setCurrent(current);
     return {store, form, els, saves: () => saves, savedEntity: () => savedEntity};
 }
+
+test('exercise heading uses localized names with English fallback while language requirements match validation', () => {
+    const {store, els} = formSetup();
+    assert.equal(els.currentId.textContent, 'Squat');
+    assert.equal(els.fId.value, 'a');
+    assert.equal(els.nameLabel.textContent, 'English name *');
+    assert.equal(els.descriptionLabel.textContent, 'English description *');
+    assert.equal(els.fName.required, true);
+    store.setLocale('ua');
+    assert.equal(els.currentId.textContent, 'Присідання');
+    assert.equal(els.nameLabel.textContent, 'Ukrainian name (optional)');
+    assert.equal(els.descriptionLabel.textContent, 'Ukrainian description (optional)');
+    assert.equal(els.fName.required, false);
+    assert.equal(els.fDescription['aria-required'], 'false');
+    assert.match(els.localeHint.textContent, /Save includes all languages/);
+    store.setLocale('ru');
+    assert.equal(els.currentId.textContent, 'Squat');
+    assert.equal(els.nameLabel.textContent, 'Russian name (optional)');
+    store.setNew({...exercise('new'), name: '', nameTranslations: {en: '', ua: '', ru: ''}});
+    assert.equal(els.currentId.textContent, 'New exercise');
+});
+
+test('configuration disclosures preserve drafts and their open state across language, mode and same-record refreshes', () => {
+    const {store, form, els} = formSetup();
+    assert.equal(els.inputsSection.open, false);
+    assert.equal(els.equipmentSection.open, false);
+    els.inputsSection.open = els.equipmentSection.open = true;
+    assert.equal(form.hasUnsavedChanges(), false);
+    els.fName.value = 'Draft squat';
+    form.flush(); store.setLocale('ua');
+    els.viewJson.dispatch('click'); els.viewForm.dispatch('click');
+    store.setCurrent({...store.getState().current});
+    assert.equal(els.inputsSection.open, true);
+    assert.equal(els.equipmentSection.open, true);
+    assert.equal(form.readFormToEntity().nameTranslations.en, 'Draft squat');
+    assert.equal(form.hasUnsavedChanges(), true);
+    store.setCurrent(exercise('b'));
+    assert.equal(els.inputsSection.open, false);
+    assert.equal(els.equipmentSection.open, false);
+    els.inputsSection.open = els.equipmentSection.open = true;
+    store.setNew(exercise('new'));
+    assert.equal(els.inputsSection.open, false);
+    els.inputsSection.open = els.equipmentSection.open = true;
+    store.reset();
+    assert.equal(els.inputsSection.open, false);
+    assert.equal(els.equipmentSection.open, false);
+});
+
+for (const edited of [false, true]) test(`create identity acknowledgement retains open settings and focused inputs with ${edited ? 'an edited' : 'an unchanged'} draft`, withBundleDocument(async () => {
+    const {store, form, els} = formSetup(null);
+    const pending = deferred();
+    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {ask: async () => true},
+        repository: {create: () => pending.promise, fetchDetail: async id => exercise(id), fetchTranslations: async id => ExerciseTranslations.fromEntity(exercise(id))}});
+    form._onSave = entity => controller.saveItem(entity);
+    const referenceFields = new Element();
+    const querySelectorAll = els.builder.querySelectorAll.bind(els.builder);
+    els.builder.querySelectorAll = selector => selector === '.exercise-reference-fields' ? [referenceFields] : querySelectorAll(selector);
+    store.setNew(exercise('local-draft'));
+    els.inputsSection.open = els.equipmentSection.open = true;
+    referenceFields.open = true;
+    els.fRulesExternalWeightEnabled.focus();
+    const saving = els.saveBtn.dispatch('click');
+    if (edited) els.fName.value = 'Draft edited during create';
+    pending.resolve({id: 'server-created-id'});
+    await saving;
+    assert.equal(store.getState().current.id, 'server-created-id');
+    assert.equal(store.getState().isNew, false);
+    assert.equal(els.inputsSection.open, true);
+    assert.equal(els.equipmentSection.open, true);
+    assert.equal(referenceFields.open, true);
+    assert.equal(document.activeElement, els.fRulesExternalWeightEnabled);
+    assert.equal(els.fName.value, edited ? 'Draft edited during create' : 'Squat');
+    await controller.selectItem({id: 'other'});
+    assert.equal(els.inputsSection.open, false, 'a real later selection still collapses settings');
+    assert.equal(els.equipmentSection.open, false);
+    assert.equal(referenceFields.open, false);
+    els.inputsSection.open = els.equipmentSection.open = true;
+    await controller.newItem();
+    assert.equal(els.inputsSection.open, false, 'a real New action still collapses settings');
+    els.inputsSection.open = els.equipmentSection.open = true;
+    store.reset();
+    assert.equal(els.inputsSection.open, false);
+    assert.equal(els.equipmentSection.open, false);
+}));
+
+test('collapsed configuration summaries reflect live inputs, exact loaded multipliers and bounded equipment names', () => {
+    const components = {externalWeight: null, bodyWeight: {required: true, multiplier: 0.73}, extraWeight: {required: false}, assistWeight: {required: true}};
+    const {store, form, els} = formSetup({...exercise('a'), components});
+    assert.equal(els.inputsSummary.textContent, 'Body weight 0.73× · Extra optional · Assistance required');
+    els.fRulesBodyWeightMultiplier.value = '0.8'; els.fRulesBodyWeightMultiplier.dispatch('input');
+    assert.match(els.inputsSummary.textContent, /Body weight 0.80×/);
+    form._dicts.equipment = new Map([['barbell', 'Barbell'], ['bench', 'Bench'], ['plates', 'Plates']]);
+    store.setCurrent({...store.getState().current, equipmentRefs: [...form._dicts.equipment.keys()].map(equipmentId => ({equipmentId}))});
+    assert.equal(els.equipmentSummary.textContent, 'Barbell, Bench +1');
+    assert.equal(els.equipmentSummary.title, 'Barbell, Bench, Plates');
+    form._dicts.equipment.set('barbell', 'Updated barbell'); form.refreshOptionLists();
+    assert.equal(els.equipmentSummary.textContent, 'Updated barbell, Bench +1');
+});
+
+test('invalid JSON cannot change language labels or discard open configuration panels', () => {
+    const {store, form, els} = formSetup();
+    const ua = new Element(); ua.dataset.locale = 'ua'; els.localeButtons = [ua]; form._bindEvents();
+    els.inputsSection.open = true;
+    els.viewJson.dispatch('click'); els.editor.value = '{invalid';
+    ua.dispatch('click'); els.viewForm.dispatch('click');
+    assert.equal(store.getState().locale, 'en');
+    assert.equal(store.getState().viewMode, 'json');
+    assert.equal(els.nameLabel.textContent, 'English name *');
+    assert.equal(els.inputsSection.open, true);
+    assert.equal(els.editor.value, '{invalid');
+});
+
+test('validation links reveal collapsed configuration fields without changing the draft', withBundleDocument(() => {
+    const {form, els} = formSetup();
+    els.validationSummary = new Element(); els.equipSingle = new Element();
+    els.fRulesExternalWeightEnabled.closest = () => els.inputsSection;
+    els.equipSingle.closest = () => els.equipmentSection;
+    form._showValidation([{field: 'components', message: 'Fix weight inputs'}, {field: 'equipmentRefs', message: 'Replace unknown equipment'}]);
+    const buttons = els.validationSummary.children[1].children.map(item => item.children[0]);
+    buttons[0].dispatch('click');
+    assert.equal(els.inputsSection.open, true);
+    assert.equal(document.activeElement, els.fRulesExternalWeightEnabled);
+    buttons[1].dispatch('click');
+    assert.equal(els.equipmentSection.open, true);
+    assert.equal(document.activeElement, els.equipSingle);
+    assert.equal(form.hasUnsavedChanges(), false);
+}));
 
 function controllerSetup(repo = {}, form = {}) {
     const store = new ExerciseStore();

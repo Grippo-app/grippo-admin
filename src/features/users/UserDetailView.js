@@ -1,4 +1,4 @@
-import {UserEntity, userProfileState} from '../../domain/user/index.js';
+import {userProfileState} from '../../domain/user/index.js';
 import {readUserWorkoutCount} from '../../domain/user/userEvidence.js';
 import {diagnosticPanelHtml} from '../../shared/components/diagnosticPresentation.js';
 import {escapeHtml} from '../../shared/utils/index.js';
@@ -70,9 +70,10 @@ export class UserDetailView {
                 if (this._els.panel) this._els.panel.scrollTop = 0;
                 if (this._els.accountDetails) this._els.accountDetails.open = false;
                 if (this._els.accountActions) this._els.accountActions.open = false;
-                for (const [key, element] of Object.entries(this._els.sectionElements || {})) {
-                    element.open = key === 'recentTrainings' && UserEntity.workoutsCount(active) > 0;
-                }
+                for (const element of Object.values(this._els.sectionElements || {})) element.open = false;
+                const measurements = this._els.weightBody?.querySelector?.('.weight-measurements');
+                if (measurements) measurements.open = false;
+                if (this._els.weightBody) this._els.weightBody.scrollTop = 0;
             }
             this._renderHeader(active);
             this._lastActive = active;
@@ -289,7 +290,7 @@ export class UserDetailView {
         const overview = `<div class="weight-overview"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(note)}</span></div>`;
         const rows = model.rows.slice(0, limit).map(({entry, delta, timestamp}) => this._weightRow(entry, delta, timestamp)).join('');
         const more = entries.length > limit ? `<button type="button" class="btn user-show-more" data-user-action="more-weights">Show ${Math.min(12, entries.length - limit)} more records <span>${Math.min(limit, entries.length)} of ${entries.length}</span></button>` : '';
-        this._setBody(body, `${overview}${this._weightTrend(model)}<div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}`);
+        this._setBody(body, `${overview}${this._weightTrend(model)}<details class="weight-measurements"><summary>Measurements (${entries.length})</summary><div class="weight-measurements-body"><div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}</div></details>`);
         this._setSectionNote(summary, `${entries.length} record${entries.length === 1 ? '' : 's'}`);
     }
 
@@ -367,17 +368,29 @@ export class UserDetailView {
     /** Preserve section scroll and keyboard focus while expanding history rows. */
     _setBody(body, html) {
         const focused = body.contains(document.activeElement) ? document.activeElement : null;
-        const focusKey = focused?.dataset.trainingId !== undefined ? ['trainingId', focused.dataset.trainingId]
-            : focused?.dataset.userAction ? ['userAction', focused.dataset.userAction] : null;
+        const measurements = body === this._els.weightBody ? body.querySelector?.('.weight-measurements') : null;
+        const measurementsState = measurements ? {open: measurements.open, scrollTop: measurements.scrollTop} : null;
+        const focusedSummary = focused && focused === measurements?.querySelector('summary');
+        const focusKey = focused?.dataset?.trainingId !== undefined ? ['trainingId', focused.dataset.trainingId]
+            : focused?.dataset?.userAction ? ['userAction', focused.dataset.userAction] : null;
         const scrollTop = body.scrollTop;
         body.innerHTML = html;
+        const nextMeasurements = measurements ? body.querySelector?.('.weight-measurements') : null;
+        if (nextMeasurements) {
+            nextMeasurements.open = measurementsState.open;
+            nextMeasurements.scrollTop = measurementsState.scrollTop;
+        }
+        const nextSummary = nextMeasurements?.querySelector('summary');
         body.scrollTop = scrollTop;
-        if (focusKey) {
-            const target = Array.from(body.querySelectorAll('button')).find(button => button.dataset[focusKey[0]] === focusKey[1]);
+        if (focusKey || focusedSummary) {
+            const requested = focusedSummary ? nextSummary
+                : Array.from(body.querySelectorAll('button')).find(button => button.dataset[focusKey[0]] === focusKey[1]);
+            const target = body.closest?.('details:not([open])')?.querySelector('summary') || requested;
             if (target) target.focus({preventScroll: true});
             else {
-                body.tabIndex = -1;
-                body.focus({preventScroll: true});
+                const fallback = nextSummary || body;
+                if (fallback === body) body.tabIndex = -1;
+                fallback.focus({preventScroll: true});
             }
         }
     }

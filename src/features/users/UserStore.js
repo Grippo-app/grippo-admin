@@ -123,9 +123,10 @@ export class UserStore {
     }
 
     clearUserFilters() {
-        if (Object.values(this._state.userFilters).every(value => value === 'all')) return;
+        if (this._state.diagnosticFilter === 'all' && Object.values(this._state.userFilters).every(value => value === 'all')) return;
         const userFilters = {...USER_FILTER_DEFAULTS};
-        this._update({userFilters, filtered: this._applyFilter(this._state.users, {userFilters})});
+        const diagnosticFilter = 'all';
+        this._update({userFilters, diagnosticFilter, filtered: this._applyFilter(this._state.users, {userFilters, diagnosticFilter})});
     }
 
     /** The app supplies clock ticks; unchanged reports retain their references and UI state. */

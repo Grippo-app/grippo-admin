@@ -174,6 +174,7 @@ export class ExerciseController {
                 let unchanged = true;
                 try { unchanged = draftSignature(this._form?.readFormToEntity?.() || entity) === submitted; }
                 catch { unchanged = false; }
+                if (isNew) this._form?.acknowledgeCreatedIdentity?.(current.id, finalId);
                 if (unchanged) this._store.setCurrent(refreshed, {translationProvenanceKnown: true, translationSnapshot});
                 else {
                     // A successful create is persisted even if the draft JSON became invalid in-flight.

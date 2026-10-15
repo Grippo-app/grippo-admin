@@ -16,7 +16,7 @@ button:disabled { pointer-events: none; }
 .editor-heading { display: grid; gap: 2px; min-width: 0; }
 .eyebrow { font-size: 10px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
 .editor-status { color: var(--warning); font-size: 12px; }
-.command-bar #currentId { max-width: 32ch; font-family: ui-monospace, monospace; font-size: 11px; }
+.command-bar #currentId { max-width: 32ch; font-size: 13px; color: var(--text); font-weight: 600; }
 .command-bar .cmd-actions { align-items: center; }
 main, .users-layout { position: relative; top: auto; left: auto; right: auto; bottom: auto; flex: 1 1 auto; min-height: 0; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
 .users-layout { grid-template-columns: var(--users-sidebar-w) minmax(0, 1fr); }

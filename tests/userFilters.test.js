@@ -122,10 +122,28 @@ test('Store combines structured filters with search, diagnostic queue and sort w
     assert.deepEqual(store.getState().filtered.map(user => user.id), ['alice']);
     assert.equal(store.getState().active, active); assert.equal(store.getState().details, details);
     assert.equal(store.getState().diagnosticSummary.recordCount, 3);
+    let resetNotifications = 0; store.subscribe(() => resetNotifications++);
     store.clearUserFilters();
     assert.deepEqual(store.getState().userFilters, USER_FILTER_DEFAULTS);
-    assert.equal(store.getState().searchQuery, ' alice '); assert.equal(store.getState().diagnosticFilter, 'attention');
+    assert.equal(store.getState().searchQuery, ' alice '); assert.equal(store.getState().diagnosticFilter, 'all');
+    assert.deepEqual(store.getState().filtered.map(user => user.id), ['alice', 'unknown', 'bob']);
+    assert.equal(resetNotifications, 1, 'all filter categories clear in one notification');
     assert.equal(store.getState().sortKey, 'email'); assert.equal(store.getState().active, active); assert.equal(store.getState().details, details);
+});
+
+test('clearing only a data-quality filter restores the current search without resetting the selected details', () => {
+    const store = new UserStore({now: () => NOW});
+    const a = account({name: 'Alice', email: 'alice@example.test'});
+    store.setUsers([a]); store.setActive(a); const details = {goal: null}; store.setDetails('a', details);
+    store.setSearchQuery('alice'); store.setDiagnosticFilter('attention');
+    assert.equal(store.getState().filtered.length, 0);
+    let notifications = 0; store.subscribe(() => notifications++);
+    store.clearUserFilters();
+    assert.equal(store.getState().diagnosticFilter, 'all');
+    assert.deepEqual(store.getState().filtered, [a]);
+    assert.equal(store.getState().active, a); assert.equal(store.getState().details, details);
+    assert.equal(store.getState().searchQuery, 'alice'); assert.equal(notifications, 1);
+    store.clearUserFilters(); assert.equal(notifications, 1, 'an already clear view stays quiet');
 });
 
 test('Store filters update from new raw evidence instead of stale normalized zeros, and reset clears filter state', () => {

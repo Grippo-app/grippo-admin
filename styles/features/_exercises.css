@@ -50,7 +50,7 @@
 /* Basics row */
 .basics-row{
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 160px;
   gap: 16px;
   align-items: start;
 }
@@ -122,7 +122,7 @@
 }
 @media (max-width: 900px){
   .basics-row{ grid-template-columns: 1fr; }
-  .preview-card{ max-width: 280px; }
+  .preview-card{ max-width: 160px; }
 }
 
 /* ============================================================
@@ -375,3 +375,17 @@
 #exerciseTranslationNotice{ margin: 8px 20px 0; padding: 9px 12px; border: 1px solid rgba(229,166,62,.3); border-radius: var(--radius-sm); background: rgba(229,166,62,.06); color: var(--muted); font-size: 12px; line-height: 1.5; }
 #exerciseTranslationNotice summary{ color: #edc78b; cursor: pointer; }
 #exerciseTranslationNotice p{ margin: 10px 0 0; }
+
+/* Present required fields before optional, mounted configuration. */
+.content-language { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.intro-main > .section-header { flex-wrap: wrap; }
+.section-help { margin: -4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.details-grid > .section { margin-bottom: 0; }
+.exercise-config { display: block; }
+.exercise-config > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.exercise-config > summary::-webkit-details-marker { display: none; }
+.exercise-config > summary::before { content: '›'; color: var(--muted); font-size: 18px; line-height: 1; }
+.exercise-config[open] > summary::before { transform: rotate(90deg); }
+.exercise-config > summary .section-note { margin-left: auto; text-align: right; text-transform: none; letter-spacing: 0; line-height: 1.5; max-width: 60%; overflow-wrap: anywhere; }
+.exercise-config__body { display: grid; gap: var(--block-gap); margin-top: 16px; }
+.exercise-config:not([open]) > .exercise-config__body { display: none; }

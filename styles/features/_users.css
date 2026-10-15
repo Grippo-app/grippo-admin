@@ -21,7 +21,7 @@
 }
 .users-sidebar { padding: 0; min-width: 0; }
 .users-sidebar .list { background: transparent; border: 0; border-radius: 0; }
-.user-list { overflow-x: hidden; gap: 6px; padding: 10px; }
+.user-list { overflow-x: hidden; grid-auto-rows: max-content; gap: 6px; padding: 10px; }
 .user-count { font-size: 12px; font-weight: 600; color: var(--muted); }
 .user-panel {
     min-width: 0;
@@ -37,20 +37,19 @@
 
 /* ── Search results ────────────────────────────────────── */
 .user-list .user-item {
-    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-columns: 38px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
     padding: 12px 10px;
     min-width: 0;
     min-height: 84px;
 }
+.user-list .user-item--admin { grid-template-columns: 38px minmax(0, 1fr) auto; }
 .user-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .user-copy, .user-name-row { min-width: 0; }
 .user-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 13px; }
 .user-email { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
 .user-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; color: var(--muted); font-size: 11px; }
-.user-meta-sep { opacity: .6; }
-.user-item-date { color: var(--muted); }
 .user-tags { display: grid; justify-items: end; align-content: start; gap: 5px; }
 .user-item .user-role { font-size: 10px; }
 .user-badge {
@@ -74,7 +73,6 @@
 .user-badge--6 { --avatar-color: #e58fa2; }
 .pill-admin { background: rgba(48, 164, 108, .12); border-color: rgba(48, 164, 108, .3); color: #5dcc9b; }
 .pill-subtle { background: var(--field); color: var(--muted); }
-.pill-no-profile { font-size: 9px; padding: 1px 5px; color: var(--muted); background: transparent; white-space: nowrap; }
 .user-list-message { display: grid; gap: 8px; justify-items: center; padding: 42px 18px; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center; }
 .user-list-message-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: var(--field); color: var(--brand); font-size: 28px; }
 .user-list-message-title { color: var(--text); font-size: 14px; font-weight: 650; }
@@ -91,11 +89,9 @@
 .status-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; background: var(--field); border: 1px solid var(--border); border-radius: 7px; }
 .chip-label { color: var(--muted); font-size: 10px; }
 .chip-value { font-size: 12px; font-weight: 650; }
-.user-auth-pill, .user-auth-icons { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.user-auth-pill { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
 .auth-type-icon { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 9px; background: var(--field); color: var(--muted); }
 .auth-type-icon svg { width: 17px; height: 17px; }
-.user-auth-icon { display: grid; place-items: center; width: 16px; height: 16px; color: var(--muted); }
-.user-auth-icon svg { width: 13px; height: 13px; }
 .user-auth-list { color: var(--muted); font-size: 11px; text-align: right; }
 .user-subtitle:empty { display: none; }
 .user-account-details { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel-2); }
@@ -210,6 +206,10 @@
 .weight-trend-labels--single { justify-content: center; }
 .weight-trend-labels--single > span:last-child { text-align: center; }
 .weight-trend-note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.weight-measurements { min-width: 0; border-top: 1px solid var(--border); }
+.weight-measurements > summary { padding: 12px 2px 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.weight-measurements-body { display: grid; gap: 9px; padding-top: 10px; }
+.weight-measurements:not([open]) > .weight-measurements-body { display: none; }
 .weight-table-head, .weight-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 68px; align-items: center; gap: 10px; }
 .weight-table-head { padding: 0 9px; color: var(--muted); font-size: 9px; }
 .weight-table-head span:last-child { text-align: right; }

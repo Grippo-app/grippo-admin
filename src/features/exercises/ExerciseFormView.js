@@ -2,7 +2,7 @@ import {DEFAULT_LANGUAGE, FIELD, SUPPORTED_LANGUAGES} from '../../shared/constan
 import {ExerciseNormalizer, ExerciseTranslations} from '../../domain/exercise/index.js';
 import {Toast} from '../../shared/components/Toast.js';
 import {buildReviewPrompt, buildImagePrompt, buildRulesPrompt} from './exercisePrompts.js';
-import {draftSignature} from './exercisePresentation.js';
+import {draftSignature, exerciseName} from './exercisePresentation.js';
 import {readBundleRows, updateBundleSummary} from './exerciseBundleFields.js';
 import {escapeHtml, sanitizeUrl} from '../../shared/utils/index.js';
 import {ExerciseDiagnosticsView} from './ExerciseDiagnosticsView.js';
@@ -97,6 +97,10 @@ export class ExerciseFormView {
         this._baseline = entity ? this._signature(entity) : '';
         this._showValidation([]);
         this._updateDraftState();
+    }
+
+    acknowledgeCreatedIdentity(fromId, toId) {
+        this._createdIdentity = {fromId, toId};
     }
 
     preserveDraftAfterSave(saved, {translationSnapshot = null} = {}) {
@@ -203,6 +207,7 @@ export class ExerciseFormView {
     refreshOptionLists() {
         this._refreshOptionLists();
         this._refreshDictionaryLabels();
+        this._updateConfigurationSummary();
         this._updateDictionaryStatus();
         this._diagnostics.render();
     }
@@ -251,6 +256,13 @@ export class ExerciseFormView {
 
     _writeLocalizedText(entity, locale) {
         const loc = locale || this._locale;
+        const language = {en: 'English', ua: 'Ukrainian', ru: 'Russian'}[loc] || 'English';
+        const required = loc === DEFAULT_LANGUAGE;
+        for (const [label, input, field] of [[this._els.nameLabel, this._els.fName, 'name'], [this._els.descriptionLabel, this._els.fDescription, 'description']]) {
+            if (label) label.textContent = `${language} ${field}${required ? ' *' : ' (optional)'}`;
+            if (input) { input.required = required; input.setAttribute('aria-required', String(required)); }
+        }
+        if (this._els.localeHint) this._els.localeHint.textContent = 'Only name and description change by language. Save includes all languages.';
         const nameTrans = ExerciseNormalizer.ensureTranslationMap(entity?.nameTranslations);
         const descTrans = ExerciseNormalizer.ensureTranslationMap(entity?.descriptionTranslations);
         const localeName = ExerciseNormalizer.getTranslation(nameTrans, loc);
@@ -394,11 +406,20 @@ export class ExerciseFormView {
             this._els.fRulesAssistanceRequired.disabled = !enabled;
             if (!enabled) this._els.fRulesAssistanceRequired.checked = false;
         }
+        this._updateConfigurationSummary();
     }
 
     // ── Private: state ────────────────────────────────────────────────────────
 
     _onStateChange({current, isNew, locale, viewMode, isSaving, isDetailLoading, detailError}) {
+        const created = this._createdIdentity;
+        this._createdIdentity = null;
+        const sameCreatedDraft = created && created.fromId === this._lastRendered.current?.id && created.toId === current?.id;
+        const selectionChanged = current?.id !== this._lastRendered.current?.id && !sameCreatedDraft;
+        if (selectionChanged) {
+            for (const section of [this._els.inputsSection, this._els.equipmentSection]) if (section) section.open = false;
+            this._els.builder?.querySelectorAll('.exercise-reference-fields').forEach(disclosure => { disclosure.open = false; });
+        }
         // Always apply view mode — must run even if something below throws
         try {
             // Sync this._locale с состоянием стора. Это отдельный шаг, не путать с
@@ -427,7 +448,6 @@ export class ExerciseFormView {
                     this._refreshOptionLists();
                     this.writeEntityToForm(current, this._locale);
                 }
-                if (current.id !== this._lastRendered.current?.id) this._els.builder?.querySelectorAll('.exercise-reference-fields').forEach(disclosure => { disclosure.open = false; });
                 this._updateLocaleUI();
                 this._updateCurrentId(current, isNew);
                 if (this._viewMode === 'json') this._populateJsonEditor(current);
@@ -479,6 +499,7 @@ export class ExerciseFormView {
         this._updateDictionaryStatus();
         this._diagnostics.render();
         this._renderTranslationNotice(current, isNew);
+        this._updateConfigurationSummary();
         this._applyViewMode(viewMode);
     }
 
@@ -577,20 +598,39 @@ export class ExerciseFormView {
 
     _updateCurrentId(entity, isNew) {
         if (!this._els.currentId) return;
-        if (isNew) {
-            this._els.currentId.textContent = 'Creating new (ID on save)';
-        } else {
-            this._els.currentId.textContent = entity?.id ? `ID: ${entity.id}` : 'No item selected';
-        }
+        const name = ExerciseNormalizer.getTranslation(entity?.nameTranslations, this._locale) || exerciseName(entity);
+        const title = entity ? name || (isNew ? 'New exercise' : 'Untitled exercise') : 'No exercise selected';
+        this._els.currentId.textContent = title;
+        this._els.currentId.title = title;
     }
 
     // ── Private: UI helpers ───────────────────────────────────────────────────
 
     _syncBodyWeightMultiplierLabel() {
-        if (!this._els.fRulesBodyWeightMultiplierValue) return;
         const value = this._bodyWeightMultiplier;
-        this._els.fRulesBodyWeightMultiplierValue.textContent =
-            Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
+        if (this._els.fRulesBodyWeightMultiplierValue) this._els.fRulesBodyWeightMultiplierValue.textContent = Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
+        this._updateConfigurationSummary();
+    }
+
+    _updateConfigurationSummary() {
+        const parts = [];
+        const requirement = input => input?.checked ? 'required' : 'optional';
+        if (this._els.fRulesExternalWeightEnabled?.checked) parts.push(`Weight ${requirement(this._els.fRulesExternalWeightRequired)}`);
+        if (this._els.fRulesBodyWeightEnabled?.checked) {
+            parts.push(`Body weight ${Number.isFinite(this._bodyWeightMultiplier) ? this._bodyWeightMultiplier.toFixed(2) : '—'}×`);
+            if (this._els.fRulesExtraWeightEnabled?.checked) parts.push(`Extra ${requirement(this._els.fRulesExtraWeightRequired)}`);
+            if (this._els.fRulesAssistanceEnabled?.checked) parts.push(`Assistance ${requirement(this._els.fRulesAssistanceRequired)}`);
+        }
+        if (this._els.inputsSummary) this._els.inputsSummary.textContent = parts.join(' · ') || 'No weight inputs';
+        const refs = this._store.getState().current?.[FIELD.equipmentRefs];
+        const names = (Array.isArray(refs) ? refs : []).map(ref => {
+            const id = String(ref?.equipmentId || '');
+            return this._dicts.getEquipmentName(id) || 'Unknown equipment';
+        });
+        if (this._els.equipmentSummary) {
+            this._els.equipmentSummary.textContent = names.length ? names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '') : 'None selected';
+            this._els.equipmentSummary.title = names.join(', ');
+        }
     }
 
     _renderImagePreview(url) {
