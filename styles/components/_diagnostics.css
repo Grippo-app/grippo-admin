@@ -1,0 +1,37 @@
+/* Read-only record checks share the same presentation across domains. */
+.quality-controls { flex: 1 0 100%; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 10px; padding-top: 4px; }
+.quality-controls > label { font-size: 11px; font-weight: 650; color: var(--muted); }
+.quality-controls select { min-width: 0; width: 100%; min-height: 34px; font-size: 12px; text-overflow: ellipsis; }
+.quality-summary { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.diagnostic-badge { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border: 1px solid currentColor; border-radius: 6px; padding: 2px 6px; font-size: 10px; line-height: 1.5; font-weight: 650; overflow-wrap: anywhere; }
+.diagnostic-badge--error { color: #ff9da2; background: rgba(229,72,77,.08); border-color: rgba(255,157,162,.3); }
+.diagnostic-badge--warning { color: #edc783; background: rgba(229,166,62,.08); border-color: rgba(237,199,131,.3); }
+.diagnostic-badge--info { color: #9cc7ff; background: rgba(91,156,245,.08); border-color: rgba(156,199,255,.25); }
+.diagnostic-badge--unchecked { color: var(--muted); background: var(--panel-2); border-color: var(--border); }
+.diagnostic-badge--clean { color: var(--muted); background: transparent; border-color: var(--border); font-weight: 500; }
+.record-diagnostics { min-width: 0; flex-shrink: 0; }
+.exercise-panel > .record-diagnostics { margin: 12px 20px; }
+.user-detail > .record-diagnostics { margin: 0; }
+.diagnostic-panel { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
+.diagnostic-panel > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; font-size: 12px; cursor: pointer; list-style: none; }
+.diagnostic-panel > summary::-webkit-details-marker { display: none; }
+.diagnostic-panel > summary::before { content: '›'; font-size: 18px; line-height: 1; color: var(--muted); }
+.diagnostic-panel[open] > summary::before { transform: rotate(90deg); }
+.diagnostic-panel__body { padding: 0 12px 12px; max-height: 300px; overflow: auto; }
+.diagnostic-panel__body > p { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.diagnostic-findings { list-style: none; margin: 0; padding: 0; }
+.diagnostic-panel__item { display: grid; gap: 4px; border-left: 2px solid var(--border); padding: 8px 10px; margin-top: 8px; overflow-wrap: anywhere; }
+.diagnostic-panel__title { color: var(--text); font-size: 12px; font-weight: 650; }
+.diagnostic-panel__message { color: #bfc1cb; font-size: 12px; line-height: 1.6; margin: 0; }
+.diagnostic-field { color: var(--muted); font-size: 10px; font-family: ui-monospace, monospace; }
+.diagnostic-item--error { border-left-color: #ff9da2; }
+.diagnostic-item--warning { border-left-color: #edc783; }
+.diagnostic-item--info { border-left-color: #9cc7ff; }
+.exercise-main .diagnostic-badge { margin-top: 7px; }
+.user-copy .diagnostic-badge { margin-top: 5px; }
+@media (max-width: 760px) {
+    .sidebar { max-height: none; }
+    .sidebar .list { flex: 0 1 auto; min-height: 130px; max-height: 200px; }
+    .exercise-panel > .record-diagnostics { margin: 10px 12px; }
+    .diagnostic-panel__body { max-height: 360px; }
+}

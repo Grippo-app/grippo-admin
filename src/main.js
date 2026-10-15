@@ -2,7 +2,7 @@ import {StorageManager} from './infrastructure/storage/index.js';
 import {ApiClient} from './infrastructure/http/index.js';
 import {EventBus} from './infrastructure/events/EventBus.js';
 
-import {DictionaryStore, ExerciseNormalizer, ExerciseRepository, ExerciseValidator} from './domain/exercise/index.js';
+import {DictionaryStore, ExerciseRepository, ExerciseValidator} from './domain/exercise/index.js';
 import {UserRepository} from './domain/user/index.js';
 
 import {AuthService, LoginView} from './features/auth/index.js';
@@ -67,15 +67,14 @@ const exerciseStore = new ExerciseStore();
 exerciseStore.setLocale(storage.getLocale());
 exerciseStore.setViewMode(storage.getViewMode());
 
-// Persist locale/viewMode → storage at every store update; обновляем <html lang>
+// Persist content locale and editor mode; the interface language remains English.
 let _lastPersistedLocale = exerciseStore.getState().locale;
 let _lastPersistedViewMode = exerciseStore.getState().viewMode;
-document.documentElement.setAttribute('lang', _lastPersistedLocale || DEFAULT_LANGUAGE);
+document.documentElement.setAttribute('lang', 'en');
 exerciseStore.subscribe((state) => {
     if (state.locale && state.locale !== _lastPersistedLocale) {
         _lastPersistedLocale = state.locale;
         storage.setLocale(state.locale);
-        document.documentElement.setAttribute('lang', state.locale);
     }
     if (state.viewMode && state.viewMode !== _lastPersistedViewMode) {
         _lastPersistedViewMode = state.viewMode;
@@ -98,6 +97,9 @@ const exerciseListView = new ExerciseListView({
     store: exerciseStore,
     els: {
         list: document.getElementById('list'),
+        count: document.getElementById('exerciseListCount'),
+        qualityFilter: document.getElementById('exerciseQualityFilter'),
+        qualitySummary: document.getElementById('exerciseQualitySummary'),
         search: document.getElementById('search'),
         sortToggle: document.getElementById('sortToggle'),
         sortMenu: document.getElementById('sortMenu'),
@@ -108,24 +110,6 @@ const exerciseListView = new ExerciseListView({
     onSelect: (item) => exerciseController.selectItem(item),
     onNew: () => exerciseController.newItem(),
     onLoad: () => exerciseController.loadList(),
-    getItemName: (item) => {
-        const entity = item?.entity || item;
-        // Try nameTranslations map (en first)
-        const nameTranslations = entity?.nameTranslations ?? item?.nameTranslations;
-        const fromMap = ExerciseNormalizer.getTranslation(
-            ExerciseNormalizer.ensureTranslationMap(nameTranslations),
-            DEFAULT_LANGUAGE
-        );
-        if (fromMap) return fromMap;
-        // Fallback to plain name string on entity
-        if (typeof entity?.name === 'string' && entity.name) return entity.name;
-        // Handle localized array format
-        if (Array.isArray(entity?.name)) {
-            const en = entity.name.find(e => e.language === 'en');
-            return en?.value || en?.name || entity.name[0]?.value || '';
-        }
-        return '';
-    },
     sortOptions: exerciseSortOptions,
 });
 
@@ -136,6 +120,13 @@ const exerciseFormView = new ExerciseFormView({
     els: {
         // Toolbar
         saveBtn: document.getElementById('saveBtn'),
+        emptyState: document.getElementById('exerciseEmpty'),
+        validationSummary: document.getElementById('exerciseValidation'),
+        editorStatus: document.getElementById('exerciseEditorStatus'),
+        detailLoading: document.getElementById('exerciseDetailLoading'),
+        dictionaryStatus: document.getElementById('dictionaryStatus'),
+        translationNotice: document.getElementById('exerciseTranslationNotice'),
+        diagnosticPanel: document.getElementById('exerciseDiagnostics'),
         deleteBtn: document.getElementById('deleteExerciseBtn'),
         viewForm: document.getElementById('viewForm'),
         viewJson: document.getElementById('viewJson'),
@@ -222,7 +213,10 @@ const userListView = new UserListView({
     store: userStore,
     els: {
         userList: document.getElementById('userList'),
+        reloadUsersBtn: document.getElementById('reloadUsersBtn'),
         userCount: document.getElementById('userListCount'),
+        qualityFilter: document.getElementById('userQualityFilter'),
+        qualitySummary: document.getElementById('userQualitySummary'),
         userSearch: document.getElementById('userSearch'),
         userSortToggle: document.getElementById('userSortToggle'),
         userSortMenu: document.getElementById('userSortMenu'),
@@ -236,6 +230,8 @@ const userDetailView = new UserDetailView({
     store: userStore,
     els: {
         userDetail: document.getElementById('userDetail'),
+        userDiagnostics: document.getElementById('userDiagnostics'),
+        userEmptyState: document.getElementById('userEmptyState'),
         userNameEl: document.getElementById('userName'),
         userIdEl: document.getElementById('userIdField'),
         profileIdEl: document.getElementById('profileIdField'),
@@ -261,13 +257,12 @@ const userDetailView = new UserDetailView({
         deviceTokensBody: document.getElementById('userDeviceTokensBody'),
     },
     onRoleChange: (role) => userController.changeRole(role),
+    onRetryDetails: () => userController.reloadDetails(),
     onDelete: () => userController.deleteActiveUser(),
 });
 
 userController = new UserController({
     store: userStore,
-    listView: userListView,
-    detailView: userDetailView,
     repository: userRepo,
     bus,
     confirmDialog: ConfirmDialog,
@@ -275,50 +270,124 @@ userController = new UserController({
 
 /* ── 7. Navigation ──────────────────────────────────────────── */
 
-document.getElementById('tabExercise')?.addEventListener('click', () => {
-    bus.emit(Events.NAV_SECTION_CHANGED, {section: 'exercise'});
-});
-document.getElementById('tabUsers')?.addEventListener('click', () => {
-    bus.emit(Events.NAV_SECTION_CHANGED, {section: 'users'});
-});
-document.getElementById('reloadUsersBtn')?.addEventListener('click', () => {
-    userController.loadUsers();
-});
-bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
-    document.getElementById('exerciseView')?.toggleAttribute('hidden', section !== 'exercise');
-    document.getElementById('usersView')?.toggleAttribute('hidden', section !== 'users');
+let activeSection = 'exercise';
+const primaryTabs = [...document.querySelectorAll('.primary-tabs [role="tab"]')];
 
-    const tabExercise = document.getElementById('tabExercise');
-    const tabUsers = document.getElementById('tabUsers');
-    if (tabExercise) {
-        tabExercise.classList.toggle('active', section === 'exercise');
-        tabExercise.setAttribute('aria-selected', String(section === 'exercise'));
+async function confirmDiscard() {
+    if (!exerciseFormView.hasUnsavedChanges()) return true;
+    return ConfirmDialog.ask({
+        title: 'Unsaved exercise changes',
+        message: 'Discard your changes to this exercise?',
+        detail: 'Save the exercise first if you want to keep your edits.',
+        actionLabel: 'Discard changes',
+        actionType: 'warn',
+    });
+}
+
+function navigate(section) {
+    if (section === activeSection) return;
+    bus.emit(Events.NAV_SECTION_CHANGED, {section});
+}
+
+primaryTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => navigate(tab.dataset.section));
+    tab.addEventListener('keydown', (event) => {
+        const offsets = {ArrowRight: 1, ArrowLeft: -1};
+        let next;
+        if (event.key in offsets) next = (index + offsets[event.key] + primaryTabs.length) % primaryTabs.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = primaryTabs.length - 1;
+        else return;
+        event.preventDefault();
+        primaryTabs[next].focus();
+        navigate(primaryTabs[next].dataset.section);
+    });
+});
+document.querySelector('.app-brand')?.addEventListener('click', event => {
+    event.preventDefault();
+    navigate('exercise');
+});
+document.getElementById('reloadUsersBtn')?.addEventListener('click', () => userController.loadUsers());
+bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
+    if (!['exercise', 'users'].includes(section)) return;
+    if (section === 'users') refreshUserDiagnostics();
+    activeSection = section;
+    document.getElementById('exerciseView').hidden = section !== 'exercise';
+    document.getElementById('usersView').hidden = section !== 'users';
+    primaryTabs.forEach(tab => {
+        const selected = tab.dataset.section === section;
+        tab.classList.toggle('active', selected);
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+    });
+    document.title = `${section === 'exercise' ? 'Exercises' : 'Users'} · Grippo Admin`;
+});
+
+// Prompt tools are secondary actions; close their popover after choosing a tool.
+const promptMenu = document.querySelector('.prompt-menu');
+promptMenu?.addEventListener('click', event => {
+    if (event.target.closest('button')) {
+        promptMenu.open = false;
+        promptMenu.querySelector('summary')?.focus();
     }
-    if (tabUsers) {
-        tabUsers.classList.toggle('active', section === 'users');
-        tabUsers.setAttribute('aria-selected', String(section === 'users'));
+});
+document.addEventListener('click', event => {
+    if (!promptMenu?.contains(event.target)) promptMenu?.removeAttribute('open');
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && promptMenu?.open) {
+        promptMenu.open = false;
+        promptMenu.querySelector('summary')?.focus();
     }
+});
+promptMenu?.addEventListener('focusout', event => {
+    if (!promptMenu.contains(event.relatedTarget)) promptMenu.open = false;
+});
+bus.on(Events.NAV_SECTION_CHANGED, () => { if (promptMenu) promptMenu.open = false; });
+window.addEventListener('beforeunload', event => {
+    if (!exerciseFormView.hasUnsavedChanges()) return;
+    event.preventDefault();
+    event.returnValue = '';
 });
 
 /* ── 8. Logout ──────────────────────────────────────────────── */
 
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    if (!await confirmDiscard()) return;
     await authService.logout();
     Toast.show({title: 'Logged out'});
 });
 
 /* ── 9. Dictionaries ────────────────────────────────────────── */
 
-bus.on(Events.AUTH_LOGIN_SUCCESS, async () => {
+let dictionaryLoadSeq = 0;
+function updateDiagnosticDictionaries(ready) {
+    exerciseStore.setDiagnosticContext({equipment: dictionaries.equipment, muscles: dictionaries.muscles,
+        equipmentReady: ready, musclesReady: ready});
+}
+async function loadDictionaries() {
+    const seq = ++dictionaryLoadSeq;
+    const retry = document.getElementById('dictionaryRetry');
+    retry.disabled = true;
+    retry.textContent = 'Loading dictionaries…';
+    updateDiagnosticDictionaries(false);
     await dictionaries.loadAll();
-    // Populate equipment/muscle dropdowns now that dictionary data is ready,
-    // so the selects are filled even before the user opens any specific exercise
+    if (seq !== dictionaryLoadSeq) return;
+    updateDiagnosticDictionaries(dictionaries.isReady && !dictionaries.loading && !dictionaries.errors.length);
     exerciseFormView.refreshOptionLists();
-    bus.emit(Events.DICTS_LOADED, {
-        equipments: dictionaries.equipment,
-        muscles: dictionaries.muscles,
-    });
-});
+    retry.disabled = false;
+    retry.textContent = 'Reload dictionaries';
+    bus.emit(Events.DICTS_LOADED, {equipments: dictionaries.equipment, muscles: dictionaries.muscles});
+}
+document.getElementById('dictionaryRetry')?.addEventListener('click', loadDictionaries);
+bus.on(Events.AUTH_LOGIN_SUCCESS, loadDictionaries);
+
+/* Recheck age thresholds without fetching additional records. Browser timers pause with the document. */
+function refreshUserDiagnostics() {
+    if (!document.hidden && userStore.getState().users.length) userStore.refreshDiagnostics();
+}
+window.setInterval(refreshUserDiagnostics, 60_000);
+document.addEventListener('visibilitychange', refreshUserDiagnostics);
 
 /* ── 10. Start ──────────────────────────────────────────────── */
 

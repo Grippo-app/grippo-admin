@@ -1,7 +1,11 @@
-import {DEFAULT_LANGUAGE, FIELD} from '../../shared/constants/index.js';
-import {ExerciseNormalizer} from '../../domain/exercise/index.js';
+import {DEFAULT_LANGUAGE, FIELD, SUPPORTED_LANGUAGES} from '../../shared/constants/index.js';
+import {ExerciseNormalizer, ExerciseTranslations} from '../../domain/exercise/index.js';
 import {Toast} from '../../shared/components/Toast.js';
+import {buildReviewPrompt, buildImagePrompt, buildRulesPrompt} from './exercisePrompts.js';
+import {draftSignature} from './exercisePresentation.js';
+import {readBundleRows, updateBundleSummary} from './exerciseBundleFields.js';
 import {sanitizeUrl} from '../../shared/utils/index.js';
+import {ExerciseDiagnosticsView} from './ExerciseDiagnosticsView.js';
 
 export class ExerciseFormView {
     /**
@@ -32,6 +36,7 @@ export class ExerciseFormView {
         this._validator = validator;
         this._dicts = dictionaries;
         this._els = els;
+        this._diagnostics = new ExerciseDiagnosticsView({store, panel: els.diagnosticPanel});
         this._onSave = onSave;
         this._onDelete = onDelete;
         this._onLocaleChange = onLocaleChange;
@@ -39,6 +44,9 @@ export class ExerciseFormView {
         this._locale = store.getState().locale || DEFAULT_LANGUAGE;
         this._viewMode = store.getState().viewMode || 'form';
         this._bodyWeightMultiplier = 1;
+        this._baselineId = null;
+        this._baseline = '';
+        this._issues = [];
 
         // Кеш для дедупликации перерисовок формы. _onStateChange срабатывает
         // на ЛЮБОЕ изменение стора (search, sort, loading, saving) — нельзя
@@ -49,13 +57,129 @@ export class ExerciseFormView {
         this._unsubscribe = store.subscribe((state) => this._onStateChange(state));
 
         // Apply initial view mode so UI matches store state from the start
-        this._applyViewMode(this._viewMode);
+        this._onStateChange(store.getState());
     }
 
     /** Снять подписки на стор. Для тестов / HMR. */
     destroy() {
         this._unsubscribe?.();
         this._unsubscribe = null;
+    }
+
+    hasUnsavedChanges() {
+        if (!this._store.getState().current) return false;
+        try { return this._signature(this.readFormToEntity()) !== this._baseline; }
+        catch { return true; }
+    }
+
+    flush() {
+        if (!this._store.getState().current) return true;
+        try {
+            const entity = this.readFormToEntity();
+            this._store.patchCurrent(entity);
+            return true;
+        } catch (error) {
+            this._showEditorError(error);
+            return false;
+        }
+    }
+
+    markSaved(entity) {
+        this._baselineId = entity?.id || null;
+        this._baseline = entity ? this._signature(entity) : '';
+        this._showValidation([]);
+        this._updateDraftState();
+    }
+
+    preserveDraftAfterSave(saved, {translationSnapshot = null} = {}) {
+        let draft = this._store.getState().current;
+        let invalidJson = null;
+        try { draft = this.readFormToEntity(); }
+        catch { invalidJson = this._els.editor?.value ?? ''; }
+        this._store.setCurrent({...draft, id: saved.id}, {translationProvenanceKnown: true, translationSnapshot});
+        if (invalidJson !== null && this._els.editor) {
+            this._els.editor.value = invalidJson;
+            this._validateJsonEditor();
+        }
+    }
+
+    _signature(entity) {
+        const nameTranslations = ExerciseNormalizer.ensureTranslationMap(entity.nameTranslations);
+        const descriptionTranslations = ExerciseNormalizer.ensureTranslationMap(entity.descriptionTranslations);
+        const normalizeText = value => value.replace(/\r\n?/g, '\n').trim();
+        for (const lang of Object.keys(nameTranslations)) nameTranslations[lang] = normalizeText(nameTranslations[lang]);
+        for (const lang of Object.keys(descriptionTranslations)) descriptionTranslations[lang] = normalizeText(descriptionTranslations[lang]);
+        return draftSignature(ExerciseNormalizer.buildPersistencePayload({...entity, nameTranslations, descriptionTranslations,
+            weightType: entity.weightType ?? '', category: entity.category ?? '', experience: entity.experience ?? '', forceType: entity.forceType ?? '',
+            imageUrl: typeof entity.imageUrl === 'string' ? entity.imageUrl.trim() : ''}));
+    }
+
+    _updateDraftState() {
+        const {current, isNew, isSaving, createIdentityMissing} = this._store.getState();
+        if (this._els.editorStatus) {
+            const dirty = this.hasUnsavedChanges();
+            this._els.editorStatus.textContent = !current ? '' : createIdentityMissing ? 'Created · refresh the library to locate it' : isSaving ? 'Saving…' : dirty ? 'Unsaved changes' : isNew ? 'New exercise' : 'All changes saved';
+            this._els.editorStatus.classList.toggle('is-dirty', dirty);
+        }
+    }
+
+    _updateDictionaryStatus() {
+        const {current, isSaving, isDetailLoading, createIdentityMissing} = this._store.getState();
+        const notReady = this._dicts.isReady === false;
+        const errors = this._dicts.errors || [];
+        if (this._els.dictionaryStatus) {
+            this._els.dictionaryStatus.hidden = !this._dicts.loading && !errors.length && (!notReady || !current);
+            const message = this._els.dictionaryStatus.querySelector('span');
+            if (message) message.textContent = this._dicts.loading ? 'Loading muscle and equipment dictionaries…'
+                : errors.length ? `Dictionaries could not load. ${errors.join(' ')}${this._dicts.isReady ? ' Last loaded options are still available.' : ' Retry before saving.'}`
+                    : 'Muscle and equipment dictionaries are not ready. Retry loading them before saving.';
+        }
+        if (this._els.saveBtn) this._els.saveBtn.disabled = !current || !!isSaving || !!isDetailLoading || notReady || !!createIdentityMissing;
+    }
+
+    _showEditorError(error) {
+        this._showValidation([{field: 'editor', message: error.message}]);
+        this._els.editor?.focus();
+        Toast.show({title: 'Check the JSON editor', message: error.message, type: 'error'});
+    }
+
+    _showValidation(issues) {
+        this._issues = issues;
+        const fields = {nameTranslations: this._els.fName, descriptionTranslations: this._els.fDescription,
+            imageUrl: this._els.fImage, weightType: this._els.fWeightType, category: this._els.fCategory,
+            experience: this._els.fExperience, forceType: this._els.fForceType,
+            equipmentRefs: this._els.equipSingle, bundles: this._els.muscleSelect,
+            components: this._els.fRulesExternalWeightEnabled, editor: this._els.editor};
+        for (const [field, element] of Object.entries(fields)) {
+            element?.setAttribute('aria-invalid', String(issues.some(issue => issue.field === field)));
+        }
+        const summary = this._els.validationSummary;
+        if (!summary) return;
+        summary.replaceChildren();
+        summary.hidden = !issues.length;
+        if (!issues.length) return;
+        const title = document.createElement('strong');
+        title.textContent = `Before saving, fix ${issues.length} ${issues.length === 1 ? 'issue' : 'issues'}:`;
+        summary.appendChild(title);
+        const list = document.createElement('ul');
+        for (const issue of issues) {
+            const item = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = issue.message;
+            button.addEventListener('click', () => {
+                if (this._viewMode === 'json') { this._els.editor?.focus(); return; }
+                if (issue.field === 'nameTranslations' || issue.field === 'descriptionTranslations') {
+                    if (!this.flush()) return;
+                    this._store.setLocale(DEFAULT_LANGUAGE);
+                }
+                fields[issue.field]?.focus();
+                fields[issue.field]?.scrollIntoView?.({block: 'center', behavior: 'smooth'});
+            });
+            item.appendChild(button);
+            list.appendChild(item);
+        }
+        summary.appendChild(list);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -75,6 +199,8 @@ export class ExerciseFormView {
             this._renderEquipmentTokens(current);
             this._renderBundles(current);
         }
+        this._updateDictionaryStatus();
+        this._diagnostics.render();
     }
 
     /**
@@ -147,15 +273,23 @@ export class ExerciseFormView {
     readFormToEntity() {
         // In JSON view mode, parse from the raw editor
         if (this._viewMode === 'json' && this._els.editor) {
-            try {
-                const parsed = JSON.parse(this._els.editor.value);
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    return parsed;
+            let parsed;
+            try { parsed = JSON.parse(this._els.editor.value); }
+            catch { throw new Error('Fix invalid JSON before saving or switching to Form.'); }
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('JSON must contain one exercise object.');
+            for (const field of ['nameTranslations', 'descriptionTranslations']) {
+                if (!(field in parsed)) continue;
+                const map = parsed[field];
+                if (!map || typeof map !== 'object' || Array.isArray(map)) throw new Error(`${field} must be an object with language keys and text values.`);
+                for (const language of SUPPORTED_LANGUAGES) {
+                    if (Object.hasOwn(map, language) && typeof map[language] !== 'string') throw new Error(`${field}.${language} must be text. Replace its value with a quoted string.`);
                 }
-                // null / array / primitive → fall through to form reading
-            } catch {
-                // Fall through to form reading
             }
+            const current = this._store.getState().current;
+            if (current && parsed.id !== current.id) throw new Error('The exercise ID cannot be changed. Restore the original ID.');
+            const normalized = ExerciseNormalizer.normalizeEntityShape(parsed);
+            return {...parsed, name: normalized.name, description: normalized.description,
+                nameTranslations: normalized.nameTranslations, descriptionTranslations: normalized.descriptionTranslations};
         }
         const {current} = this._store.getState();
         const e = {...(current || ExerciseNormalizer.emptyTemplate())};
@@ -187,7 +321,7 @@ export class ExerciseFormView {
                 ? {required: !!this._els.fRulesExternalWeightRequired?.checked}
                 : null,
             bodyWeight: bodyEnabled
-                ? {required: true, multiplier: Number(this._els.fRulesBodyWeightMultiplier?.value) || this._bodyWeightMultiplier || 1}
+                ? {required: true, multiplier: this._bodyWeightMultiplier}
                 : null,
             extraWeight: bodyEnabled && extraEnabled
                 ? {required: !!this._els.fRulesExtraWeightRequired?.checked}
@@ -196,6 +330,7 @@ export class ExerciseFormView {
                 ? {required: !!this._els.fRulesAssistanceRequired?.checked}
                 : null,
         };
+        e[FIELD.bundles] = readBundleRows(this._els.bundles, e[FIELD.bundles]);
 
         return e;
     }
@@ -257,7 +392,7 @@ export class ExerciseFormView {
 
     // ── Private: state ────────────────────────────────────────────────────────
 
-    _onStateChange({current, isNew, locale, viewMode, isSaving}) {
+    _onStateChange({current, isNew, locale, viewMode, isSaving, isDetailLoading, detailError}) {
         // Always apply view mode — must run even if something below throws
         try {
             // Sync this._locale с состоянием стора. Это отдельный шаг, не путать с
@@ -277,17 +412,28 @@ export class ExerciseFormView {
             const isNewChanged = isNew !== this._lastRendered.isNew;
             const shouldRerender = current && (currentChanged || localeChanged || isNewChanged);
 
-            if (shouldRerender) {
+            if (shouldRerender && this._preserveFormInputs) {
+                this._lastRendered = {current, locale: this._locale, isNew};
+                this._updateLocaleUI();
+            } else if (shouldRerender) {
                 this._refreshOptionLists();
                 this.writeEntityToForm(current, this._locale);
                 this._updateLocaleUI();
                 this._updateCurrentId(current, isNew);
                 if (this._viewMode === 'json') this._populateJsonEditor(current);
                 this._lastRendered = {current, locale: this._locale, isNew};
+                if (current.id !== this._baselineId) {
+                    this.markSaved(current);
+                    this._showValidation([]);
+                }
             } else if (!current && this._lastRendered.current) {
-                // current был, стал null — обновим placeholder ID
+                this.writeEntityToForm({id: '', components: {}, [FIELD.bundles]: [], [FIELD.equipmentRefs]: []}, this._locale);
+                if (this._els.editor) this._els.editor.value = '';
+                if (this._els.jsonStatus) this._els.jsonStatus.textContent = 'No exercise selected';
                 this._updateCurrentId(null, isNew);
                 this._lastRendered = {current: null, locale: this._locale, isNew};
+                this.markSaved(null);
+                this._showValidation([]);
             }
         } catch (e) {
             console.error('[ExerciseFormView] _onStateChange error:', e);
@@ -295,7 +441,7 @@ export class ExerciseFormView {
         // Save доступен всегда (кроме момента активного сохранения), а отсутствие
         // выбранного упражнения отлавливаем тостом в click-handler.
         if (this._els.saveBtn) {
-            this._els.saveBtn.disabled = !!isSaving;
+            this._els.saveBtn.disabled = !current || !!isSaving || !!isDetailLoading;
             this._els.saveBtn.textContent = isSaving ? 'Saving…' : 'Save';
         }
         // Delete доступен только для уже сохранённого упражнения с реальным ID.
@@ -304,7 +450,32 @@ export class ExerciseFormView {
         if (this._els.deleteBtn) {
             const canDelete = !!current && !isNew && !!current.id;
             this._els.deleteBtn.hidden = !canDelete;
-            this._els.deleteBtn.disabled = !canDelete || !!isSaving;
+            this._els.deleteBtn.disabled = !canDelete || !!isSaving || !!isDetailLoading;
+        }
+        if (this._els.emptyState) this._els.emptyState.hidden = !!current || !!isDetailLoading;
+        if (this._els.detailLoading) {
+            this._els.detailLoading.hidden = !isDetailLoading && !detailError;
+            this._els.detailLoading.textContent = isDetailLoading ? 'Loading exercise and translations…' : `Could not open exercise: ${detailError}. Select it again to retry.`;
+            this._els.detailLoading.classList.toggle('error', !!detailError);
+        }
+        for (const button of [this._els.promptBtn, this._els.promptImgBtn, this._els.promptRulesBtn, ...Array.from(this._els.localeButtons || [])]) {
+            if (button) button.disabled = !current || !!isDetailLoading;
+        }
+        this._els.builder?.querySelectorAll('input, select, textarea, button').forEach(input => {
+            if (input !== this._els.fId) input.disabled = !current || !!isDetailLoading;
+        });
+        if (current && !isDetailLoading) this.updateRulesInputsVisibility();
+        if (this._els.previewFrame) this._els.previewFrame.disabled = !current || !!isDetailLoading || !this._els.previewCard?.classList.contains('has-image');
+        if (this._els.editor) this._els.editor.disabled = !current || !!isDetailLoading;
+        this._updateDraftState();
+        this._updateDictionaryStatus();
+        this._diagnostics.render();
+        if (this._els.translationNotice) {
+            const {translationProvenanceKnown, translationSnapshot} = this._store.getState();
+            const notice = translationProvenanceKnown ? ExerciseTranslations.legacyNotice(translationSnapshot)
+                : 'Translation coverage is unknown: the API may return English fallback for UA/RU. Saving replaces text in all three languages; review each language before saving.';
+            this._els.translationNotice.hidden = !current || isNew || !notice;
+            this._els.translationNotice.textContent = notice;
         }
         this._applyViewMode(viewMode);
     }
@@ -313,16 +484,17 @@ export class ExerciseFormView {
         const safeMode = mode || 'form';
         const wasJson = this._viewMode === 'json';
         const isJson = safeMode === 'json';
+        const hasCurrent = !!this._store.getState().current;
         this._viewMode = safeMode;
 
         // Use CSS class toggling — avoids conflict between hidden attribute and .show class
         if (this._els.builder) {
-            this._els.builder.classList.toggle('show', !isJson);
-            this._els.builder.hidden = isJson;
+            this._els.builder.classList.toggle('show', !isJson && hasCurrent);
+            this._els.builder.hidden = isJson || !hasCurrent;
         }
         if (this._els.editorWrap) {
-            this._els.editorWrap.classList.toggle('show', isJson);
-            this._els.editorWrap.hidden = !isJson;
+            this._els.editorWrap.classList.toggle('show', isJson && hasCurrent);
+            this._els.editorWrap.hidden = !isJson || !hasCurrent;
         }
 
         // Update segment button active states
@@ -330,9 +502,11 @@ export class ExerciseFormView {
         if (this._els.viewJson) this._els.viewJson.classList.toggle('active', isJson);
         if (this._els.viewForm) this._els.viewForm.setAttribute('aria-selected', String(!isJson));
         if (this._els.viewJson) this._els.viewJson.setAttribute('aria-selected', String(isJson));
+        if (this._els.viewForm) this._els.viewForm.tabIndex = isJson ? -1 : 0;
+        if (this._els.viewJson) this._els.viewJson.tabIndex = isJson ? 0 : -1;
 
         // jsonStatus is only meaningful in JSON mode
-        if (this._els.jsonStatus) this._els.jsonStatus.hidden = !isJson;
+        if (this._els.jsonStatus) this._els.jsonStatus.hidden = !isJson || !hasCurrent;
 
         // Populate editor when switching TO json
         if (isJson && !wasJson) {
@@ -351,11 +525,12 @@ export class ExerciseFormView {
         if (!this._els.jsonStatus) return;
         const text = this._els.editor?.value || '';
         try {
-            JSON.parse(text);
+            const parsed = JSON.parse(text);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Expected object');
             this._els.jsonStatus.textContent = 'Valid JSON';
             this._els.jsonStatus.className = 'status ok';
         } catch {
-            this._els.jsonStatus.textContent = 'Invalid JSON';
+            this._els.jsonStatus.textContent = 'Enter a valid JSON object';
             this._els.jsonStatus.className = 'status warn';
         }
     }
@@ -373,7 +548,7 @@ export class ExerciseFormView {
 
     _syncBodyWeightMultiplierLabel() {
         if (!this._els.fRulesBodyWeightMultiplierValue) return;
-        const value = Number(this._els.fRulesBodyWeightMultiplier?.value);
+        const value = this._bodyWeightMultiplier;
         this._els.fRulesBodyWeightMultiplierValue.textContent =
             Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
     }
@@ -399,6 +574,7 @@ export class ExerciseFormView {
         this._els.previewCard.classList.toggle('has-image', hasImage);
         if (this._els.previewFrame) {
             this._els.previewFrame.setAttribute('aria-disabled', hasImage ? 'false' : 'true');
+            this._els.previewFrame.disabled = !hasImage;
         }
     }
 
@@ -406,6 +582,18 @@ export class ExerciseFormView {
         if (!this._els.localeButtons) return;
         Array.from(this._els.localeButtons).forEach(btn => {
             btn.classList.toggle('active', btn.dataset.locale === this._locale);
+            btn.setAttribute('aria-pressed', String(btn.dataset.locale === this._locale));
+            const current = this._store.getState().current;
+            const name = ExerciseNormalizer.getTranslation(current?.nameTranslations, btn.dataset.locale);
+            const description = ExerciseNormalizer.getTranslation(current?.descriptionTranslations, btn.dataset.locale);
+            const {translationProvenanceKnown: known, translationSnapshot} = this._store.getState();
+            const stored = translationSnapshot?.translations.find(row => row.language === btn.dataset.locale);
+            const complete = translationSnapshot ? !!stored?.name && !!stored?.description : !!name && !!description;
+            btn.classList.toggle('has-translation', !!known && complete);
+            btn.classList.toggle('translation-unverified', !known && !!name && !!description);
+            const coverage = translationSnapshot ? complete ? 'stored name and description' : stored ? 'partially stored translation; empty fields are missing' : 'no stored translation row'
+                : name && description ? 'name and description entered' : 'translation incomplete';
+            btn.title = `${btn.dataset.locale.toUpperCase()}: ${!known ? 'localized text loaded; English fallback may be in use. Translation coverage is unknown.' : coverage}`;
         });
         if (this._els.localeSwitcher) this._els.localeSwitcher.hidden = false;
     }
@@ -433,6 +621,7 @@ export class ExerciseFormView {
             removeBtn.type = 'button';
             removeBtn.textContent = '×';
             removeBtn.title = 'Remove';
+            removeBtn.setAttribute('aria-label', `Remove ${name || 'equipment'}`);
             removeBtn.addEventListener('click', () => {
                 const formEntity = this.readFormToEntity();
                 const arr = [...(formEntity?.[FIELD.equipmentRefs] || [])];
@@ -448,23 +637,22 @@ export class ExerciseFormView {
     }
 
     _refreshOptionLists() {
-        if (this._els.equipSingle) {
-            this._els.equipSingle.innerHTML = '';
-            for (const [id, name] of this._dicts.equipment.entries()) {
+        for (const [select, entries, label] of [[this._els.equipSingle, this._dicts.equipment, 'equipment'], [this._els.muscleSelect, this._dicts.muscles, 'muscle']]) {
+            if (!select) continue;
+            const selected = select.value;
+            select.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = entries.size ? `Choose ${label}…` : `${label === 'muscle' ? 'Muscle' : 'Equipment'} dictionary unavailable`;
+            select.appendChild(placeholder);
+            for (const [id, name] of [...entries].sort((a, b) => a[1].localeCompare(b[1]))) {
                 const opt = document.createElement('option');
                 opt.value = id;
-                opt.textContent = `${name} — ${id}`;
-                this._els.equipSingle.appendChild(opt);
+                opt.textContent = name;
+                opt.title = id;
+                select.appendChild(opt);
             }
-        }
-        if (this._els.muscleSelect) {
-            this._els.muscleSelect.innerHTML = '';
-            for (const [id, name] of this._dicts.muscles.entries()) {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = `${name} — ${id}`;
-                this._els.muscleSelect.appendChild(opt);
-            }
+            if (entries.has(selected)) select.value = selected;
         }
     }
 
@@ -480,13 +668,25 @@ export class ExerciseFormView {
         arr.forEach((bundle, index) => {
             const row = document.createElement('div');
             row.className = 'bundle-row';
+            row.dataset.bundleIndex = String(index);
 
             // Muscle select
             const muscleEl = document.createElement('select');
+            muscleEl.dataset.bundleMuscle = '';
+            muscleEl.setAttribute('aria-label', `Muscle ${index + 1}`);
+            const currentMuscleId = String(bundle?.muscleId || '');
+            if (!this._dicts.muscles.has(currentMuscleId)) {
+                const unknown = document.createElement('option');
+                unknown.value = currentMuscleId;
+                unknown.textContent = `Unknown muscle: ${currentMuscleId || '(missing ID)'}`;
+                unknown.selected = true;
+                muscleEl.appendChild(unknown);
+            }
             for (const [id, name] of this._dicts.muscles.entries()) {
                 const opt = document.createElement('option');
                 opt.value = id;
-                opt.textContent = `${name} — ${id}`;
+                opt.textContent = name;
+                opt.title = id;
                 if (String(bundle?.muscleId || '') === id) opt.selected = true;
                 muscleEl.appendChild(opt);
             }
@@ -496,11 +696,13 @@ export class ExerciseFormView {
 
             // Percentage input
             const percentEl = document.createElement('input');
+            percentEl.dataset.bundlePercentage = '';
             percentEl.type = 'number';
             percentEl.min = '0';
             percentEl.max = '100';
             percentEl.step = '1';
             percentEl.placeholder = '%';
+            percentEl.setAttribute('aria-label', `Contribution for ${this._dicts.getMuscleName(currentMuscleId) || currentMuscleId}, percent`);
             const pVal = Number(bundle?.percentage ?? 0);
             percentEl.value = String(pVal);
             if (!isFinite(pVal) || pVal < 0 || pVal > 100) percentEl.classList.add('invalid');
@@ -511,18 +713,28 @@ export class ExerciseFormView {
             removeBtn.className = 'btn muted';
             removeBtn.type = 'button';
             removeBtn.textContent = 'Remove';
+            removeBtn.setAttribute('aria-label', `Remove ${this._dicts.getMuscleName(currentMuscleId) || 'muscle contribution'}`);
 
             muscleEl.addEventListener('change', () => {
                 const formEntity = this.readFormToEntity();
                 const bundles = [...(formEntity?.[FIELD.bundles] || [])];
+                if (bundles.some((bundle, otherIndex) => otherIndex !== index && bundle?.muscleId === muscleEl.value)) {
+                    muscleEl.value = currentMuscleId;
+                    Toast.show({title: 'Muscle already added', message: 'Adjust its existing contribution instead.', type: 'warning'});
+                    return;
+                }
                 bundles[index] = {...bundles[index], muscleId: muscleEl.value};
                 this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
             });
-            percentEl.addEventListener('change', () => {
+            percentEl.addEventListener('input', () => {
                 const formEntity = this.readFormToEntity();
-                const bundles = [...(formEntity?.[FIELD.bundles] || [])];
-                bundles[index] = {...bundles[index], percentage: Number(percentEl.value || 0)};
-                this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
+                this._preserveFormInputs = true;
+                try { this._store.patchCurrent(formEntity); } finally { this._preserveFormInputs = false; }
+                const percentage = formEntity[FIELD.bundles][index]?.percentage;
+                progress.value = Number.isFinite(percentage) ? Math.max(0, Math.min(100, percentage)) : 0;
+                percentEl.classList.toggle('invalid', !Number.isFinite(percentage) || percentage < 0 || percentage > 100);
+                progress.setAttribute('aria-label', `${this._dicts.getMuscleName(muscleEl.value) || 'Muscle'} contribution: ${percentage}%`);
+                updateBundleSummary(this._els.bundleSumInfo, formEntity[FIELD.bundles].reduce((total, bundle) => total + (Number.isFinite(bundle?.percentage) ? bundle.percentage : 0), 0));
             });
             removeBtn.addEventListener('click', () => {
                 const formEntity = this.readFormToEntity();
@@ -534,22 +746,31 @@ export class ExerciseFormView {
             row.appendChild(muscleEl);
             row.appendChild(percentEl);
             row.appendChild(removeBtn);
+            const progress = document.createElement('progress');
+            progress.className = 'bundle-progress';
+            progress.max = 100;
+            progress.value = Math.max(0, Math.min(100, Number.isFinite(pVal) ? pVal : 0));
+            progress.setAttribute('aria-label', `${this._dicts.getMuscleName(currentMuscleId) || 'Muscle'} contribution: ${pVal}%`);
+            row.appendChild(progress);
             frag.appendChild(row);
         });
 
         this._els.bundles.appendChild(frag);
-
-        if (this._els.bundleSumInfo) {
-            this._els.bundleSumInfo.textContent = `Sum: ${sum}%`;
-            this._els.bundleSumInfo.className = `sum ${sum === 100 ? 'ok' : 'bad'}`;
+        if (!arr.length) {
+            const empty = document.createElement('p');
+            empty.className = 'exercise-inline-empty';
+            empty.textContent = 'No muscles added. Choose the working muscles below and allocate 100% between them.';
+            this._els.bundles.appendChild(empty);
         }
+
+        updateBundleSummary(this._els.bundleSumInfo, sum);
     }
 
     _addBundleFromInputs() {
         const muscleId = this._els.muscleSelect?.value;
-        const percentage = Number(this._els.percentInput?.value || 0);
-        if (!muscleId || !isFinite(percentage)) {
-            Toast.show({title: 'Select muscle and %', type: 'error'});
+        const percentage = Number(this._els.percentInput?.value);
+        if (!muscleId || !this._els.percentInput?.value || !Number.isFinite(percentage) || percentage <= 0 || percentage > 100) {
+            Toast.show({title: 'Choose a muscle and a percentage from 1 to 100', type: 'error'});
             return;
         }
         if (!this._dicts.muscles.has(muscleId)) {
@@ -558,6 +779,10 @@ export class ExerciseFormView {
         }
         const formEntity = this.readFormToEntity();
         const bundles = [...(Array.isArray(formEntity?.[FIELD.bundles]) ? formEntity[FIELD.bundles] : [])];
+        if (bundles.some(bundle => bundle?.muscleId === muscleId)) {
+            Toast.show({title: 'Muscle already added', message: 'Adjust its existing contribution instead.', type: 'warning'});
+            return;
+        }
         bundles.push({muscleId, percentage});
         this._store.patchCurrent({...formEntity, [FIELD.bundles]: bundles});
         if (this._els.percentInput) this._els.percentInput.value = '';
@@ -566,6 +791,8 @@ export class ExerciseFormView {
     // ── Private: event binding ───────────────────────────────────────────────
 
     _bindEvents() {
+        this._els.builder?.addEventListener('input', () => this._updateDraftState());
+        this._els.builder?.addEventListener('change', () => this._updateDraftState());
         // Save
         this._els.saveBtn?.addEventListener('click', async () => {
             const {current} = this._store.getState();
@@ -573,10 +800,13 @@ export class ExerciseFormView {
                 Toast.show({title: 'Nothing to save', message: 'Select an exercise from the list or click "New".', type: 'error'});
                 return;
             }
-            const entity = this.readFormToEntity();
-            const {ok, errors, warnings} = this._validator.validate(entity);
+            let entity;
+            try { entity = this.readFormToEntity(); } catch (error) { this._showEditorError(error); return; }
+            const {ok, errors, warnings, issues} = this._validator.validate(entity);
+            this._showValidation(issues || errors.map(message => ({field: 'editor', message})));
             if (!ok) {
                 Toast.show({title: 'Validation failed', message: errors[0], type: 'error'});
+                this._els.validationSummary?.scrollIntoView?.({block: 'start', behavior: 'smooth'});
                 return;
             }
             if (warnings.length) {
@@ -597,22 +827,35 @@ export class ExerciseFormView {
 
         // View mode toggle — flush form inputs to store before entering JSON view
         // so the JSON editor always reflects the latest in-form edits
-        this._els.viewForm?.addEventListener('click', () => this._store.setViewMode('form'));
-        this._els.viewJson?.addEventListener('click', () => {
-            if (this._viewMode !== 'json') {
-                try {
-                    const entity = this.readFormToEntity();
-                    this._store.patchCurrent(entity);
-                } catch (e) {
-                    console.warn('[ExerciseFormView] Could not flush form before JSON view:', e);
-                }
-            }
-            this._store.setViewMode('json');
-        });
+        const switchMode = mode => {
+            if (mode === this._viewMode) return true;
+            if (!this.flush()) return false;
+            this._store.setViewMode(mode);
+            return true;
+        };
+        this._els.viewForm?.addEventListener('click', () => switchMode('form'));
+        this._els.viewJson?.addEventListener('click', () => switchMode('json'));
+        const modeButtons = [this._els.viewForm, this._els.viewJson];
+        modeButtons.forEach((button, index) => button?.addEventListener('keydown', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+            if (switchMode(next === 0 ? 'form' : 'json')) modeButtons[next]?.focus();
+            else modeButtons[this._viewMode === 'json' ? 1 : 0]?.focus();
+        }));
 
         // Image preview live update
         this._els.fImage?.addEventListener('input', () => {
             this._renderImagePreview(this._els.fImage.value.trim());
+        });
+        this._els.previewImg?.addEventListener('error', () => {
+            this._els.previewCard?.classList.remove('has-image');
+            if (this._els.previewEmpty) this._els.previewEmpty.textContent = 'Image could not load. Check the URL.';
+            if (this._els.previewFrame) this._els.previewFrame.disabled = true;
+        });
+        this._els.previewFrame?.addEventListener('click', () => {
+            const url = sanitizeUrl(this._els.fImage?.value);
+            if (url) window.open(url, '_blank', 'noopener,noreferrer');
         });
 
         // Rules checkboxes — mutual exclusivity + cascading disable
@@ -654,8 +897,7 @@ export class ExerciseFormView {
                 if (!lang || lang === this._locale) return;
                 // Flush текущей локали текст в стор ДО переключения. readFormToEntity
                 // использует this._locale как ключ, поэтому строки попадут в правильный слот.
-                const entity = this.readFormToEntity();
-                this._store.patchCurrent(entity);
+                if (!this.flush()) return;
                 // Не устанавливаем this._locale напрямую — setLocale (внутри selectLocale
                 // или ниже) синхронно вызовет _onStateChange, который и обновит this._locale
                 // и UI. Прямая установка здесь приводит к мерцанию active-класса.
@@ -680,7 +922,7 @@ export class ExerciseFormView {
             }
             const formEntity = this.readFormToEntity();
             const refs = Array.isArray(formEntity?.[FIELD.equipmentRefs]) ? [...formEntity[FIELD.equipmentRefs]] : [];
-            if (!refs.some(x => x.equipmentId === id)) refs.push({equipmentId: id});
+            if (!refs.some(x => x?.equipmentId === id)) refs.push({equipmentId: id});
             this._store.patchCurrent({...formEntity, [FIELD.equipmentRefs]: refs});
         });
 
@@ -699,10 +941,11 @@ export class ExerciseFormView {
         });
 
         // JSON editor live validation + clear button
-        this._els.editor?.addEventListener('input', () => this._validateJsonEditor());
+        this._els.editor?.addEventListener('input', () => { this._validateJsonEditor(); this._updateDraftState(); });
         this._els.clearJsonBtn?.addEventListener('click', () => {
             if (this._els.editor) this._els.editor.value = '';
             this._validateJsonEditor();
+            this._updateDraftState();
         });
 
         // GPT prompt buttons
@@ -714,10 +957,11 @@ export class ExerciseFormView {
     // ── GPT prompts ──────────────────────────────────────────────────────────
 
     async _copyPrompt(type) {
-        let text;
-        if (type === 'image') text = this._buildImagePrompt();
-        else if (type === 'rules') text = this._buildRulesPrompt();
-        else text = this._buildReviewPrompt();
+        if (!this._store.getState().current) return;
+        let entity;
+        try { entity = this.readFormToEntity(); } catch (error) { this._showEditorError(error); return; }
+        const build = type === 'image' ? buildImagePrompt : type === 'rules' ? buildRulesPrompt : buildReviewPrompt;
+        const text = build(entity, this._dicts);
 
         try {
             await navigator.clipboard.writeText(text);
@@ -726,171 +970,15 @@ export class ExerciseFormView {
             ta.value = text;
             document.body.appendChild(ta);
             ta.select();
-            document.execCommand('copy');
+            let copied = false;
+            try { copied = document.execCommand('copy'); } catch { /* Report the failure below. */ }
             ta.remove();
+            if (!copied) {
+                Toast.show({title: 'Could not copy prompt', message: 'Allow clipboard access and try again.', type: 'error'});
+                return;
+            }
         }
         Toast.show({title: type === 'image' ? 'Image prompt copied' : type === 'rules' ? 'Rules prompt copied' : 'Prompt copied'});
     }
 
-    _buildReviewPrompt() {
-        const entity = this.readFormToEntity();
-        const FIELD_BUNDLES = 'exerciseExampleBundles';
-        const FIELD_EQUIP = 'equipmentRefs';
-        const pretty = (o) => JSON.stringify(o, null, 2);
-        const lines = [];
-        lines.push('You are an expert strength & conditioning editor and a strict JSON validator.');
-        lines.push('');
-        lines.push('When you answer, follow this EXACT output format:');
-        lines.push('```json');
-        lines.push('{ ...final JSON... }');
-        lines.push('```');
-        lines.push('Пояснение (на русском): кратко и по пунктам объясни, что улучшил(а) и почему (с опорой на НАЗВАНИЕ/ОПИСАНИЕ и общие знания/практику).');
-        lines.push('');
-        lines.push('Hard requirements:');
-        lines.push('- The JSON in the code block MUST strictly match this schema:');
-        lines.push('  {');
-        lines.push('    "id"?: string,');
-        lines.push('    "name": string,');
-        lines.push('    "description": string,');
-        lines.push('    "weightType": "free"|"fixed"|"body_weight",');
-        lines.push('    "category": "compound"|"isolation",');
-        lines.push('    "experience": "beginner"|"intermediate"|"advanced"|"pro",');
-        lines.push('    "forceType": "push"|"pull"|"hinge",');
-        lines.push('    "imageUrl"?: string,');
-        lines.push(`    "${FIELD_BUNDLES}": [{ "muscleId": string, "percentage": number }],`);
-        lines.push(`    "${FIELD_EQUIP}": [{ "equipmentId": string }]`);
-        lines.push('  }');
-        lines.push('- Do NOT include a field named "tutorials".');
-        lines.push('- Do NOT change "id" if it is present.');
-        lines.push(`- Sum of "${FIELD_BUNDLES}[].percentage" MUST be exactly 100 (integers only).`);
-        lines.push(`- "${FIELD_EQUIP}" MUST use VALID equipment IDs from the dictionary below.`);
-        lines.push('- If there are duplicates of the same muscle/equipment, merge them.');
-        lines.push('- Improve QUALITY of muscle distribution using NAME and DESCRIPTION AND your general domain knowledge.');
-        lines.push('- You MAY add/remove muscles if that leads to a more realistic split, but use only IDs from the provided dictionary.');
-        lines.push('- You MAY refine "description" for clarity and utility; keep the same language.');
-        lines.push('- Ensure equipment list is relevant to the exercise; only use IDs from the equipment dictionary.');
-        lines.push('');
-        lines.push(`Name: ${entity.name || '(empty)'}`);
-        lines.push(`Description: ${entity.description || '(empty)'}`);
-        lines.push('');
-        lines.push('Muscles dictionary (name — id):');
-        for (const [id, name] of this._dicts.muscles.entries()) lines.push(`- ${name} — ${id}`);
-        lines.push('');
-        lines.push('Equipment dictionary (name — id):');
-        for (const [id, name] of this._dicts.equipment.entries()) lines.push(`- ${name} — ${id}`);
-        lines.push('');
-        lines.push('Current JSON:');
-        lines.push(pretty(entity));
-        lines.push('');
-        lines.push('OUTPUT FORMAT (repeat for clarity):');
-        lines.push('```json');
-        lines.push('{ ...final JSON... }');
-        lines.push('```');
-        lines.push('Пояснение: ... (на русском, перечисли ключевые изменения).');
-        lines.push('Return NOTHING else beyond these two parts.');
-        return lines.join('\n');
-    }
-
-    _buildImagePrompt() {
-        const entity = this.readFormToEntity();
-        const FIELD_EQUIP = 'equipmentRefs';
-        const eqArr = Array.isArray(entity[FIELD_EQUIP]) ? entity[FIELD_EQUIP] : [];
-        const eqNames = eqArr
-            .map((x) => (this._dicts.getEquipmentName(String(x?.equipmentId || '')) || '').trim())
-            .filter(Boolean);
-        const allowedEq = eqNames.length ? eqNames.join(', ') : 'без дополнительного оборудования';
-        const lines = [];
-        lines.push('Задача:');
-        lines.push(`Сгенерируй превью упражнения "${entity.name || '(empty)'}".`);
-        lines.push('');
-        lines.push('Изображение (строгие требования):');
-        lines.push('\t• ответ только картинка, без текста;');
-        lines.push('\t• aspect_ratio: 1:1 строго;');
-        lines.push('\t• size: 900×900, PNG, sRGB, без alpha;');
-        lines.push('');
-        lines.push('Color (hard, only these HEX):');
-        lines.push('\t• Background radial: center #CBD0D8 → edges #2E333B (allowed solids: #EDEFF1, #262A31)');
-        lines.push('\t• Metal: base #AEB6C2, shadows #8993A1 / #6B7684, highlight #D7DEE6');
-        lines.push('\t• Rubber: base #2B3036, highlight #3A4048');
-        lines.push('\t• Plastic: base #3A4048, highlight #4A515B');
-        lines.push('\t• Skin/mannequin: base #ECE6E0, mid #D6CDC5, deep #BFB4A9, highlight #F7F3EF (матовые, без глянца)');
-        lines.push('\t• Outfit: base #2E333B; one accent ≤12%: #3366FF (обычно) или #FFA726 (редко).');
-        lines.push('\t• Контраст акцента к базе ≥ 4.5:1.');
-        lines.push('\t• No pure #FFFFFF/#000000.');
-        lines.push('');
-        lines.push('Style (fixed): clay/3D, matte, без бликов/шума/текста/логотипов.');
-        lines.push('Манекен: андрогинный, без лица/волос/пор/вен.');
-        lines.push('Пропорции: реалистичные — корректные плечи, торс, руки и ноги без деформаций.');
-        lines.push('Окружение: минималистичная студия, нейтральный фон, без текста/логотипов/UI.');
-        lines.push('');
-        lines.push('Camera & Framing (hard):');
-        lines.push('\t• View: 3/4 isometric, tilt from above ≈ 12°; eq. focal ≈ 40 mm; camera height ≈ chest level.');
-        lines.push('\t• Subject centered; mannequin + equipment occupy 70–80% of frame height.');
-        lines.push('\t• Safe-margin: ≥ 7% от кадра по всем сторонам.');
-        lines.push('\t• Hard rule: Entire silhouette and equipment must fit inside safe-margin.');
-        lines.push('\t• Ground plane visible; soft contact shadow under feet and rack/bench.');
-        lines.push('');
-        lines.push('Lighting (soft-matte): Key:Fill:Rim ≈ 1 : 0.5 : 0.2, key 35–45° сверху-сбоку.');
-        lines.push('');
-        lines.push(`Allowed equipment only: ${eqNames.length ? eqNames.join(', ') : '— без дополнительного оборудования'}. Никакого другого инвентаря.`);
-        lines.push('');
-        lines.push('Данные упражнения:');
-        lines.push(`• Оборудование: ${allowedEq}`);
-        lines.push(`• Описание: ${entity.description || '(пусто)'}`);
-        return lines.join('\n');
-    }
-
-    _buildRulesPrompt() {
-        const entity = this.readFormToEntity();
-        const FIELD_EQUIP = 'equipmentRefs';
-        const pretty = (o) => JSON.stringify(o, null, 2);
-        const eqArr = Array.isArray(entity[FIELD_EQUIP]) ? entity[FIELD_EQUIP] : [];
-        const resolvedEquip = eqArr
-            .map((ref) => {
-                const id = ref?.equipmentId ?? ref?.id ?? null;
-                if (!id) return null;
-                const name = this._dicts.getEquipmentName(id) ?? null;
-                return name ? `${name} — ${id}` : String(id);
-            })
-            .filter(Boolean);
-
-        const lines = [];
-        lines.push('You are a strength training domain expert AND a strict JSON validator.');
-        lines.push('');
-        lines.push('GOAL: Keep entire input JSON unchanged EXCEPT the field `components`. Replace `components` with the best possible values based on: name, description, weightType, category, forceType, and equipmentRefs.');
-        lines.push('');
-        lines.push('OUTPUT FORMAT (MANDATORY): Return EXACTLY one markdown code block with JSON inside, and NOTHING else.');
-        lines.push('- First chars: ```json');
-        lines.push('- Last chars: ```');
-        lines.push('- No text before or after the code block.');
-        lines.push('');
-        lines.push('HARD REQUIREMENTS:');
-        lines.push('1) Output a SINGLE valid JSON object inside the code block.');
-        lines.push('2) You may ONLY change `components`. Every other field must remain identical.');
-        lines.push('3) `components` is a TOP-LEVEL field. Do NOT nest it inside `rules`.');
-        lines.push('');
-        lines.push('COMPONENTS SCHEMA (STRICT):');
-        lines.push('"components": {');
-        lines.push('  "externalWeight": { "required": boolean } | null,');
-        lines.push('  "bodyWeight": { "required": boolean, "multiplier": number } | null,');
-        lines.push('  "extraWeight": { "required": boolean } | null,');
-        lines.push('  "assistWeight": { "required": boolean } | null');
-        lines.push('}');
-        lines.push('');
-        lines.push('INVARIANTS (MUST ALWAYS HOLD):');
-        lines.push('- externalWeight and bodyWeight are mutually exclusive (never both non-null).');
-        lines.push('- If bodyWeight is non-null, it MUST include multiplier in range 0.05..2.0.');
-        lines.push('- extraWeight and assistWeight are ONLY allowed when bodyWeight exists.');
-        lines.push('- If externalWeight exists, extraWeight and assistWeight MUST be null.');
-        lines.push('- bodyWeight.required MUST be true; externalWeight.required MUST be true.');
-        lines.push('');
-        if (resolvedEquip.length > 0) {
-            lines.push('EQUIPMENT REFS (RESOLVED FOR THIS EXERCISE):');
-            resolvedEquip.forEach((s) => lines.push(`- ${s}`));
-            lines.push('');
-        }
-        lines.push('INPUT JSON (copy this and only edit `components`):');
-        lines.push(pretty(entity));
-        return lines.join('\n');
-    }
 }

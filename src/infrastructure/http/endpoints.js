@@ -10,6 +10,7 @@ export const ENDPOINTS = Object.freeze({
     // Exercise examples
     exerciseList: `${API_BASE}/exercise-examples`,
     exerciseDetail: (id) => `${API_BASE}/exercise-examples/${encodeURIComponent(id)}`,
+    exerciseTranslations: (id) => `${API_BASE}/admin/exercise-examples/${encodeURIComponent(id)}/translations`,
     exerciseCreate: `${API_BASE}/admin/exercise-examples`,
     exerciseUpdate: (id) => `${API_BASE}/admin/exercise-examples?id=${encodeURIComponent(id)}`,
     exerciseDelete: (id) => `${API_BASE}/admin/exercise-examples/${encodeURIComponent(id)}`,

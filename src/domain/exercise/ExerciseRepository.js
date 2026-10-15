@@ -7,9 +7,9 @@ export class ExerciseRepository {
         this._client = client;
     }
 
-    async fetchList() {
+    async fetchList(locale = DEFAULT_LANGUAGE) {
         const resp = await this._client._fetch(ENDPOINTS.exerciseList, {
-            headers: this._client.buildHeaders({locale: DEFAULT_LANGUAGE})
+            headers: this._client.buildHeaders({locale})
         });
         if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
         return resp.json();
@@ -23,6 +23,19 @@ export class ExerciseRepository {
         return resp.json();
     }
 
+    async fetchTranslations(id) {
+        const resp = await this._client._fetch(ENDPOINTS.exerciseTranslations(id), {
+            headers: this._client.buildHeaders()
+        });
+        if (!resp.ok) {
+            const error = new Error(`Raw translations could not load: ${resp.status} ${resp.statusText}`);
+            error.status = resp.status;
+            throw error;
+        }
+        try { return await resp.json(); }
+        catch { throw new Error('The server returned unreadable raw translations. Retry loading this exercise.'); }
+    }
+
     async create(payload) {
         const resp = await this._client._fetch(ENDPOINTS.exerciseCreate, {
             method: 'POST',
@@ -33,7 +46,14 @@ export class ExerciseRepository {
             const text = await resp.text();
             throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
         }
-        return resp.json();
+        const saved = await resp.json().catch(() => null);
+        const id = saved?.entity?.id || saved?.id;
+        if (typeof id !== 'string' || !id.trim()) {
+            const error = new Error('The server accepted the new exercise but did not return its ID. Refresh the library and select the created record before saving again.');
+            error.code = 'CREATE_ID_MISSING';
+            throw error;
+        }
+        return saved;
     }
 
     async update(id, payload) {

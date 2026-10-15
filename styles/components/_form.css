@@ -10,7 +10,7 @@ input[type="number"],
 select,
 textarea{
   width: 100%;
-  background: var(--field) !important;
+  background-color: var(--field) !important;
   border: 1px solid var(--border);
   color: var(--text) !important;
   border-radius: var(--radius-sm);
@@ -22,9 +22,9 @@ textarea{
   -webkit-text-fill-color: var(--text);
 }
 input::placeholder, textarea::placeholder{ color: var(--muted); }
-input:hover, textarea:hover, select:hover{ background: var(--field-hover) !important; }
+input:hover, textarea:hover, select:hover{ background-color: var(--field-hover) !important; }
 input:focus, textarea:focus, select:focus{
-  background: var(--field-focus) !important;
+  background-color: var(--field-focus) !important;
   border-color: rgba(91,156,245,.4);
   box-shadow: 0 0 0 3px rgba(91,156,245,.1);
 }

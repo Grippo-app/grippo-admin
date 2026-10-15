@@ -229,62 +229,38 @@ function normalizeEntityShape(src, options = {}) {
         })
         .filter(Boolean);
 
-    const prevNameTranslations = ensureTranslationMap(previous?.nameTranslations);
-    const prevDescTranslations = ensureTranslationMap(previous?.descriptionTranslations);
-
-    const nameTranslations = ensureTranslationMap(e.nameTranslations);
-    const descriptionTranslations = ensureTranslationMap(e.descriptionTranslations);
-
-    const applyLocalizedArray = (target, value) => {
-        if (!Array.isArray(value)) return;
-        value.forEach((entry) => {
-            if (!entry || typeof entry !== 'object') return;
-            const lang = typeof entry.language === 'string' ? entry.language.toLowerCase() : '';
-            if (!SUPPORTED_LANGUAGES.includes(lang)) return;
-            const val = typeof entry.value === 'string'
-                ? entry.value
-                : typeof entry.name === 'string'
-                    ? entry.name
-                    : typeof entry.text === 'string'
-                        ? entry.text
-                        : '';
-            if (typeof val === 'string') target[lang] = val;
-        });
+    const readTranslations = (field, mapField) => {
+        const result = ensureTranslationMap(previous?.[mapField]);
+        const explicit = new Set();
+        const set = (lang, value) => {
+            if (SUPPORTED_LANGUAGES.includes(lang) && typeof value === 'string') {
+                result[lang] = value;
+                explicit.add(lang);
+            }
+        };
+        const map = e[mapField];
+        if (map && typeof map === 'object' && !Array.isArray(map)) {
+            for (const lang of SUPPORTED_LANGUAGES) set(lang, map[lang]);
+        }
+        if (Array.isArray(e[field])) {
+            for (const entry of e[field]) {
+                const lang = typeof entry?.language === 'string' ? entry.language.toLowerCase() : '';
+                set(lang, entry?.value ?? entry?.name ?? entry?.text ?? '');
+            }
+        }
+        for (const entry of Array.isArray(e.translations) ? e.translations : []) {
+            const lang = typeof entry?.language === 'string' ? entry.language.toLowerCase() : '';
+            set(lang, entry?.[field]);
+        }
+        // A localized scalar is authoritative for its locale; a previous draft is only a fallback.
+        if (typeof e[field] === 'string' && !explicit.has(locale)) set(locale, e[field]);
+        if (!previous?.[mapField] && typeof previous?.[field] === 'string' && !explicit.has(DEFAULT_LANGUAGE)) {
+            result[DEFAULT_LANGUAGE] = previous[field];
+        }
+        return result;
     };
-
-    applyLocalizedArray(nameTranslations, e.name);
-    applyLocalizedArray(descriptionTranslations, e.description);
-
-    for (const lang of SUPPORTED_LANGUAGES) {
-        if (!nameTranslations[lang] && prevNameTranslations[lang]) nameTranslations[lang] = prevNameTranslations[lang];
-        if (!descriptionTranslations[lang] && prevDescTranslations[lang]) descriptionTranslations[lang] = prevDescTranslations[lang];
-    }
-
-    const rawTranslations = Array.isArray(e.translations) ? e.translations : [];
-    rawTranslations.forEach((tr) => {
-        if (!tr || typeof tr !== 'object') return;
-        const lang = typeof tr.language === 'string' ? tr.language.toLowerCase() : '';
-        if (!SUPPORTED_LANGUAGES.includes(lang)) return;
-        if (typeof tr.name === 'string') nameTranslations[lang] = tr.name;
-        if (typeof tr.description === 'string') descriptionTranslations[lang] = tr.description;
-    });
-
-    if (typeof e.name === 'string' && !nameTranslations[locale]) nameTranslations[locale] = e.name;
-    if (typeof e.description === 'string' && !descriptionTranslations[locale]) descriptionTranslations[locale] = e.description;
-
-    if (typeof e.name === 'string' && locale === DEFAULT_LANGUAGE && !nameTranslations[DEFAULT_LANGUAGE]) {
-        nameTranslations[DEFAULT_LANGUAGE] = e.name;
-    }
-    if (typeof e.description === 'string' && locale === DEFAULT_LANGUAGE && !descriptionTranslations[DEFAULT_LANGUAGE]) {
-        descriptionTranslations[DEFAULT_LANGUAGE] = e.description;
-    }
-
-    if (!nameTranslations[DEFAULT_LANGUAGE] && typeof previous?.name === 'string') {
-        nameTranslations[DEFAULT_LANGUAGE] = previous.name;
-    }
-    if (!descriptionTranslations[DEFAULT_LANGUAGE] && typeof previous?.description === 'string') {
-        descriptionTranslations[DEFAULT_LANGUAGE] = previous.description;
-    }
+    const nameTranslations = readTranslations('name', 'nameTranslations');
+    const descriptionTranslations = readTranslations('description', 'descriptionTranslations');
 
     e.nameTranslations = nameTranslations;
     e.descriptionTranslations = descriptionTranslations;
@@ -349,19 +325,23 @@ function mergeLocalizedEntity(base, addition) {
 }
 
 function buildPersistencePayload(entity) {
-    const payload = {...entity};
-    const nameEntries = buildLocalizedEntries(entity.nameTranslations);
-    const descriptionEntries = buildLocalizedEntries(entity.descriptionTranslations);
-    payload.name = nameEntries;
-    payload.description = descriptionEntries;
-    delete payload.translations;
-    delete payload.localizedName;
-    delete payload.localizedDescription;
-    delete payload.locales;
-    delete payload.nameTranslations;
-    delete payload.descriptionTranslations;
-    delete payload.rules;
-    return payload;
+    const components = entity.components || {};
+    const component = key => components[key] === null ? null : key === 'bodyWeight'
+        ? {required: components[key]?.required, multiplier: components[key]?.multiplier}
+        : {required: components[key]?.required};
+    // The write DTO is strict: response IDs, timestamps and joined relations are read-only.
+    return {
+        name: buildLocalizedEntries(entity.nameTranslations),
+        description: buildLocalizedEntries(entity.descriptionTranslations),
+        weightType: entity.weightType,
+        category: entity.category,
+        experience: entity.experience,
+        forceType: entity.forceType,
+        imageUrl: typeof entity.imageUrl === 'string' ? entity.imageUrl : '',
+        components: Object.fromEntries(['externalWeight', 'bodyWeight', 'extraWeight', 'assistWeight'].map(key => [key, component(key)])),
+        [FIELD.bundles]: (Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : []).map(bundle => ({muscleId: bundle?.muscleId, percentage: bundle?.percentage})),
+        [FIELD.equipmentRefs]: (Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : []).map(ref => ({equipmentId: ref?.equipmentId})),
+    };
 }
 
 function buildLocalePlaceholder(basePlaceholder, fallbackValue, locale) {

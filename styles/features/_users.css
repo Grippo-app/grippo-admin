@@ -1,928 +1,218 @@
-/* ============================================================
-   USERS VIEW
-   ============================================================ */
-#usersView {
-    padding: 0;
-}
-
-.users-command .cmd-actions {
-    gap: 8px;
-    align-items: center;
-}
-
-.users-command input[type="search"] {
-    min-width: 240px;
-}
-
-.users-command .role-toggle {
-    display: flex;
-    align-items: center;
-}
-
-.users-command .role-toggle .segment {
-    background: var(--field);
-}
-
-.users-command #deleteUserBtn {
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
-    align-self: center;
-}
+/* ── Users workspace ───────────────────────────────────── */
+#usersView { padding: 0; }
+.users-command .cmd-actions { gap: 8px; align-items: center; }
+.users-command .role-toggle { display: flex; align-items: center; }
+.users-command .role-toggle .segment { background: var(--field); }
+.users-command #deleteUserBtn { align-self: center; }
 
 .users-layout {
     position: fixed;
-    top: calc(var(--header-h) + var(--commandbar-h));
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: calc(var(--header-h) + var(--commandbar-h)) 0 0;
     display: grid;
-    grid-template-columns: var(--users-sidebar-w) 1fr;
-    gap: 0;
+    grid-template-columns: var(--users-sidebar-w) minmax(0, 1fr);
     overflow: hidden;
 }
-
-.users-sidebar {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    padding: 0;
-    border-right: 1px solid var(--border) !important;
-    display: flex;
-    flex-direction: column;
-}
-
-.users-sidebar .list {
-    background: transparent;
-    border: 0;
-    border-radius: 0;
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-.user-list {
-    overflow-x: hidden;
-}
-
-.users-head {
-    display: flex !important;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.users-head .field {
-    flex: 1 1 auto;
-}
-
-.users-head input {
-    width: 100%;
-}
-
-/* User panel */
+.users-sidebar { padding: 0; min-width: 0; }
+.users-sidebar .list { background: transparent; border: 0; border-radius: 0; }
+.user-list { overflow-x: hidden; gap: 6px; padding: 10px; }
+.user-count { font-size: 12px; font-weight: 600; color: var(--muted); }
 .user-panel {
-    background: var(--panel);
+    min-width: 0;
+    padding: 24px;
     border: 0;
     border-radius: 0;
-    padding: 20px 24px;
+    background: var(--panel);
     overflow: auto;
+    container: user-panel / inline-size;
 }
+.user-detail { display: grid; gap: 20px; min-width: 0; width: 100%; }
+.user-detail[hidden], .training-detail[hidden] { display: none; }
 
-.user-detail {
-    display: grid;
-    grid-template-rows: auto auto auto 1fr;
-    gap: 16px;
-    /* The parent `.user-panel` inherits `display: flex; flex-direction: column`
-       from `.panel`. Use the standard "flex child fills remaining space" pattern
-       so the bottom `1fr` row of this grid actually receives free vertical space. */
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-}
-
-/* Author rule `display: grid` would otherwise outweigh the UA `[hidden]` rule
-   at equal specificity — re-establish `hidden` on the empty-selection state. */
-.user-detail[hidden] {
-    display: none;
-}
-
-/* User header */
-.user-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 16px;
-}
-
-.user-header-text {
-    display: grid;
-    gap: 4px;
-}
-
-.user-label {
-    color: var(--muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: .04em;
-}
-
-.user-title {
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.user-subtitle {
-    color: var(--muted);
-    font-size: 13px;
-    word-break: break-all;
-}
-
-/* Status chips */
-.user-status-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
-}
-
-.status-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 10px;
-    border-radius: 999px;
-    background: var(--field);
-    border: 1px solid var(--border);
-    font-size: 12px;
-}
-
-.status-chip .chip-label {
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    font-size: 10px;
-    color: var(--muted);
-    font-weight: 600;
-}
-
-.status-chip .chip-value {
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--text);
-}
-
-/* User tags */
-.user-tags {
-    display: grid;
-    grid-template-rows: auto auto;
-    justify-items: end;
-    align-content: space-between;
-    gap: 6px;
-    height: 100%;
-    align-self: stretch;
-}
-
-.user-auth, .user-auth-pill {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    min-height: 32px;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--muted);
-}
-
-.auth-type-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--field);
-    color: var(--muted);
-}
-
-.auth-type-empty {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.user-auth svg, .user-auth-pill svg {
-    width: 16px;
-    height: 16px;
-    display: block;
-}
-
-.auth-icon-email {
-    fill: currentColor;
-}
-
-.auth-icon-google .g-blue {
-    fill: #4285f4;
-}
-
-.auth-icon-google .g-red {
-    fill: #ea4335;
-}
-
-.auth-icon-google .g-yellow {
-    fill: #fbbc04;
-}
-
-.auth-icon-google .g-green {
-    fill: #34a853;
-}
-
-.auth-icon-apple {
-    fill: currentColor;
-}
-
-/* User ID fields */
-.user-id-fields {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-}
-
-.user-id-fields .field input[disabled] {
-    cursor: default;
-    color: var(--muted);
-}
-
-.field.compact label {
-    font-size: 12px;
-}
-
-/* User meta */
-.user-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-}
-
-.meta-card {
-    background: var(--field);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-}
-
-.meta-card.meta-highlight {
-    background: var(--field-focus);
-    border-color: rgba(91, 156, 245, .2);
-    padding: 14px;
-}
-
-.meta-label {
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    margin-bottom: 4px;
-    font-weight: 600;
-}
-
-.meta-value {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.meta-value.meta-emphasis {
-    font-size: 17px;
-    font-weight: 700;
-}
-
-.meta-hint {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-/* User actions */
-.user-actions-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.user-readonly {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-}
-
-.user-readonly .field {
-    min-width: 140px;
-}
-
-.user-readonly .field.compact label {
-    font-size: 12px;
-}
-
-.user-readonly input[disabled] {
-    cursor: default;
-    color: var(--muted);
-}
-
-/* ── User list header (count) ─────────────────────────── */
-.user-list-header {
-    display: flex;
-    align-items: center;
-    padding: 8px 14px 6px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-    flex-shrink: 0;
-}
-
-.user-count {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-}
-
-.user-count::before {
-    content: 'Users: ';
-    font-weight: 400;
-}
-
-/* ── User list items ──────────────────────────────────── */
-.user-item {
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-}
-
+/* ── Search results ────────────────────────────────────── */
 .user-list .user-item {
-    padding: 10px 12px;
-}
-
-.user-item .user-copy {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 10px;
     min-width: 0;
 }
-
-.user-item .user-name-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-}
-
-.user-item .user-name {
-    font-weight: 600;
-    font-size: 13px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.3;
-}
-
-.user-item .user-role {
-    font-size: 10px;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: .04em;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Meta row (workouts + date) */
-.user-meta {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 3px;
-    font-size: 11px;
-    color: var(--muted);
-}
-
-.user-meta-sep {
-    color: var(--border);
-    font-size: 10px;
-    line-height: 1;
-}
-
-.user-workouts {
-    color: var(--muted);
-}
-
-.user-item-date {
-    color: var(--muted);
-    opacity: .75;
-}
-
-/* Auth icons in list */
-.user-auth-icons {
-    display: flex;
-    gap: 3px;
-    align-items: center;
-    justify-content: flex-end;
-    min-height: 20px;
-    margin-bottom: 4px;
-}
-
-.user-auth-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    color: var(--muted);
-    flex-shrink: 0;
-}
-
-.user-auth-icon svg {
-    width: 14px;
-    height: 14px;
-    display: block;
-}
-
-/* Colored avatar badge */
+.user-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.user-copy, .user-name-row { min-width: 0; }
+.user-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; font-size: 13px; }
+.user-email { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.user-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; color: var(--muted); font-size: 11px; }
+.user-meta-sep { opacity: .6; }
+.user-item-date { color: var(--muted); }
+.user-tags { display: grid; justify-items: end; align-content: start; gap: 5px; }
+.user-item .user-role { font-size: 10px; }
 .user-badge {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-sm);
-    border: 1px solid transparent;
     display: grid;
     place-items: center;
-    font-weight: 800;
-    font-size: 14px;
-    letter-spacing: -.01em;
-    flex-shrink: 0;
-    transition: filter .12s;
+    width: 36px;
+    height: 38px;
+    border-radius: 11px;
+    font-size: 15px;
+    font-weight: 750;
+    color: var(--avatar-color);
+    background: color-mix(in srgb, var(--avatar-color) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--avatar-color) 24%, transparent);
 }
+.user-badge--0 { --avatar-color: #7aaff8; }
+.user-badge--1 { --avatar-color: #5dcc9b; }
+.user-badge--2 { --avatar-color: #e6bd6d; }
+.user-badge--3 { --avatar-color: #cf91e5; }
+.user-badge--4 { --avatar-color: #69c6de; }
+.user-badge--5 { --avatar-color: #e7a08b; }
+.user-badge--6 { --avatar-color: #e58fa2; }
+.pill-admin { background: rgba(48, 164, 108, .12); border-color: rgba(48, 164, 108, .3); color: #5dcc9b; }
+.pill-subtle { background: var(--field); color: var(--muted); }
+.pill-no-profile { font-size: 9px; padding: 1px 5px; color: var(--muted); background: transparent; white-space: nowrap; }
+.user-list-message { display: grid; gap: 8px; justify-items: center; padding: 42px 18px; color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center; }
+.user-list-message-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: var(--field); color: var(--brand); font-size: 28px; }
+.user-list-message-title { color: var(--text); font-size: 14px; font-weight: 650; }
+.user-list-error { display: grid; gap: 6px; padding: 12px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius-sm); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.user-list-error strong { color: var(--danger); }
 
-.item:hover .user-badge {
-    filter: brightness(1.1);
+/* ── User identity and account metadata ─────────────────── */
+.user-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.user-header-text { display: grid; gap: 5px; min-width: 0; }
+.user-label { color: var(--muted); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; }
+.user-title { font-size: 25px; font-weight: 700; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.user-subtitle { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.user-status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.status-chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; background: var(--field); border: 1px solid var(--border); border-radius: 7px; }
+.chip-label { color: var(--muted); font-size: 10px; }
+.chip-value { font-size: 12px; font-weight: 650; }
+.user-auth-pill, .user-auth-icons { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.auth-type-icon { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--border); border-radius: 9px; background: var(--field); color: var(--muted); }
+.auth-type-icon svg { width: 17px; height: 17px; }
+.user-auth-icon { display: grid; place-items: center; width: 16px; height: 16px; color: var(--muted); }
+.user-auth-icon svg { width: 13px; height: 13px; }
+.user-auth-list { color: var(--muted); font-size: 11px; text-align: right; }
+.auth-icon-email, .auth-icon-apple { fill: currentColor; }
+.auth-icon-google .g-blue { fill: #4285f4; }
+.auth-icon-google .g-red { fill: #ea4335; }
+.auth-icon-google .g-yellow { fill: #fbbc04; }
+.auth-icon-google .g-green { fill: #34a853; }
+.user-id-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.user-id-fields .field label { color: var(--muted); font-size: 11px; }
+.user-id-fields input[readonly] { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; cursor: text; }
+.user-meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.meta-card { background: var(--field); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.meta-label { color: var(--muted); font-size: 10px; margin-bottom: 5px; }
+.meta-value { font-size: 12px; font-weight: 550; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+/* ── Independent detail sections ───────────────────────── */
+.user-details-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
+.user-section { --accent: var(--brand); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; min-width: 0; padding: 18px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.user-section--goal { grid-column: 1 / -1; }
+.user-section--workouts { --accent: #5dcc9b; grid-column: 1; }
+.user-section--weight { --accent: #e6bd6d; grid-column: 2; }
+.user-section--devices { --accent: var(--brand-2); grid-column: 1 / -1; }
+.user-section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-width: 0; }
+.user-section-title { display: inline-flex; gap: 8px; align-items: center; color: var(--text); font-size: 13px; font-weight: 650; white-space: nowrap; }
+.section-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.user-section-note { color: var(--muted); font-size: 10px; text-align: right; line-height: 1.5; }
+.user-section-body { display: grid; gap: 9px; align-content: start; min-width: 0; min-height: 0; }
+.user-section-body--scroll { max-height: 620px; overflow: auto; scrollbar-gutter: stable; padding: 2px; }
+.user-section-empty { display: grid; place-items: center; min-height: 80px; padding: 18px; background: var(--field); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px; line-height: 1.6; text-align: center; }
+.user-section-error { display: grid; gap: 9px; justify-items: start; padding: 16px; border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border)); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--danger) 4%, var(--field)); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.user-section-error strong { color: var(--text); }
+.user-retry { margin-top: 3px; }
+.user-show-more { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; min-height: 36px; width: 100%; font-size: 11px; }
+.user-show-more span { color: var(--muted); font-weight: 400; }
+
+/* ── Goal ──────────────────────────────────────────────── */
+.goal-row, .goal-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.goal-pill { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--field); font-size: 12px; }
+.goal-pill:first-child { border-color: color-mix(in srgb, var(--brand) 25%, var(--border)); }
+.goal-pill .pill-label { color: var(--muted); font-size: 10px; }
+.goal-tag { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-size: 11px; }
+.goal-confidence { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.goal-confidence strong { margin-left: 6px; color: var(--text); font-weight: 550; }
+.goal-confidence meter { width: 100px; height: 8px; accent-color: var(--brand); }
+.goal-confidence meter::-webkit-meter-bar { background: var(--field); border: 0; }
+.goal-confidence meter::-webkit-meter-optimum-value { background: var(--brand); }
+
+/* ── Workouts and set details ───────────────────────────── */
+.training-group { min-width: 0; }
+.training-row { display: grid; grid-template-columns: minmax(100px, 1fr) auto 14px; gap: 9px; align-items: center; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--field); color: var(--text); font: inherit; font-size: 12px; text-align: left; cursor: pointer; transition: background .15s, border-color .15s; }
+.training-row:hover { background: var(--field-hover); border-color: color-mix(in srgb, var(--ok) 32%, var(--border)); }
+.training-row:focus-visible { outline: 2px solid var(--ok); outline-offset: 1px; }
+.training-row.is-open { border-color: color-mix(in srgb, var(--ok) 40%, var(--border)); border-radius: 9px 9px 0 0; }
+.training-date { display: grid; gap: 4px; min-width: 0; }
+.training-date-rel { font-size: 12px; font-weight: 650; }
+.training-date-abs { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.training-stats { grid-row: 2; grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border); }
+.training-stat { display: inline-flex; gap: 5px; align-items: baseline; }
+.training-stat .stat-label { color: var(--muted); font-size: 10px; }
+.training-stat .stat-value { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.training-exercises { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.training-chevron { width: 14px; height: 14px; color: var(--muted); transition: transform .15s; }
+.training-row.is-open .training-chevron { transform: rotate(90deg); color: var(--ok); }
+.training-detail { display: grid; gap: 9px; padding: 10px; border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--border)); border-top: 0; border-radius: 0 0 9px 9px; }
+.training-exercise { display: grid; gap: 8px; min-width: 0; }
+.training-exercise + .training-exercise { border-top: 1px solid var(--border); padding-top: 10px; }
+.training-exercise-name { display: flex; justify-content: space-between; gap: 10px; color: var(--text); font-size: 12px; font-weight: 600; }
+.training-exercise-name span:first-child { overflow-wrap: anywhere; }
+.sets-count { flex-shrink: 0; color: var(--muted); font-size: 10px; font-weight: 400; }
+.training-iterations { display: grid; gap: 4px; }
+.training-iteration { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--field); font-size: 10px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.training-iteration span { overflow-wrap: anywhere; }
+.training-iteration strong { font-weight: 600; white-space: nowrap; }
+.iter-mode { color: var(--muted); font-size: 9px; }
+
+/* ── Weight history and trend ───────────────────────────── */
+.weight-overview { display: grid; gap: 4px; margin-bottom: 2px; }
+.weight-overview strong { color: var(--text); font-size: 24px; font-weight: 650; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.weight-overview > span { color: var(--muted); font-size: 11px; }
+.weight-trend { margin: 2px 0 8px; }
+.weight-trend svg { display: block; width: 100%; height: auto; max-height: 130px; overflow: visible; }
+.weight-trend-grid { fill: none; stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; }
+.weight-trend-line { fill: none; stroke: var(--warning); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.weight-trend-point { fill: var(--warning); stroke: var(--panel-2); stroke-width: 1.5; }
+.weight-trend-labels { display: flex; justify-content: space-between; gap: 5px; color: var(--muted); font-size: 8px; font-variant-numeric: tabular-nums; }
+.weight-table-head, .weight-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 68px; align-items: center; gap: 10px; }
+.weight-table-head { padding: 0 9px; color: var(--muted); font-size: 9px; }
+.weight-table-head span:last-child { text-align: right; }
+.weight-row { padding: 10px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--field); font-size: 11px; font-variant-numeric: tabular-nums; }
+.weight-date { display: grid; gap: 3px; color: var(--muted); min-width: 0; }
+.weight-date small { font-size: 8px; line-height: 1.4; overflow-wrap: anywhere; }
+.weight-value { font-weight: 650; white-space: nowrap; }
+.weight-delta { font-size: 10px; text-align: right; white-space: nowrap; }
+.weight-delta.up { color: #e6bd6d; }
+.weight-delta.down { color: #83b5ee; }
+.weight-delta.zero { color: var(--muted); }
+
+/* ── Registered devices ────────────────────────────────── */
+.device-token-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--field); }
+.device-token-info { display: grid; gap: 5px; min-width: 0; }
+.device-token-label { color: var(--muted); font-size: 10px; }
+.device-token-value { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; user-select: all; }
+.device-token-date { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.device-token-copy { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--muted); cursor: pointer; }
+.device-token-copy:hover { color: var(--text); border-color: var(--brand); }
+.device-token-copy:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.device-token-copy.is-copied { color: var(--ok); border-color: var(--ok); }
+.device-token-copy svg { width: 15px; height: 15px; }
+.clipboard-fallback { position: fixed; top: -1000px; left: -1000px; opacity: 0; }
+
+/* ── Loading and compact detail layouts ─────────────────── */
+.user-section-loading { height: 14px; border-radius: 4px; background: linear-gradient(90deg, var(--field) 0%, var(--field-hover) 50%, var(--field) 100%); background-size: 200% 100%; animation: user-section-shimmer 1.4s ease-in-out infinite; }
+.user-section-loading:nth-child(2) { width: 70%; }
+@keyframes user-section-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@container user-panel (max-width: 760px) {
+    .user-details-grid { grid-template-columns: minmax(0, 1fr); }
+    .user-section--goal, .user-section--workouts, .user-section--weight, .user-section--devices { grid-column: 1; }
+    .user-section-body--scroll { max-height: 520px; }
 }
-
-.pill-subtle {
-    background: var(--field);
-    color: var(--muted);
-    border-color: var(--border);
+@container user-panel (max-width: 440px) {
+    .user-header { flex-direction: column; gap: 12px; }
+    .user-header > .user-tags { justify-items: start; }
+    .user-id-fields, .user-meta-grid { grid-template-columns: minmax(0, 1fr); }
+    .user-section { padding: 14px; }
+    .user-section-head { align-items: flex-start; }
+    .training-iteration { grid-template-columns: 30px minmax(0, 1fr); }
+    .training-iteration strong { grid-column: 2; }
 }
-
-.pill-no-profile {
-    background: rgba(229, 72, 77, .08);
-    border-color: rgba(229, 72, 77, .25);
-    color: #e5484d;
-    font-size: 10px;
-    letter-spacing: .02em;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.pill-admin {
-    background: rgba(48, 164, 108, .12);
-    border-color: rgba(48, 164, 108, .3);
-    color: #3dd68c;
-}
-
-.user-auth {
-    text-transform: uppercase;
-    font-size: 11px;
-}
-
-.user-auth-list {
-    font-size: 12px;
-    color: var(--muted);
-    text-align: right;
-}
-
-/* ── User detail sections ─────────────────────────────── */
-.user-details-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-    grid-template-rows: auto 1fr;
-    gap: 12px;
-    min-height: 0;
-    /* Explicit height keeps the inner `1fr` reliable across browsers when nested
-       inside another grid track. */
-    height: 100%;
-}
-
-.user-section {
-    --accent: var(--brand);
-    background: var(--field);
-    border: 1px solid var(--border);
-    border-top: 2px solid var(--accent);
-    border-radius: var(--radius-md);
-    padding: 12px 14px;
-    display: grid;
-    grid-template-rows: auto 1fr;
-    gap: 10px;
-    min-height: 0;
-}
-
-.user-section--goal       { --accent: var(--brand); grid-column: 1 / -1; }
-.user-section--workouts   { --accent: var(--ok);    grid-column: 1; min-height: 280px; }
-.user-section--weight     { --accent: var(--warning); grid-column: 2; min-height: 280px; }
-.user-section--devices    { --accent: var(--brand-2); grid-column: 1 / -1; }
-
-.user-section-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.user-section-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--text);
-}
-
-.section-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.user-section-note {
-    font-size: 11px;
-    color: var(--muted);
-    text-align: right;
-}
-
-.user-section-body {
-    display: grid;
-    gap: 8px;
-    align-content: start;
-    min-height: 0;
-}
-
-.user-section-body--scroll {
-    overflow: auto;
-    padding-right: 2px;
-}
-
-.user-section-empty {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-/* Goal section */
-.goal-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.goal-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    font-size: 12px;
-    color: var(--text);
-}
-
-.goal-pill .pill-label {
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    font-size: 10px;
-    color: var(--muted);
-    font-weight: 600;
-}
-
-.goal-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.goal-tag {
-    display: inline-flex;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    font-size: 11px;
-    color: var(--muted);
-}
-
-/* Training rows */
-.training-row {
-    display: grid;
-    grid-template-columns: 64px 1fr auto auto;
-    gap: 12px;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    align-items: center;
-    font: inherit;
-    color: var(--text);
-    font-size: 12px;
-    cursor: pointer;
-    text-align: left;
-    transition: background .12s, border-color .12s, transform .12s;
-    width: 100%;
-}
-
-.training-row:hover {
-    background: var(--field-hover);
-    border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
-}
-
-.training-row:focus-visible {
-    outline: 2px solid var(--ok);
-    outline-offset: 2px;
-}
-
-.training-row.is-open {
-    background: var(--field-focus);
-    border-color: color-mix(in srgb, var(--ok) 50%, var(--border));
-    /* Flatten the bottom corners so the row visually merges with the detail box. */
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.training-date {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.15;
-    color: var(--text);
-}
-
-.training-date-rel {
-    font-weight: 700;
-    font-size: 12px;
-}
-
-.training-date-abs {
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 2px;
-}
-
-.training-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    color: var(--muted);
-}
-
-.training-stat .stat-label {
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    font-size: 10px;
-    color: var(--muted);
-    margin-right: 4px;
-    font-weight: 600;
-}
-
-.training-stat .stat-value {
-    color: var(--text);
-    font-weight: 600;
-    font-size: 12px;
-}
-
-.training-exercises {
-    font-size: 11px;
-    color: var(--muted);
-    white-space: nowrap;
-}
-
-.training-chevron {
-    width: 14px;
-    height: 14px;
-    color: var(--muted);
-    transition: transform .15s;
-}
-
-.training-row.is-open .training-chevron {
-    transform: rotate(90deg);
-    color: var(--ok);
-}
-
-/* Expanded training body */
-.training-detail {
-    display: grid;
-    gap: 8px;
-    padding: 8px 12px 10px;
-    border: 1px solid color-mix(in srgb, var(--ok) 30%, var(--border));
-    border-top: 0;
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-    background: var(--panel-2);
-    margin-top: -1px;
-}
-
-.training-exercise {
-    display: grid;
-    gap: 4px;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-    border: 1px solid var(--border);
-}
-
-.training-exercise-name {
-    font-weight: 600;
-    font-size: 12px;
-    color: var(--text);
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-}
-
-.training-exercise-name .sets-count {
-    font-size: 10px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    font-weight: 700;
-}
-
-.training-iterations {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.training-iteration {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: var(--field);
-    border: 1px solid var(--border);
-    font-size: 11px;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-}
-
-.training-iteration .iter-mode {
-    font-size: 9px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .03em;
-    font-weight: 700;
-}
-
-.training-iteration--reps-only {
-    color: var(--muted);
-}
-
-/* Weight rows */
-.weight-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 12px;
-    padding: 6px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    align-items: center;
-    font-size: 12px;
-}
-
-.weight-date {
-    color: var(--muted);
-}
-
-.weight-value {
-    font-weight: 700;
-    color: var(--text);
-    font-variant-numeric: tabular-nums;
-}
-
-.weight-delta {
-    font-size: 11px;
-    font-weight: 600;
-    min-width: 44px;
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-}
-
-.weight-delta.up {
-    color: var(--warning);
-}
-
-.weight-delta.down {
-    color: var(--ok);
-}
-
-.weight-delta.zero {
-    color: var(--muted);
-}
-
-/* Device tokens */
-.device-token-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 10px;
-    padding: 6px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--panel);
-    border: 1px solid var(--border);
-    align-items: center;
-    font-size: 12px;
-}
-
-.device-token-value {
-    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Monaco, Consolas, monospace;
-    font-size: 11px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-}
-
-.device-token-date {
-    font-size: 11px;
-    color: var(--muted);
-    white-space: nowrap;
-}
-
-.device-token-copy {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    background: var(--field);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    cursor: pointer;
-    transition: color .15s ease, background .15s ease, border-color .15s ease;
-}
-
-.device-token-copy:hover {
-    color: var(--text);
-    background: var(--field-hover);
-    border-color: var(--brand);
-}
-
-.device-token-copy:focus-visible {
-    outline: 2px solid var(--brand);
-    outline-offset: 1px;
-}
-
-.device-token-copy.is-copied,
-.device-token-copy.is-copied:hover {
-    color: var(--ok);
-    border-color: var(--ok);
-    background: color-mix(in srgb, var(--ok) 14%, var(--field));
-}
-
-.device-token-copy svg {
-    width: 14px;
-    height: 14px;
-}
-
-/* Loading skeleton */
-.user-section-loading {
-    height: 14px;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--panel) 0%, var(--field-hover) 50%, var(--panel) 100%);
-    background-size: 200% 100%;
-    animation: user-section-shimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes user-section-shimmer {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-/* Narrow viewport — collapse to a single column */
-@media (max-width: 980px) {
-    .user-details-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
-
-    .user-section--goal,
-    .user-section--workouts,
-    .user-section--weight,
-    .user-section--devices {
-        grid-column: 1;
-    }
-}
+@media (prefers-reduced-motion: reduce) { .user-section-loading { animation: none; } }

@@ -1,43 +1,30 @@
+import {userProfileState} from '../../domain/user/index.js';
+import {diagnosticBadgeHtml} from '../../shared/components/diagnosticPresentation.js';
 import {SortMenu} from '../../shared/components/SortMenu.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
 import {escapeHtml} from '../../shared/utils/index.js';
-
-const AVATAR_COLORS = [
-    {bg: 'rgba(91,156,245,.15)', color: '#5b9cf5'},
-    {bg: 'rgba(48,164,108,.15)', color: '#3dd68c'},
-    {bg: 'rgba(229,166,62,.15)', color: '#e5a63e'},
-    {bg: 'rgba(207,77,206,.15)', color: '#cf4dce'},
-    {bg: 'rgba(78,184,232,.15)', color: '#4eb8e8'},
-    {bg: 'rgba(242,124,94,.15)', color: '#f27c5e'},
-    {bg: 'rgba(229,72,77,.15)', color: '#e5484d'},
-];
+import {humanizeEnum, relativeDate, formatNumber} from './userFormatters.js';
 
 export class UserListView {
-    /**
-     * @param {{
-     *   store: UserStore,
-     *   els: { userList, userSearch, userSortToggle, userSortMenu, userSortLabel, userCount? },
-     *   onSelect: (user) => void,
-     *   sortOptions: Record<string, { label: string }>
-     * }} deps
-     */
     constructor({store, els, onSelect, sortOptions}) {
         this._store = store;
         this._els = els;
         this._onSelect = onSelect;
-
+        this._lastRender = null;
         this._sortMenu = new SortMenu({
             toggleEl: els.userSortToggle,
-            menuEl:   els.userSortMenu,
-            labelEl:  els.userSortLabel,
-            options:  sortOptions,
-            active:   store.getState().sortKey,
-            onChange: (key) => store.setSortKey(key)
+            menuEl: els.userSortMenu,
+            labelEl: els.userSortLabel,
+            options: sortOptions,
+            active: store.getState().sortKey,
+            onChange: key => store.setSortKey(key),
         });
-
-        els.userSearch?.addEventListener('input', (e) => store.setSearchQuery(e.target.value));
-
+        els.userSearch?.addEventListener('input', event => store.setSearchQuery(event.target.value));
+        els.qualityFilter?.addEventListener('change', event => store.setDiagnosticFilter(event.target.value));
+        els.userList?.addEventListener('click', event => this._selectRow(event.target.closest('.user-item')));
+        els.userList?.addEventListener('keydown', event => this._onKeyDown(event));
         this._unsubscribe = store.subscribe(() => this.render());
+        this.render();
     }
 
     destroy() {
@@ -46,109 +33,128 @@ export class UserListView {
     }
 
     render() {
-        const {filtered, users, active, isLoading, searchQuery} = this._store.getState();
-        if (!this._els.userList) return;
-
-        // Update count badge
+        const state = this._store.getState();
+        const {filtered, users, active, isLoading, searchQuery, loadError} = state;
+        const list = this._els.userList;
+        if (!list) return;
+        list.setAttribute('aria-busy', String(isLoading));
+        this._renderDiagnosticControls(state);
+        this._sortMenu.setActive(state.sortKey);
+        if (this._els.userSearch && this._els.userSearch.value !== searchQuery) this._els.userSearch.value = searchQuery;
+        if (this._els.reloadUsersBtn) {
+            this._els.reloadUsersBtn.disabled = isLoading;
+            this._els.reloadUsersBtn.textContent = isLoading ? 'Loading…' : 'Refresh users';
+        }
         if (this._els.userCount) {
-            if (isLoading) {
-                this._els.userCount.textContent = 'Loading…';
-            } else if (searchQuery) {
-                this._els.userCount.textContent = `${filtered.length} of ${users.length}`;
-            } else {
-                this._els.userCount.textContent = `${users.length}`;
-            }
+            this._els.userCount.textContent = isLoading && !users.length ? 'Loading users…'
+                : searchQuery.trim() || state.diagnosticFilter !== 'all' ? `${filtered.length} of ${users.length} users`
+                    : `${users.length} user${users.length === 1 ? '' : 's'}`;
         }
 
-        if (isLoading) {
-            this._els.userList.innerHTML = '<div class="list-loading">Loading…</div>';
+        const previous = this._lastRender;
+        if (previous?.filtered === filtered && previous.diagnostics === state.diagnostics && previous.loadError === loadError &&
+            (users.length > 0 || previous.isLoading === isLoading)) {
+            if (previous.activeId !== active?.id) this._updateSelection(active?.id);
+            this._lastRender = {filtered, diagnostics: state.diagnostics, loadError, isLoading, activeId: active?.id};
+            return;
+        }
+        this._lastRender = {filtered, diagnostics: state.diagnostics, loadError, isLoading, activeId: active?.id};
+        const focusedId = list.contains(document.activeElement) ? document.activeElement.closest('.user-item')?.dataset.id : null;
+        const scrollTop = list.scrollTop;
+
+        if (isLoading && !users.length) {
+            list.innerHTML = '<div class="user-list-message" role="status"><span class="user-list-message-title">Loading users…</span><span>Getting accounts and activity.</span></div>';
+            return;
+        }
+        const error = loadError ? `<div class="user-list-error" role="status"><strong>Could not refresh users</strong><span>${escapeHtml(loadError)}</span><span>Use Refresh users to try again.</span></div>` : '';
+        if (!filtered.length) {
+            list.innerHTML = error + `<div class="user-list-message"><span class="user-list-message-icon" aria-hidden="true">⌕</span><span class="user-list-message-title">${users.length ? 'No matching users' : 'No users to display'}</span><span>${users.length ? 'Try another name, email or ID, or clear your filters.' : loadError ? 'The user list could not be loaded.' : 'Accounts will appear here when users join.'}</span></div>`;
             return;
         }
 
-        this._els.userList.innerHTML = '';
-        for (const user of filtered) {
-            const el = document.createElement('div');
-            el.dataset.id = user.id;
-            el.className = 'item user-item' + (user.id === active?.id ? ' active' : '');
-            el.setAttribute('role', 'option');
-            el.tabIndex = 0;
-
-            const key = user.email || user.id || '?';
-            const badge = escapeHtml(key[0].toUpperCase());
-            const {bg, color} = this._avatarColor(key);
-            const roleClass = user.role === 'admin' ? 'pill pill-admin' : 'pill pill-subtle';
-
-            const authIconsHtml = this._renderAuthIcons(user.authTypes || []);
-
-            const workoutsPart = user.workoutsCount > 0
-                ? `<span class="user-workouts">${user.workoutsCount} workouts</span>`
-                : '';
-            const datePart = user.createdAt
-                ? `<span class="user-item-date">${escapeHtml(this._relativeDate(user.createdAt))}</span>`
-                : '';
-            const metaParts = [workoutsPart, datePart].filter(Boolean);
-            const metaHtml = metaParts.length
-                ? `<div class="user-meta">${metaParts.join('<span class="user-meta-sep">·</span>')}</div>`
-                : '';
-
-            const hasProfile = Boolean(user.name);
-            const displayName = escapeHtml(user.name || user.email || user.id);
-            const emailLine = user.name && user.email
-                ? `<div class="user-email">${escapeHtml(user.email)}</div>`
-                : '';
-            const noProfileChip = !hasProfile
-                ? `<span class="pill pill-no-profile" aria-label="No profile">no profile</span>`
-                : '';
-
-            el.innerHTML = `
-                <div class="user-badge" style="background:${bg};color:${color};border-color:${color}33" aria-hidden="true">${badge}</div>
-                <div class="user-copy">
-                    <div class="user-name-row">
-                        <span class="user-name">${displayName}</span>
-                        ${noProfileChip}
-                    </div>
-                    ${emailLine}
-                    ${metaHtml}
-                </div>
-                <div class="user-tags">
-                    <div class="user-auth-icons">${authIconsHtml}</div>
-                    <span class="${roleClass} user-role">${escapeHtml(user.role)}</span>
-                </div>
-            `;
-
-            el.addEventListener('click', () => this._onSelect(user));
-            this._els.userList.appendChild(el);
+        list.innerHTML = error + filtered.map(user => this._userItem(user, user.id === active?.id, state.diagnostics.get(user.id))).join('');
+        this._updateSelection(active?.id);
+        list.scrollTop = scrollTop;
+        if (focusedId) {
+            const row = Array.from(list.querySelectorAll('.user-item')).find(item => item.dataset.id === focusedId);
+            row?.focus({preventScroll: true});
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────
-
-    _avatarColor(str) {
-        let h = 0;
-        for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
-        return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+    _renderDiagnosticControls(state) {
+        const select = this._els.qualityFilter;
+        if (select && this._lastDiagnosticOptions !== state.diagnosticFilterOptions) {
+            select.innerHTML = state.diagnosticFilterOptions.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`).join('');
+            this._lastDiagnosticOptions = state.diagnosticFilterOptions;
+        }
+        if (select) select.value = state.diagnosticFilter;
+        if (this._els.qualitySummary) {
+            const summary = state.diagnosticSummary;
+            this._els.qualitySummary.textContent = !summary.recordCount ? 'Checks run when users load.'
+                : `${summary.attentionCount} of ${summary.recordCount} need review${summary.unverifiedCount ? ` · ${summary.unverifiedCount} partially checked` : ''}`;
+        }
     }
 
-    _relativeDate(isoDate) {
-        if (!isoDate) return '';
-        const ts = new Date(isoDate).getTime();
-        if (!ts) return '';
-        const diff = Date.now() - ts;
-        const days = Math.floor(diff / 86400000);
-        if (days === 0) return 'today';
-        if (days === 1) return 'yesterday';
-        if (days < 30) return `${days}d ago`;
-        const months = Math.floor(days / 30);
-        if (months < 12) return `${months}mo ago`;
-        return `${Math.floor(months / 12)}yr ago`;
-    }
-
-    _renderAuthIcons(authTypes) {
-        if (!authTypes.length) return '';
-        return authTypes.map(type => {
+    _userItem(user, selected, report) {
+        const key = user.name || user.email || user.id || '?';
+        const roleClass = user.role === 'admin' ? 'pill pill-admin' : 'pill pill-subtle';
+        const count = user.workoutsCount;
+        const authIcons = (user.authTypes || []).map(type => {
             const {label, svg} = getAuthIcon(type);
-            const safeLabel = escapeHtml(label);
-            return `<span class="user-auth-icon" title="${safeLabel}" aria-label="${safeLabel}">${svg}</span>`;
+            return `<span class="user-auth-icon" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${svg}</span>`;
         }).join('');
+        return `<div class="item user-item${selected ? ' active' : ''}" data-id="${escapeHtml(user.id)}" role="option" aria-selected="${selected}" tabindex="-1">
+            <div class="user-badge user-badge--${this._avatarColor(key)}" aria-hidden="true">${escapeHtml(Array.from(key)[0].toUpperCase())}</div>
+            <div class="user-copy">
+                <div class="user-name-row"><span class="user-name" title="${escapeHtml(key)}">${escapeHtml(key)}</span>${report?.findings.length ? diagnosticBadgeHtml(report) : ''}</div>
+                ${user.name && user.email ? `<div class="user-email" title="${escapeHtml(user.email)}">${escapeHtml(user.email)}</div>` : ''}
+                <div class="user-meta"><span class="user-workouts">${formatNumber(count)} workout${count === 1 ? '' : 's'}</span>${user.createdAt ? `<span class="user-meta-sep">·</span><span class="user-item-date" title="Joined ${escapeHtml(user.createdAt)}">${escapeHtml(relativeDate(user.createdAt))}</span>` : ''}</div>
+            </div>
+            <div class="user-tags"><div class="user-auth-icons">${authIcons}</div><span class="${roleClass} user-role">${escapeHtml(humanizeEnum(user.role))}</span>${userProfileState(user) === 'missing' ? '<span class="pill pill-no-profile">No profile</span>' : ''}</div>
+        </div>`;
+    }
+
+    _updateSelection(activeId) {
+        const rows = Array.from(this._els.userList.querySelectorAll('.user-item'));
+        const selectedVisible = rows.some(row => row.dataset.id === activeId);
+        rows.forEach((row, index) => {
+            const selected = row.dataset.id === activeId;
+            row.classList.toggle('active', selected);
+            row.setAttribute('aria-selected', String(selected));
+            row.tabIndex = selected || (!selectedVisible && index === 0) ? 0 : -1;
+        });
+    }
+
+    _selectRow(row) {
+        if (!row) return;
+        const user = this._store.getState().filtered.find(item => item.id === row.dataset.id);
+        if (user) this._onSelect(user);
+    }
+
+    _onKeyDown(event) {
+        const row = event.target.closest('.user-item');
+        if (!row) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this._selectRow(row);
+            return;
+        }
+        const rows = Array.from(this._els.userList.querySelectorAll('.user-item'));
+        const index = rows.indexOf(row);
+        let next;
+        if (event.key === 'ArrowDown') next = rows[Math.min(index + 1, rows.length - 1)];
+        if (event.key === 'ArrowUp') next = rows[Math.max(index - 1, 0)];
+        if (event.key === 'Home') next = rows[0];
+        if (event.key === 'End') next = rows[rows.length - 1];
+        if (!next) return;
+        event.preventDefault();
+        rows.forEach(item => item.tabIndex = item === next ? 0 : -1);
+        next.focus();
+    }
+
+    _avatarColor(value) {
+        let hash = 0;
+        for (let i = 0; i < value.length; i++) hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+        return Math.abs(hash) % 7;
     }
 }

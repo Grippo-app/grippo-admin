@@ -3,91 +3,96 @@ import {UserDetailsEntity, UserEntity} from '../../domain/user/index.js';
 import {Toast} from '../../shared/components/Toast.js';
 
 export class UserController {
-    /**
-     * @param {{
-     *   store: UserStore,
-     *   listView: UserListView,
-     *   detailView: UserDetailView,
-     *   repository: UserRepository,
-     *   bus: EventBus,
-     *   confirmDialog: ConfirmDialog
-     * }} deps
-     */
-    constructor({store, listView, detailView, repository, bus, confirmDialog}) {
+    constructor({store, repository, bus, confirmDialog}) {
         this._store = store;
         this._repo = repository;
         this._bus = bus;
         this._confirm = confirmDialog;
+        this._sessionVersion = 0;
+        this._loadVersion = 0;
+        this._detailsVersion = 0;
+        this._deleteConfirming = false;
 
         bus.on(Events.AUTH_LOGIN_SUCCESS, () => this.loadUsers());
-        bus.on(Events.AUTH_LOGOUT, () => store.setUsers([]));
-        bus.on(Events.AUTH_SESSION_EXPIRED, () => store.setUsers([]));
+        const reset = () => {
+            this._sessionVersion++;
+            this._loadVersion++;
+            this._detailsVersion++;
+            store.reset();
+        };
+        bus.on(Events.AUTH_LOGOUT, reset);
+        bus.on(Events.AUTH_SESSION_EXPIRED, reset);
     }
 
     async loadUsers() {
+        const version = ++this._loadVersion;
         this._store.setLoading(true);
         try {
             const raw = await this._repo.fetchAll();
-            const users = (Array.isArray(raw) ? raw : []).map(UserEntity.normalize);
+            if (version !== this._loadVersion) return;
+            UserEntity.validateList(raw);
+            const users = raw.map(UserEntity.normalize);
             this._store.setUsers(users);
             this._bus.emit(Events.USER_LIST_LOADED, users);
-        } catch (err) {
-            Toast.show({title: 'Failed to load users', message: err.message, type: 'error'});
+        } catch (error) {
+            if (version !== this._loadVersion) return;
+            this._store.setLoadError(error.message || 'Please try again.');
+            Toast.show({title: 'Failed to load users', message: error.message, type: 'error'});
         } finally {
-            this._store.setLoading(false);
+            if (version === this._loadVersion) this._store.setLoading(false);
         }
     }
 
     selectUser(user) {
-        const prev = this._store.getState();
-        const alreadyLoaded = prev.detailsForUserId === user?.id && prev.details && !prev.detailsLoading;
-
+        const previous = this._store.getState();
+        if (previous.active?.id === user?.id && previous.detailsLoading) return;
+        const alreadyLoaded = previous.detailsForUserId === user?.id && previous.details && !previous.detailsLoading;
+        if (previous.active?.id !== user?.id) this._detailsVersion++;
         this._store.setActive(user);
         this._bus.emit(Events.USER_SELECTED, user);
+        if (user?.id && !alreadyLoaded) return this._loadDetails(user.id);
+    }
 
-        // Skip the round-trip if details for this user are already in the store —
-        // re-selecting the same row should be a no-op, not a flicker + re-fetch.
-        if (user?.id && !alreadyLoaded) this._loadDetails(user.id);
+    reloadDetails() {
+        const {active, detailsLoading} = this._store.getState();
+        if (active && !detailsLoading) return this._loadDetails(active.id);
     }
 
     async _loadDetails(userId) {
+        const version = ++this._detailsVersion;
         this._store.setDetailsLoading(userId);
         const {start, end} = this._defaultTrainingsRange();
+        const keys = ['goal', 'recentTrainings', 'weightHistory', 'deviceTokens'];
+        const normalizers = [
+            UserDetailsEntity.normalizeGoal,
+            UserDetailsEntity.normalizeTrainings,
+            UserDetailsEntity.normalizeWeightHistory,
+            UserDetailsEntity.normalizeDeviceTokens,
+        ];
+        const requests = [
+            () => this._repo.fetchGoal(userId),
+            () => this._repo.fetchTrainings(userId, {start, end}),
+            () => this._repo.fetchWeightHistory(userId),
+            () => this._repo.fetchDeviceTokens(userId),
+        ];
+        const results = await Promise.allSettled(requests.map((request, index) =>
+            Promise.resolve().then(request).then(raw => {
+                UserDetailsEntity.validateResponse(keys[index], raw);
+                return normalizers[index](raw);
+            })
+        ));
+        if (version !== this._detailsVersion || this._store.getState().active?.id !== userId) return;
 
-        const [goalRes, trainingsRes, weightsRes, deviceTokensRes] = await Promise.allSettled([
-            this._repo.fetchGoal(userId),
-            this._repo.fetchTrainings(userId, {start, end}),
-            this._repo.fetchWeightHistory(userId),
-            this._repo.fetchDeviceTokens(userId),
-        ]);
-
-        // If user switched while we were loading, drop the result silently.
-        if (this._store.getState().active?.id !== userId) return;
-
-        const details = {
-            goal: goalRes.status === 'fulfilled'
-                ? UserDetailsEntity.normalizeGoal(goalRes.value)
-                : null,
-            recentTrainings: trainingsRes.status === 'fulfilled'
-                ? UserDetailsEntity.normalizeTrainings(trainingsRes.value)
-                : [],
-            weightHistory: weightsRes.status === 'fulfilled'
-                ? UserDetailsEntity.normalizeWeightHistory(weightsRes.value)
-                : [],
-            deviceTokens: deviceTokensRes.status === 'fulfilled'
-                ? UserDetailsEntity.normalizeDeviceTokens(deviceTokensRes.value)
-                : [],
-        };
-
-        const failed = [goalRes, trainingsRes, weightsRes, deviceTokensRes].find(r => r.status === 'rejected');
-        if (failed) {
-            Toast.show({
-                title: 'Failed to load some user details',
-                message: failed.reason?.message || 'Unknown error',
-                type: 'error',
-            });
-        }
-
+        const details = {errors: {}};
+        results.forEach((result, index) => {
+            const key = keys[index];
+            details[key] = result.status === 'fulfilled' ? result.value : key === 'goal' ? null : [];
+            if (result.status === 'rejected') {
+                details.errors[key] = key === 'deviceTokens' && result.reason?.status === 404
+                    ? 'Device token data is unavailable on this API (404). The number of registered devices could not be determined.'
+                    : result.reason?.message || 'Please try again.';
+            }
+        });
         this._store.setDetails(userId, details);
         this._bus.emit(Events.USER_DETAILS_LOADED, {userId, details});
     }
@@ -100,47 +105,65 @@ export class UserController {
     }
 
     async changeRole(role) {
-        const {active} = this._store.getState();
-        if (!active) return;
-        if (active.role === role) return; // уже эта роль — нечего менять
+        const {active, roleChangeInFlight, deleteInFlight} = this._store.getState();
+        if (!active || active.role === role || roleChangeInFlight || deleteInFlight || typeof role !== 'string') return;
+        const session = this._sessionVersion;
         this._store.setRoleChangeInFlight(true);
         try {
             const updated = await this._repo.setRole(active.id, role);
-            // Если бэкенд ответил пустым телом / странной формой — мерджим локально с новой ролью,
-            // чтобы UI не оказался с пустыми полями юзера.
-            const merged = (updated && typeof updated === 'object')
-                ? {...active.raw, ...updated, id: active.id, role}
-                : {...active.raw, id: active.id, role};
-            const normalized = UserEntity.normalize(merged);
+            if (session !== this._sessionVersion) return;
+            this._loadVersion++;
+            this._store.setLoading(false);
+            const current = this._store.getState().users.find(user => user.id === active.id) || active;
+            // Role responses omit aggregate metadata and serialize its defaults (0/null).
+            // A role change does not change activity; retain the latest list aggregates.
+            const merged = {...current.raw, ...(updated && typeof updated === 'object' ? updated : {}), id: active.id, role};
+            for (const field of ['workoutsCount', 'lastActivity']) {
+                if (Object.hasOwn(current.raw, field)) merged[field] = current.raw[field];
+                else delete merged[field];
+            }
+            // Keep display aggregates while retaining absent/malformed raw evidence for diagnostics.
+            const normalized = {...UserEntity.normalize(merged), workoutsCount: current.workoutsCount, lastActivity: current.lastActivity};
             this._store.updateUser(normalized);
             this._bus.emit(Events.USER_ROLE_CHANGED, normalized);
-            Toast.show({title: `Role changed to ${role}`});
-        } catch (err) {
-            Toast.show({title: 'Role change failed', message: err.message, type: 'error'});
+            Toast.show({title: `Role changed to ${role}`, message: active.email || active.name || active.id});
+        } catch (error) {
+            if (session === this._sessionVersion) Toast.show({title: 'Role change failed', message: error.message, type: 'error'});
         } finally {
-            this._store.setRoleChangeInFlight(false);
+            if (session === this._sessionVersion) this._store.setRoleChangeInFlight(false);
         }
     }
 
     async deleteActiveUser() {
-        const {active} = this._store.getState();
-        if (!active) return;
-
-        const ok = await this._confirm.ask({
-            title: 'Delete user',
-            message: `Delete ${active.email || active.id}?`,
-            detail: 'This action cannot be undone.',
-            actionLabel: 'Delete'
-        });
-        if (!ok) return;
-
+        const {active, deleteInFlight, roleChangeInFlight} = this._store.getState();
+        if (!active || deleteInFlight || roleChangeInFlight || this._deleteConfirming) return;
+        const session = this._sessionVersion;
+        this._deleteConfirming = true;
+        let confirmed;
+        try {
+            confirmed = await this._confirm.ask({
+                title: 'Delete user',
+                message: `Delete ${active.email || active.name || active.id}?`,
+                detail: 'Their account will be permanently deleted. This action cannot be undone.',
+                actionLabel: 'Delete user',
+            });
+        } finally {
+            this._deleteConfirming = false;
+        }
+        if (!confirmed || session !== this._sessionVersion) return;
+        this._store.setDeleteInFlight(true, active.id);
         try {
             await this._repo.delete(active.id);
+            if (session !== this._sessionVersion) return;
+            this._loadVersion++;
+            this._store.setLoading(false);
             this._store.removeUser(active.id);
             this._bus.emit(Events.USER_DELETED, {id: active.id});
-            Toast.show({title: 'User deleted'});
-        } catch (err) {
-            Toast.show({title: 'Delete failed', message: err.message, type: 'error'});
+            Toast.show({title: 'User deleted', message: active.email || active.name || active.id});
+        } catch (error) {
+            if (session === this._sessionVersion) Toast.show({title: 'Delete failed', message: error.message, type: 'error'});
+        } finally {
+            if (session === this._sessionVersion) this._store.setDeleteInFlight(false);
         }
     }
 }

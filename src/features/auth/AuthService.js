@@ -14,6 +14,7 @@ export class AuthService {
         this._userRepo = userRepository;
         this._storage = storage;
         this._bus = bus;
+        this._operationSeq = 0;
 
         // Wire ApiClient callback to EventBus
         this._api.onSessionExpired = () => this._onSessionExpired();
@@ -24,6 +25,7 @@ export class AuthService {
      * Tries to restore session via refresh token (from memory or localStorage).
      */
     async tryRestoreSession() {
+        const seq = ++this._operationSeq;
         // Если refresh-токена нет вообще — это первый заход / разлогинились.
         // Не показываем «Session expired», просто эмитим LOGOUT → LoginView.show().
         const hasRefresh = !!this._storage.getRefreshToken();
@@ -34,8 +36,9 @@ export class AuthService {
         // force:false — при бутстрапе мы сами решаем, как реагировать (показ login overlay),
         // не надо чтобы ApiClient ещё раз дёргал onSessionExpired (двойной emit).
         const ok = await this._api.silentRefresh({force: false});
+        if (seq !== this._operationSeq) return false;
         if (ok) {
-            await this._emitLoginSuccess();
+            return this._emitLoginSuccess(seq);
         } else {
             // Токен был, но рефреш упал — реальное "истечение сессии"
             this._bus.emit(Events.AUTH_SESSION_EXPIRED);
@@ -48,15 +51,19 @@ export class AuthService {
      * @param {{ email: string, password: string }} credentials
      */
     async login(credentials) {
+        const seq = ++this._operationSeq;
         const data = await this._api.login(credentials);  // throws on failure
-        this._api.setTokens(data.accessToken || '', data.refreshToken || '');
-        await this._emitLoginSuccess(data);
+        if (seq !== this._operationSeq) return false;
+        if (typeof data?.accessToken !== 'string' || !data.accessToken) throw new Error('The server did not return an access token.');
+        this._api.setTokens(data.accessToken, data.refreshToken || '');
+        return this._emitLoginSuccess(seq, data);
     }
 
     /**
      * Logout — clear tokens, notify listeners.
      */
     async logout() {
+        ++this._operationSeq;
         await this._api.serverLogout();
         this._storage.clearUserInfo();
         this._bus.emit(Events.AUTH_LOGOUT);
@@ -64,19 +71,21 @@ export class AuthService {
 
     /** Internal: called by ApiClient when refresh fails. */
     _onSessionExpired() {
+        ++this._operationSeq;
         this._api.clearAuthToken();
         this._storage.clearUserInfo();
         this._bus.emit(Events.AUTH_SESSION_EXPIRED);
     }
 
     /** Fetch current user and emit AUTH_LOGIN_SUCCESS. */
-    async _emitLoginSuccess(loginData = null) {
+    async _emitLoginSuccess(seq, loginData = null) {
         let user = null;
         try {
             user = await this._userRepo.fetchCurrentUser();
         } catch {
             // Non-fatal: user info not critical for session validity
         }
+        if (seq !== this._operationSeq || !this._api.authToken) return false;
         this._bus.emit(Events.AUTH_LOGIN_SUCCESS, {
             tokens: {
                 accessToken: this._api.authToken,
@@ -85,5 +94,6 @@ export class AuthService {
             user: user || loginData?.user || loginData || null,
             loginData  // raw response if available
         });
+        return true;
     }
 }

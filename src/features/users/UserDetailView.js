@@ -1,37 +1,35 @@
-import {UserEntity} from '../../domain/user/index.js';
-import {escapeHtml, formatIso} from '../../shared/utils/index.js';
+import {UserEntity, userProfileState} from '../../domain/user/index.js';
+import {diagnosticPanelHtml} from '../../shared/components/diagnosticPresentation.js';
+import {escapeHtml, toTimestamp} from '../../shared/utils/index.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
 import {Toast} from '../../shared/components/Toast.js';
-import {formatDuration, formatNumber, formatShortDate, humanizeEnum, relativeDate,} from './userFormatters.js';
+import {formatDuration, formatNumber, formatShortDate, humanizeEnum, relativeDate} from './userFormatters.js';
 
 export class UserDetailView {
-    /**
-     * @param {{
-     *   store: UserStore,
-     *   els: {
-     *     userNameEl, userIdEl, userEmailEl, userCreatedEl, userActivityEl, userWorkoutsEl,
-     *     userAuthPill, userAuthList,
-     *     roleSegments, deleteUserBtn,
-     *     detailsSections, goalSummary, goalBody,
-     *     trainingsCount, trainingsBody,
-     *     weightSummary, weightBody,
-     *     deviceTokensSummary, deviceTokensBody
-     *   },
-     *   onRoleChange: (role: string) => void,
-     *   onDelete: () => void
-     * }} deps
-     */
-    constructor({store, els, onRoleChange, onDelete}) {
+    constructor({store, els, onRoleChange, onDelete, onRetryDetails}) {
         this._store = store;
         this._els = els;
-
-        this._bindRoleSegment(onRoleChange);
-        this._els.deleteUserBtn?.addEventListener('click', onDelete);
-        this._bindTrainingsDelegation();
-        this._bindDeviceTokensDelegation();
-
+        this._renderedSections = new Map();
+        this._lastActive = null;
+        els.roleSegments?.forEach(button => button.addEventListener('click', () => {
+            if (button.dataset.role) onRoleChange(button.dataset.role);
+        }));
+        els.deleteUserBtn?.addEventListener('click', onDelete);
+        els.detailsSections?.addEventListener('click', event => {
+            const action = event.target.closest('[data-user-action]')?.dataset.userAction;
+            if (action === 'retry') onRetryDetails?.();
+            if (action === 'more-trainings') store.showMoreTrainings();
+            if (action === 'more-weights') store.showMoreWeights();
+        });
+        els.trainingsBody?.addEventListener('click', event => {
+            const row = event.target.closest('[data-training-id]');
+            if (row) store.toggleExpandedTraining(row.dataset.trainingId);
+        });
+        els.deviceTokensBody?.addEventListener('click', event => {
+            const button = event.target.closest('[data-device-token]');
+            if (button) this._copyDeviceToken(button.dataset.deviceToken, button);
+        });
         this._unsubscribe = store.subscribe(() => this.render());
-        // Сразу применяем initial state чтобы UserDetail был скрыт корректно
         this.render();
     }
 
@@ -41,219 +39,165 @@ export class UserDetailView {
     }
 
     render() {
-        const {active, roleChangeInFlight, details, detailsLoading, expandedTrainingId} = this._store.getState();
+        const state = this._store.getState();
+        const {active, roleChangeInFlight, deleteInFlight, details, detailsLoading} = state;
+        const disabled = !active || roleChangeInFlight || deleteInFlight;
+        if (this._els.deleteUserBtn) {
+            this._els.deleteUserBtn.disabled = disabled;
+            this._els.deleteUserBtn.textContent = deleteInFlight && state.deleteUserId === active?.id ? 'Deleting…' : 'Delete user';
+        }
+        this._els.roleSegments?.forEach(button => {
+            const selected = Boolean(active && button.dataset.role === active.role);
+            button.disabled = disabled;
+            button.classList.toggle('active', selected);
+            button.setAttribute('aria-pressed', String(selected));
+        });
+        if (this._els.userDetail) this._els.userDetail.hidden = !active;
+        if (this._els.userSelectionHint) this._els.userSelectionHint.hidden = Boolean(active);
+        if (this._els.userEmptyState) this._els.userEmptyState.hidden = Boolean(active);
         if (!active) {
-            this._showEmpty();
-            this._setActionsDisabled(true);
+            this._clearSelection();
+            this._lastActive = null;
+            this._renderedSections.clear();
             return;
         }
-        this._setActionsDisabled(roleChangeInFlight);
+        if (this._lastActive !== active) {
+            this._renderHeader(active);
+            this._lastActive = active;
+        }
+        const report = state.diagnostics?.get(active.id);
+        this._renderSection('diagnostics', [active.id, report], () => {
+            if (!this._els.userDiagnostics) return;
+            this._els.userDiagnostics.hidden = false;
+            const profileNote = userProfileState(active) === 'unknown'
+                ? '<p class="diagnostic-unverified">Profile data was not supplied. Profile checks are incomplete.</p>' : '';
+            this._setBody(this._els.userDiagnostics, diagnosticPanelHtml(report, {title: 'Account checks'}) + profileNote);
+        });
+        const errors = details?.errors || {};
+        const section = key => ({state: detailsLoading ? 'loading' : 'ready', error: errors[key]});
+        this._renderSection('goal', [active.id, detailsLoading, details?.goal, errors.goal], () =>
+            this._renderGoal({...section('goal'), goal: details?.goal}));
+        this._renderSection('trainings', [active.id, detailsLoading, details?.recentTrainings, errors.recentTrainings, state.expandedTrainingId, state.trainingsLimit], () =>
+            this._renderTrainings({...section('recentTrainings'), trainings: details?.recentTrainings, expandedTrainingId: state.expandedTrainingId, limit: state.trainingsLimit}));
+        this._renderSection('weights', [active.id, userProfileState(active), detailsLoading, details?.weightHistory, errors.weightHistory, state.weightsLimit], () =>
+            this._renderWeight({...section('weightHistory'), entries: details?.weightHistory, userHasProfile: userProfileState(active) !== 'missing', limit: state.weightsLimit}));
+        this._renderSection('devices', [active.id, detailsLoading, details?.deviceTokens, errors.deviceTokens], () =>
+            this._renderDeviceTokens({...section('deviceTokens'), tokens: details?.deviceTokens}));
+    }
 
-        if (this._els.userDetail) this._els.userDetail.hidden = false;
-        if (this._els.userSelectionHint) this._els.userSelectionHint.hidden = true;
+    _clearSelection() {
+        const textFields = ['userNameEl', 'userEmailEl', 'userCreatedEl', 'userUpdatedEl',
+            'userActivityEl', 'userWorkoutsEl', 'userAuthList', 'goalSummary', 'trainingsCount',
+            'weightSummary', 'deviceTokensSummary'];
+        textFields.forEach(key => this._setText(this._els[key], ''));
+        for (const key of ['userIdEl', 'profileIdEl']) {
+            if (this._els[key]) this._els[key].value = '';
+        }
+        for (const key of ['userAuthPill', 'goalBody', 'trainingsBody', 'weightBody', 'deviceTokensBody', 'userDiagnostics']) {
+            if (this._els[key]) this._els[key].innerHTML = '';
+        }
+        if (this._els.userActivityEl) this._els.userActivityEl.title = '';
+        if (this._els.userDiagnostics) this._els.userDiagnostics.hidden = true;
+    }
 
-        // User name, ID, email, dates, workout count
+    _renderHeader(active) {
         this._setText(this._els.userNameEl, active.name || active.email || active.id);
-        this._setValue(this._els.userIdEl, active.id);
-        this._setValue(this._els.profileIdEl, active.profileId);
-        this._setText(this._els.userEmailEl, active.email);
-        this._setText(this._els.userCreatedEl, formatIso(UserEntity.createdAt(active)));
-        this._setText(this._els.userUpdatedEl, formatIso(UserEntity.updatedAt(active)));
-        this._setText(this._els.userActivityEl, formatIso(UserEntity.lastActivityAt(active)));
-        this._setText(this._els.userWorkoutsEl, String(UserEntity.workoutsCount(active)));
-
-        // Auth type indicators
-        this._renderAuthIndicator(this._els.userAuthPill, active.authTypes);
-        this._renderAuthTypeList(this._els.userAuthList, active.authTypes);
-
-        // Role segment
-        this._updateRoleSegment(active.role);
-
-        // Extended details sections
-        this._renderDetails({active, details, loading: detailsLoading, expandedTrainingId});
-    }
-
-    _setActionsDisabled(disabled) {
-        if (this._els.deleteUserBtn) this._els.deleteUserBtn.disabled = disabled;
-        this._els.roleSegments?.forEach(btn => {
-            btn.disabled = disabled;
-        });
-    }
-
-    // ── Auth indicator ────────────────────────────────────
-
-    _renderAuthIndicator(el, authTypes = []) {
-        if (!el) return;
-        const types = UserEntity.getAuthTypes({authTypes});
-        if (!types.length) {
-            el.innerHTML = '<span class="auth-type-empty">—</span>';
-            el.setAttribute('aria-label', 'No auth types');
-            return;
+        if (this._els.userIdEl) this._els.userIdEl.value = active.id;
+        if (this._els.profileIdEl) this._els.profileIdEl.value = active.profileId;
+        this._setText(this._els.userEmailEl, active.email || 'No email address');
+        this._setText(this._els.userCreatedEl, formatShortDate(active.createdAt) || '—');
+        this._setText(this._els.userUpdatedEl, formatShortDate(active.updatedAt) || '—');
+        this._setText(this._els.userActivityEl, relativeDate(active.lastActivity) || 'No activity');
+        if (this._els.userActivityEl) this._els.userActivityEl.title = formatShortDate(active.lastActivity);
+        this._setText(this._els.userWorkoutsEl, formatNumber(UserEntity.workoutsCount(active)));
+        const types = active.authTypes || [];
+        if (this._els.userAuthPill) {
+            this._els.userAuthPill.innerHTML = types.map(type => {
+                const {label, svg} = getAuthIcon(type);
+                return `<span class="auth-type-icon" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${svg}</span>`;
+            }).join('');
         }
-        el.innerHTML = types
-            .map((authType) => {
-                const {label, svg} = getAuthIcon(authType);
-                const safeLabel = escapeHtml(label);
-                return `<span class="auth-type-icon" title="${safeLabel}" aria-label="${safeLabel}">${svg}</span>`;
-            })
-            .join('');
-        el.setAttribute('aria-label', `Auth types: ${types.join(', ')}`);
+        this._setText(this._els.userAuthList, types.length ? types.map(type => getAuthIcon(type).label).join(' · ') : 'No sign-in methods');
     }
 
-    _renderAuthTypeList(el, authTypes = []) {
-        if (!el) return;
-        const types = UserEntity.getAuthTypes({authTypes});
-        if (!types.length) {
-            el.textContent = '—';
-            return;
-        }
-        const labels = types.map((authType) => getAuthIcon(authType).label);
-        el.textContent = labels.join(' · ');
+    _renderSection(name, dependencies, render) {
+        const previous = this._renderedSections.get(name);
+        if (previous && dependencies.every((value, index) => value === previous[index])) return;
+        render();
+        this._renderedSections.set(name, dependencies);
     }
 
-    // ── Role segment ─────────────────────────────────────
-
-    _bindRoleSegment(onRoleChange) {
-        this._els.roleSegments?.forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (!btn.dataset.role) return;
-                onRoleChange(btn.dataset.role);
-            });
-        });
-    }
-
-    _updateRoleSegment(activeRole) {
-        this._els.roleSegments?.forEach(btn => {
-            btn.classList.toggle('segment--active', btn.dataset.role === activeRole);
-        });
-    }
-
-    // ── Details sections ─────────────────────────────────
-
-    _renderDetails({active, details, loading, expandedTrainingId}) {
-        if (!this._els.detailsSections) return;
-
-        if (loading) {
-            this._renderGoal({state: 'loading'});
-            this._renderTrainings({state: 'loading'});
-            this._renderWeight({state: 'loading'});
-            this._renderDeviceTokens({state: 'loading'});
-            return;
-        }
-        if (!details) {
-            this._renderGoal({state: 'empty'});
-            this._renderTrainings({state: 'empty'});
-            this._renderWeight({state: 'empty', userHasProfile: Boolean(active.profileId)});
-            this._renderDeviceTokens({state: 'empty'});
-            return;
-        }
-        this._renderGoal({state: 'ready', goal: details.goal});
-        this._renderTrainings({state: 'ready', trainings: details.recentTrainings, expandedTrainingId});
-        this._renderWeight({state: 'ready', entries: details.weightHistory});
-        this._renderDeviceTokens({state: 'ready', tokens: details.deviceTokens});
-    }
-
-    _renderGoal({state, goal}) {
-        const body = this._els.goalBody;
-        const summary = this._els.goalSummary;
-        if (!body) return;
-
+    _sectionState(body, summary, {state, error, empty}) {
+        if (!body) return true;
+        body.setAttribute('aria-busy', String(state === 'loading'));
         if (state === 'loading') {
-            body.innerHTML = '<div class="user-section-loading"></div><div class="user-section-loading"></div>';
-            this._setText(summary, '');
-            return;
+            this._setBody(body, '<div class="user-section-loading"></div><div class="user-section-loading"></div><span class="sr-only">Loading section…</span>');
+            this._setText(summary, 'Loading…');
+            return true;
         }
-        if (!goal) {
-            body.innerHTML = '<div class="user-section-empty">Goal not set</div>';
-            this._setText(summary, '');
-            return;
+        if (error) {
+            this._setBody(body, `<div class="user-section-error" role="status"><strong>Could not load this section</strong><span>${escapeHtml(error)}</span><button class="btn user-retry" type="button" data-user-action="retry">Try again</button></div>`);
+            this._setText(summary, 'Unavailable');
+            return true;
         }
+        if (empty) {
+            this._setBody(body, `<div class="user-section-empty">${escapeHtml(empty)}</div>`);
+            this._setText(summary, '');
+            return true;
+        }
+        return false;
+    }
 
-        const pills = [];
-        pills.push(this._goalPill('Primary', humanizeEnum(goal.primaryGoal)));
-        if (goal.secondaryGoal) {
-            pills.push(this._goalPill('Secondary', humanizeEnum(goal.secondaryGoal)));
-        }
+    _renderGoal({state, error, goal}) {
+        const {goalBody: body, goalSummary: summary} = this._els;
+        if (this._sectionState(body, summary, {state, error, empty: !goal && 'This user has not set a goal yet.'})) return;
+        const pills = [this._goalPill('Primary goal', humanizeEnum(goal.primaryGoal) || 'Not specified')];
+        if (goal.secondaryGoal) pills.push(this._goalPill('Secondary', humanizeEnum(goal.secondaryGoal)));
         if (goal.target) {
-            pills.push(this._goalPill('Target', formatShortDate(goal.target)));
+            const target = typeof goal.target === 'number' ? formatNumber(goal.target) : formatShortDate(goal.target) || humanizeEnum(String(goal.target));
+            pills.push(this._goalPill('Target', target));
         }
-        if (Number.isFinite(goal.confidence)) {
-            pills.push(this._goalPill('Confidence', `${Math.round(goal.confidence * 100)}%`));
-        }
-
-        const tags = (goal.personalizations || []).map(tag =>
-            `<span class="goal-tag" title="${escapeHtml(tag)}">${escapeHtml(humanizeEnum(tag))}</span>`
-        ).join('');
-
-        body.innerHTML = `
-            <div class="goal-row">${pills.join('')}</div>
-            ${tags ? `<div class="goal-tags">${tags}</div>` : ''}
-        `;
-
-        const updated = goal.updatedAt ? `Updated ${relativeDate(goal.updatedAt)}` : '';
-        this._setText(summary, updated);
+        const tags = goal.personalizations.map(tag => `<span class="goal-tag">${escapeHtml(humanizeEnum(tag))}</span>`).join('');
+        const confidence = Number.isFinite(goal.confidence)
+            ? `<div class="goal-confidence"><span>Confidence <strong>${Math.round(goal.confidence * 100)}%</strong></span><meter min="0" max="1" value="${goal.confidence}" aria-label="Goal confidence">${Math.round(goal.confidence * 100)}%</meter></div>` : '';
+        this._setBody(body, `<div class="goal-row">${pills.join('')}</div>${tags ? `<div class="goal-tags">${tags}</div>` : ''}${confidence}`);
+        const note = goal.lastConfirmedAt ? `Confirmed ${relativeDate(goal.lastConfirmedAt)}` : goal.updatedAt ? `Updated ${relativeDate(goal.updatedAt)}` : '';
+        this._setText(summary, note);
     }
 
     _goalPill(label, value) {
         return `<span class="goal-pill"><span class="pill-label">${escapeHtml(label)}</span>${escapeHtml(value)}</span>`;
     }
 
-    _renderTrainings({state, trainings, expandedTrainingId}) {
-        const body = this._els.trainingsBody;
-        const note = this._els.trainingsCount;
-        if (!body) return;
-
-        if (state === 'loading') {
-            body.innerHTML = '<div class="user-section-loading"></div><div class="user-section-loading"></div><div class="user-section-loading"></div>';
-            this._setText(note, '');
-            return;
-        }
-        if (!trainings || trainings.length === 0) {
-            body.innerHTML = '<div class="user-section-empty">No workouts in last 60 days</div>';
-            this._setText(note, '');
-            return;
-        }
-
-        const visible = trainings.slice(0, 10);
-        body.innerHTML = visible
-            .map(t => this._trainingItem(t, t.id === expandedTrainingId))
-            .join('');
-        const moreLabel = trainings.length > visible.length
-            ? `Showing ${visible.length} of ${trainings.length}`
-            : `${trainings.length} workout${trainings.length === 1 ? '' : 's'} · last 60 days`;
-        this._setText(note, moreLabel);
+    _renderTrainings({state, error, trainings = [], expandedTrainingId, limit = 10}) {
+        const {trainingsBody: body, trainingsCount: note} = this._els;
+        if (this._sectionState(body, note, {state, error, empty: !trainings.length && 'No workouts recorded in the last 60 days.'})) return;
+        const visible = trainings.slice(0, limit);
+        const rows = visible.map((training, index) => {
+            const key = training.id || `row-${index}`;
+            return this._trainingItem(training, index, key === expandedTrainingId, key);
+        }).join('');
+        const more = trainings.length > limit
+            ? `<button type="button" class="btn user-show-more" data-user-action="more-trainings">Show ${Math.min(10, trainings.length - limit)} more workouts <span>${visible.length} of ${trainings.length}</span></button>` : '';
+        this._setBody(body, rows + more);
+        this._setText(note, `${trainings.length} workout${trainings.length === 1 ? '' : 's'} · last 60 days`);
     }
 
-    _trainingItem(training, isOpen) {
+    _trainingItem(training, index, isOpen, key = training.id) {
         const stats = [
             this._stat('Duration', formatDuration(training.duration)),
             this._stat('Volume', formatNumber(training.volume, {unit: 'kg', decimals: 1})),
             this._stat('Reps', formatNumber(training.repetitions)),
         ].join('');
-
-        const dateRel = relativeDate(training.createdAt) || '—';
-        const dateAbs = formatShortDate(training.createdAt);
-        const exCountLabel = `${training.exercisesCount} ex.`;
-
-        const detail = isOpen ? this._trainingDetail(training) : '';
-
-        return `
-            <button type="button" class="training-row${isOpen ? ' is-open' : ''}"
-                    data-training-id="${escapeHtml(training.id)}"
-                    aria-expanded="${isOpen ? 'true' : 'false'}"
-                    title="${escapeHtml(dateAbs)}">
-                <span class="training-date">
-                    <span class="training-date-rel">${escapeHtml(dateRel)}</span>
-                    <span class="training-date-abs">${escapeHtml(dateAbs)}</span>
-                </span>
-                <span class="training-stats">${stats}</span>
-                <span class="training-exercises">${escapeHtml(exCountLabel)}</span>
-                <svg class="training-chevron" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                    <path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+        const date = formatShortDate(training.createdAt);
+        return `<div class="training-group">
+            <button type="button" class="training-row${isOpen ? ' is-open' : ''}" data-training-id="${escapeHtml(key)}" aria-expanded="${isOpen}" aria-controls="training-detail-${index}">
+                <span class="training-date"><span class="training-date-rel">${escapeHtml(relativeDate(training.createdAt) || 'Unknown date')}</span><span class="training-date-abs">${escapeHtml(date)}</span></span>
+                <span class="training-stats">${stats}</span><span class="training-exercises">${training.exercisesCount} exercise${training.exercisesCount === 1 ? '' : 's'}</span>
+                <svg class="training-chevron" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </button>
-            ${detail}
-        `;
+            <div id="training-detail-${index}" class="training-detail"${isOpen ? '' : ' hidden'}>${isOpen ? this._trainingDetail(training) : ''}</div>
+        </div>`;
     }
 
     _stat(label, value) {
@@ -261,249 +205,123 @@ export class UserDetailView {
     }
 
     _trainingDetail(training) {
-        if (!training.exercises || training.exercises.length === 0) {
-            return `<div class="training-detail"><div class="user-section-empty">No exercises recorded</div></div>`;
-        }
-        const items = training.exercises.map(ex => this._trainingExercise(ex)).join('');
-        return `<div class="training-detail">${items}</div>`;
-    }
-
-    _trainingExercise(exercise) {
-        const sets = exercise.iterations.length;
-        const setsLabel = sets === 0 ? 'no sets' : `${sets} set${sets === 1 ? '' : 's'}`;
-        const iters = exercise.iterations.map(it => this._trainingIteration(it)).join('');
-        return `
-            <div class="training-exercise">
-                <div class="training-exercise-name">
-                    <span>${escapeHtml(exercise.name)}</span>
-                    <span class="sets-count">${escapeHtml(setsLabel)}</span>
-                </div>
-                ${iters ? `<div class="training-iterations">${iters}</div>` : ''}
-            </div>
-        `;
-    }
-
-    _trainingIteration(iteration) {
-        const reps = iteration.repetitions;
-        const repsText = reps != null ? `× ${reps}` : '';
-
-        // Pick the most informative weight signal available.
-        const w = this._formatIterationWeight(iteration);
-        if (!w) {
-            return `<span class="training-iteration training-iteration--reps-only">${escapeHtml(repsText || '—')}</span>`;
-        }
-        return `
-            <span class="training-iteration">
-                <span class="iter-mode">${escapeHtml(w.mode)}</span>
-                <span>${escapeHtml(w.value)}</span>
-                <span>${escapeHtml(repsText)}</span>
-            </span>
-        `;
-    }
-
-    _formatIterationWeight(it) {
-        if (it.externalWeight != null) {
-            return {mode: 'ext', value: formatNumber(it.externalWeight, {unit: 'kg', decimals: 1})};
-        }
-        if (it.extraWeight != null) {
-            return {mode: 'extra', value: `+${formatNumber(it.extraWeight, {unit: 'kg', decimals: 1})}`};
-        }
-        if (it.assistWeight != null) {
-            return {mode: 'assist', value: `-${formatNumber(it.assistWeight, {unit: 'kg', decimals: 1})}`};
-        }
-        if (it.bodyWeight != null) {
-            const mult = it.bodyMultiplier != null ? ` ×${formatNumber(it.bodyMultiplier, {decimals: 2})}` : '';
-            return {mode: 'bw', value: `${formatNumber(it.bodyWeight, {unit: 'kg', decimals: 1})}${mult}`};
-        }
-        return null;
-    }
-
-    _bindTrainingsDelegation() {
-        const body = this._els.trainingsBody;
-        if (!body) return;
-        body.addEventListener('click', (e) => {
-            const row = e.target.closest('.training-row');
-            if (!row) return;
-            const id = row.dataset.trainingId;
-            if (!id) return;
-            this._store.toggleExpandedTraining(id);
-        });
-    }
-
-    _renderWeight({state, entries, userHasProfile}) {
-        const body = this._els.weightBody;
-        const summary = this._els.weightSummary;
-        if (!body) return;
-
-        if (state === 'loading') {
-            body.innerHTML = '<div class="user-section-loading"></div><div class="user-section-loading"></div>';
-            this._setText(summary, '');
-            return;
-        }
-        if (!entries || entries.length === 0) {
-            body.innerHTML = `<div class="user-section-empty">${userHasProfile === false ? 'No profile yet' : 'No weight records'}</div>`;
-            this._setText(summary, '');
-            return;
-        }
-
-        // Server returns DESC; show the most recent N with a delta vs. the *older* (next-in-list) entry.
-        const visible = entries.slice(0, 12);
-        body.innerHTML = visible.map((entry, i) => {
-            const prev = visible[i + 1] ?? entries[i + 1];
-            const delta = prev ? entry.weight - prev.weight : null;
-            return this._weightRow(entry, delta);
+        if (!training.exercises.length) return '<div class="user-section-empty">No exercises recorded.</div>';
+        return training.exercises.map(exercise => {
+            const sets = exercise.iterations.length;
+            return `<div class="training-exercise"><div class="training-exercise-name"><span>${escapeHtml(exercise.name)}</span><span class="sets-count">${sets} set${sets === 1 ? '' : 's'}</span></div><div class="training-iterations">${exercise.iterations.map((iteration, index) => this._trainingIteration(iteration, index)).join('')}</div></div>`;
         }).join('');
+    }
 
+    _trainingIteration(iteration, index) {
+        const weights = [];
+        const hasBodyLoad = iteration.bodyWeight > 0 || iteration.extraWeight > 0 || iteration.assistWeight > 0;
+        if (iteration.externalWeight !== null && (iteration.externalWeight !== 0 || !hasBodyLoad)) weights.push(`External ${formatNumber(iteration.externalWeight, {unit: 'kg', decimals: 1})}`);
+        if (iteration.bodyWeight !== null) {
+            const multiplier = iteration.bodyMultiplier !== null ? ` × ${formatNumber(iteration.bodyMultiplier, {decimals: 2})}` : '';
+            weights.push(`Body ${formatNumber(iteration.bodyWeight, {unit: 'kg', decimals: 1})}${multiplier}`);
+        }
+        if (iteration.extraWeight > 0) weights.push(`Extra +${formatNumber(iteration.extraWeight, {unit: 'kg', decimals: 1})}`);
+        if (iteration.assistWeight > 0) weights.push(`Assistance −${formatNumber(iteration.assistWeight, {unit: 'kg', decimals: 1})}`);
+        const reps = iteration.repetitions === null ? 'Reps not recorded' : `${formatNumber(iteration.repetitions)} reps`;
+        return `<div class="training-iteration"><span class="iter-mode">Set ${index + 1}</span><span>${escapeHtml(weights.join(' · ') || 'No weight recorded')}</span><strong>${escapeHtml(reps)}</strong></div>`;
+    }
+
+    _renderWeight({state, error, entries = [], userHasProfile, limit = 12}) {
+        const {weightBody: body, weightSummary: summary} = this._els;
+        if (this._sectionState(body, summary, {state, error, empty: !entries.length && (userHasProfile ? 'No weight records yet.' : 'No profile or weight records yet.')})) return;
         const latest = entries[0];
-        const oldest = entries[entries.length - 1];
-        const totalDelta = entries.length > 1 ? latest.weight - oldest.weight : 0;
-        const summaryText = entries.length > 1
-            ? `${formatNumber(latest.weight, {
-                unit: 'kg',
-                decimals: 1
-            })} · ${this._formatDelta(totalDelta)} over ${entries.length} entries`
-            : `${formatNumber(latest.weight, {unit: 'kg', decimals: 1})}`;
-        this._setText(summary, summaryText);
+        const change = entries.length > 1 ? latest.weight - entries[entries.length - 1].weight : null;
+        const overview = `<div class="weight-overview"><strong>${formatNumber(latest.weight, {unit: 'kg', decimals: 1})}</strong><span>${change === null ? 'First recorded weight' : `${this._formatDelta(change)} across ${entries.length} records`}</span></div>`;
+        const rows = entries.slice(0, limit).map((entry, index) => this._weightRow(entry, entries[index + 1] ? entry.weight - entries[index + 1].weight : null)).join('');
+        const more = entries.length > limit ? `<button type="button" class="btn user-show-more" data-user-action="more-weights">Show ${Math.min(12, entries.length - limit)} more records <span>${Math.min(limit, entries.length)} of ${entries.length}</span></button>` : '';
+        this._setBody(body, `${overview}${this._weightTrend(entries)}<div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}`);
+        this._setText(summary, `${entries.length} record${entries.length === 1 ? '' : 's'}`);
+    }
+
+    _weightTrend(entries) {
+        const points = entries.filter(entry => toTimestamp(entry.createdAt)).slice().reverse();
+        if (points.length < 2) return '';
+        const values = points.map(entry => entry.weight);
+        const low = Math.min(...values);
+        const high = Math.max(...values);
+        const minTime = toTimestamp(points[0].createdAt);
+        const maxTime = toTimestamp(points[points.length - 1].createdAt);
+        const coordinates = points.map((entry, index) => {
+            const x = maxTime === minTime ? 12 + index / (points.length - 1) * 276 : 12 + (toTimestamp(entry.createdAt) - minTime) / (maxTime - minTime) * 276;
+            const y = high === low ? 44 : 76 - (entry.weight - low) / (high - low) * 64;
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        });
+        const label = `Weight history: ${formatNumber(points[0].weight, {unit: 'kg', decimals: 1})} to ${formatNumber(points[points.length - 1].weight, {unit: 'kg', decimals: 1})}.`;
+        return `<div class="weight-trend"><svg viewBox="0 0 300 88" role="img" aria-label="${escapeHtml(label)}"><path class="weight-trend-grid" d="M12 12H288M12 44H288M12 76H288"/><polyline class="weight-trend-line" points="${coordinates.join(' ')}"/><circle class="weight-trend-point" cx="${coordinates[coordinates.length - 1].split(',')[0]}" cy="${coordinates[coordinates.length - 1].split(',')[1]}" r="3"/></svg><div class="weight-trend-labels"><span>${escapeHtml(formatShortDate(points[0].createdAt).slice(0, 10))}</span><span>${formatNumber(low, {decimals: 1})}–${formatNumber(high, {decimals: 1})} kg</span><span>${escapeHtml(formatShortDate(points[points.length - 1].createdAt).slice(0, 10))}</span></div></div>`;
     }
 
     _weightRow(entry, delta) {
-        const dateRel = relativeDate(entry.createdAt) || '—';
-        const dateAbs = formatShortDate(entry.createdAt);
-        const deltaHtml = delta === null
-            ? '<span class="weight-delta zero">—</span>'
-            : this._formatDeltaPill(delta);
-        return `
-            <div class="weight-row" title="${escapeHtml(dateAbs)}">
-                <div class="weight-date">${escapeHtml(dateRel)}</div>
-                <div class="weight-value">${escapeHtml(formatNumber(entry.weight, {unit: 'kg', decimals: 1}))}</div>
-                ${deltaHtml}
-            </div>
-        `;
+        const date = formatShortDate(entry.createdAt);
+        return `<div class="weight-row"><time class="weight-date" title="${escapeHtml(date)}">${escapeHtml(relativeDate(entry.createdAt) || 'Unknown date')}<small>${escapeHtml(date)}</small></time><div class="weight-value">${formatNumber(entry.weight, {unit: 'kg', decimals: 1})}</div><span class="weight-delta ${delta === null || Math.abs(delta) < 0.05 ? 'zero' : delta > 0 ? 'up' : 'down'}" title="Compared with the previous record">${delta === null ? '—' : this._formatDelta(delta)}</span></div>`;
     }
 
     _formatDelta(value) {
-        if (!Number.isFinite(value) || value === 0) return '±0 kg';
-        const sign = value > 0 ? '+' : '-';
-        return `${sign}${formatNumber(Math.abs(value), {unit: 'kg', decimals: 1})}`;
+        if (!Number.isFinite(value) || Math.abs(value) < 0.05) return '±0.0 kg';
+        return `${value > 0 ? '+' : '−'}${formatNumber(Math.abs(value), {unit: 'kg', decimals: 1})}`;
     }
 
-    _formatDeltaPill(value) {
-        if (!Number.isFinite(value) || value === 0) {
-            return '<span class="weight-delta zero">±0</span>';
-        }
-        const cls = value > 0 ? 'up' : 'down';
-        const sign = value > 0 ? '+' : '-';
-        return `<span class="weight-delta ${cls}">${sign}${formatNumber(Math.abs(value), {decimals: 1})}</span>`;
+    _renderDeviceTokens({state, error, tokens = []}) {
+        const {deviceTokensBody: body, deviceTokensSummary: summary} = this._els;
+        if (this._sectionState(body, summary, {state, error, empty: !tokens.length && 'No devices registered for push notifications.'})) return;
+        this._setBody(body, tokens.map((token, index) => `<div class="device-token-row"><div class="device-token-info"><span class="device-token-label">Device ${index + 1}</span><code class="device-token-value" title="${escapeHtml(token.token)}">${escapeHtml(token.token)}</code></div><span class="device-token-date" title="${escapeHtml(formatShortDate(token.createdAt))}">${escapeHtml(relativeDate(token.createdAt) || 'Unknown date')}</span><button type="button" class="device-token-copy" data-device-token="${escapeHtml(token.token)}" aria-label="Copy token for device ${index + 1}" title="Copy token"><svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.2" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 3.5V2.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button></div>`).join(''));
+        this._setText(summary, `${tokens.length} device${tokens.length === 1 ? '' : 's'}`);
     }
 
-    // ── Device tokens section ───────────────────────────
-
-    _renderDeviceTokens({state, tokens}) {
-        const body = this._els.deviceTokensBody;
-        const summary = this._els.deviceTokensSummary;
-        if (!body) return;
-
-        if (state === 'loading') {
-            body.innerHTML = '<div class="user-section-loading"></div><div class="user-section-loading"></div>';
-            this._setText(summary, '');
-            return;
-        }
-        if (!tokens || tokens.length === 0) {
-            body.innerHTML = '<div class="user-section-empty">No device tokens</div>';
-            this._setText(summary, '');
-            return;
-        }
-
-        body.innerHTML = tokens.map(t => this._deviceTokenRow(t)).join('');
-        this._setText(summary, `${tokens.length} token${tokens.length === 1 ? '' : 's'}`);
-    }
-
-    _deviceTokenRow(token) {
-        const dateRel = relativeDate(token.createdAt) || '—';
-        const dateAbs = formatShortDate(token.createdAt);
-        const safeToken = escapeHtml(token.token);
-        return `
-            <div class="device-token-row">
-                <code class="device-token-value" title="${safeToken}">${safeToken}</code>
-                <span class="device-token-date" title="${escapeHtml(dateAbs)}">${escapeHtml(dateRel)}</span>
-                <button type="button" class="device-token-copy"
-                        data-device-token="${safeToken}"
-                        aria-label="Copy device token"
-                        title="Copy token">
-                    <svg viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <rect x="3.5" y="3.5" width="7" height="7" rx="1.2"
-                              stroke="currentColor" stroke-width="1.4"/>
-                        <path d="M5.5 3.5V2.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1"
-                              stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                    </svg>
-                </button>
-            </div>
-        `;
-    }
-
-    _bindDeviceTokensDelegation() {
-        const body = this._els.deviceTokensBody;
-        if (!body) return;
-        body.addEventListener('click', (e) => {
-            const btn = e.target.closest('.device-token-copy');
-            if (!btn) return;
-            const token = btn.dataset.deviceToken;
-            if (!token) return;
-            this._copyDeviceToken(token, btn);
-        });
-    }
-
-    async _copyDeviceToken(text, btn) {
+    async _copyDeviceToken(text, button) {
+        let copied = false;
         try {
             await navigator.clipboard.writeText(text);
+            copied = true;
         } catch {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            ta.remove();
+            const previousFocus = document.activeElement;
+            const textarea = document.createElement('textarea');
+            textarea.className = 'clipboard-fallback';
+            textarea.value = text;
+            textarea.setAttribute('aria-label', 'Device token to copy');
+            document.body.appendChild(textarea);
+            try {
+                textarea.select();
+                copied = document.execCommand('copy');
+            } catch {
+                copied = false;
+            } finally {
+                textarea.remove();
+                previousFocus?.focus({preventScroll: true});
+            }
+        }
+        if (!copied) {
+            Toast.show({title: 'Could not copy token', message: 'Select the token text and copy it manually.', type: 'error'});
+            return;
         }
         Toast.show({title: 'Token copied'});
-        // Short visual confirmation on the button itself — re-render of the
-        // tokens list would drop the class, so we tolerate that as a no-op.
-        btn.classList.add('is-copied');
-        setTimeout(() => btn.classList.remove('is-copied'), 1200);
+        button.classList.add('is-copied');
+        setTimeout(() => button.classList.remove('is-copied'), 1200);
     }
 
-    // ── Helpers ──────────────────────────────────────────
-
-    _showEmpty() {
-        if (this._els.userDetail) this._els.userDetail.hidden = true;
-        if (this._els.userSelectionHint) this._els.userSelectionHint.hidden = false;
-        // Сбрасываем поля на случай, если потом снова покажем без active
-        if (this._els.userNameEl) this._setText(this._els.userNameEl, '');
-        if (this._els.userIdEl) this._setValue(this._els.userIdEl, '');
-        if (this._els.profileIdEl) this._setValue(this._els.profileIdEl, '');
-        if (this._els.userEmailEl) this._setText(this._els.userEmailEl, '');
-        if (this._els.userCreatedEl) this._setText(this._els.userCreatedEl, '');
-        if (this._els.userUpdatedEl) this._setText(this._els.userUpdatedEl, '');
-        if (this._els.userActivityEl) this._setText(this._els.userActivityEl, '');
-        if (this._els.userWorkoutsEl) this._setText(this._els.userWorkoutsEl, '');
-        if (this._els.userAuthPill) this._els.userAuthPill.innerHTML = '';
-        if (this._els.userAuthList) this._setText(this._els.userAuthList, '');
-        if (this._els.goalBody) this._els.goalBody.innerHTML = '';
-        if (this._els.goalSummary) this._setText(this._els.goalSummary, '');
-        if (this._els.trainingsBody) this._els.trainingsBody.innerHTML = '';
-        if (this._els.trainingsCount) this._setText(this._els.trainingsCount, '');
-        if (this._els.weightBody) this._els.weightBody.innerHTML = '';
-        if (this._els.weightSummary) this._setText(this._els.weightSummary, '');
-        if (this._els.deviceTokensBody) this._els.deviceTokensBody.innerHTML = '';
-        if (this._els.deviceTokensSummary) this._setText(this._els.deviceTokensSummary, '');
+    /** Preserve section scroll and keyboard focus while expanding history rows. */
+    _setBody(body, html) {
+        const focused = body.contains(document.activeElement) ? document.activeElement : null;
+        const focusKey = focused?.dataset.trainingId !== undefined ? ['trainingId', focused.dataset.trainingId]
+            : focused?.dataset.userAction ? ['userAction', focused.dataset.userAction] : null;
+        const scrollTop = body.scrollTop;
+        body.innerHTML = html;
+        body.scrollTop = scrollTop;
+        if (focusKey) {
+            const target = Array.from(body.querySelectorAll('button')).find(button => button.dataset[focusKey[0]] === focusKey[1]);
+            if (target) target.focus({preventScroll: true});
+            else {
+                body.tabIndex = -1;
+                body.focus({preventScroll: true});
+            }
+        }
     }
 
-    _setText(el, text) {
-        if (el) el.textContent = text ?? '';
-    }
-
-    _setValue(el, value) {
-        if (!el) return;
-        if ('value' in el) el.value = value ?? '';
-        else el.textContent = value ?? '';
+    _setText(element, text) {
+        if (element) element.textContent = text ?? '';
     }
 }

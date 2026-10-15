@@ -21,4 +21,4 @@ export const STORAGE_KEYS = {
     refreshToken: 'grippo_admin_refresh_v2'
 };
 
-export const USER_ROLES = Object.freeze(['user', 'admin', 'moderator']);
+export const USER_ROLES = Object.freeze(['default', 'admin']);

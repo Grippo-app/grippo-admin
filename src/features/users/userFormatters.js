@@ -11,11 +11,18 @@ export function humanizeEnum(value) {
         .replace(/^./, c => c.toUpperCase());
 }
 
+function readableDate(value) {
+    if (!(value instanceof Date) && typeof value !== 'number' && typeof value !== 'string') return null;
+    if (typeof value === 'string' && !value.trim()) return null;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date : null;
+}
+
 /** Short relative date: today / yesterday / 3d ago / 5mo ago / 2yr ago. */
 export function relativeDate(value) {
-    if (!value) return '';
-    const ts = new Date(value).getTime();
-    if (!Number.isFinite(ts)) return '';
+    const date = readableDate(value);
+    if (!date) return '';
+    const ts = date.getTime();
     const diff = Date.now() - ts;
     if (diff < 0) return formatShortDate(value);
     const days = Math.floor(diff / 86400000);
@@ -29,25 +36,20 @@ export function relativeDate(value) {
 
 /** YYYY-MM-DD HH:MM (UTC). */
 export function formatShortDate(value) {
-    if (!value) return '';
-    const d = new Date(value);
-    const ts = d.getTime();
-    if (!Number.isFinite(ts)) return '';
-    return d.toISOString().slice(0, 16).replace('T', ' ');
+    const d = readableDate(value);
+    if (!d) return '';
+    return `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 }
 
-/** Convert seconds into "1h 12m" / "42m" / "30s". */
-export function formatDuration(seconds) {
-    if (seconds === null || seconds === undefined) return '—';
-    const total = Math.max(0, Math.round(Number(seconds)));
+/** Format the API's duration in minutes as "1h 12m" / "42m". */
+export function formatDuration(minutes) {
+    if (minutes === null || minutes === undefined || minutes === '') return '—';
+    const total = Math.max(0, Math.round(Number(minutes)));
     if (!Number.isFinite(total)) return '—';
-    if (total === 0) return '0s';
-    const h = Math.floor(total / 3600);
-    const m = Math.floor((total % 3600) / 60);
-    const s = total % 60;
-    if (h > 0) return m ? `${h}h ${m}m` : `${h}h`;
-    if (m > 0) return s && m < 5 ? `${m}m ${s}s` : `${m}m`;
-    return `${s}s`;
+    const hours = Math.floor(total / 60);
+    const remainder = total % 60;
+    if (hours > 0) return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+    return `${total}m`;
 }
 
 /** Format a number with thousand separators and an optional unit. */

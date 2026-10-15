@@ -1,36 +1,53 @@
+import {safeString, toTimestamp} from '../../shared/utils/index.js';
+
 const AUTH_TYPE_RANK = {apple: 0, google: 1, email: 2};
+const workoutCount = value => {
+    if (!['number', 'string'].includes(typeof value) || (typeof value === 'string' && !value.trim())) return 0;
+    const count = Number(value);
+    return Number.isFinite(count) ? Math.max(0, count) : 0;
+};
 
 export class UserEntity {
+    /** A malformed refresh must not replace a valid library with silently discarded rows. */
+    static validateList(raw) {
+        const ids = new Set();
+        if (!Array.isArray(raw) || raw.some(row => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) || typeof row.id !== 'string' || !row.id.trim() || ids.has(row.id)) return true;
+            ids.add(row.id);
+            return false;
+        })) throw new Error('The server returned an invalid users list. Please retry.');
+    }
 
     /** Normalize raw API response to a canonical user shape. */
     static normalize(raw = {}) {
+        if (!raw || typeof raw !== 'object') raw = {};
+        const workoutsCount = workoutCount(raw.workoutsCount ?? raw.profile?.workoutsCount);
         return {
-            id: raw.id ? String(raw.id) : '',
-            email: raw.email || '',
-            name: raw.name || raw.profile?.name || raw.displayName || '',
-            role: raw.role || 'user',
-            profileId: raw.profile?.id || raw.profileId || '',
-            workoutsCount: Number(raw.workoutsCount ?? raw.profile?.workoutsCount ?? 0),
+            id: safeString(raw.id),
+            email: safeString(raw.email),
+            name: safeString(raw.name || raw.profile?.name || raw.displayName),
+            role: safeString(raw.role || 'default'),
+            profileId: safeString(raw.profile?.id ?? raw.profileId),
+            workoutsCount,
             createdAt: raw.createdAt || raw.created_at || '',
             updatedAt: raw.updatedAt || raw.updated_at || '',
             lastActivity: raw.lastActivity || raw.last_activity || '',
             authTypes: UserEntity.normalizeAuthTypes(raw.authTypes || raw.auth_types),
-            raw,  // keep original for display purposes
+            raw,
         };
     }
 
     static updatedAt(user) {
-        const raw = user?.updatedAt || user?.updated_at || '';
-        return raw ? new Date(raw).getTime() : 0;
+        return toTimestamp(user?.updatedAt || user?.updated_at);
     }
 
-    /** Parse authTypes array from various API shapes. */
+    /** Parse and deduplicate provider names without trusting API value types. */
     static normalizeAuthTypes(authTypes = []) {
         if (!Array.isArray(authTypes)) return [];
-        return authTypes
-            .map(t => (typeof t === 'string' ? t : t?.type || t?.provider || ''))
-            .filter(Boolean)
-            .map(t => t.toLowerCase());
+        return [...new Set(authTypes
+            .map(type => typeof type === 'string' ? type : type?.type || type?.provider)
+            .filter(type => typeof type === 'string' && type.trim())
+            .map(type => type.trim().toLowerCase()))];
     }
 
     static getAuthTypes(user) {
@@ -38,32 +55,24 @@ export class UserEntity {
     }
 
     static createdAt(user) {
-        const raw = user?.createdAt || user?.created_at || '';
-        return raw ? new Date(raw).getTime() : 0;
+        return toTimestamp(user?.createdAt || user?.created_at);
     }
 
     static lastActivityAt(user) {
-        const raw = user?.lastActivity || user?.last_activity || '';
-        return raw ? new Date(raw).getTime() : 0;
+        return toTimestamp(user?.lastActivity || user?.last_activity);
     }
 
     static workoutsCount(user) {
-        return Number(user?.workoutsCount ?? 0);
+        return workoutCount(user?.workoutsCount);
     }
 
     static authRank(user) {
         const types = UserEntity.getAuthTypes(user);
         if (!types.length) return 99;
-        return Math.min(...types.map(t => AUTH_TYPE_RANK[t] ?? 10));
+        return Math.min(...types.map(type => AUTH_TYPE_RANK[type] ?? 10));
     }
 
-    /**
-     * Returns a comparator function for the given sort key.
-     * Compatible with Array.sort(comparator).
-     *
-     * @param {'createdAt'|'lastActivity'|'workoutsCount'|'authType'|'email'} key
-     * @returns {(a: object, b: object) => number}
-     */
+    /** Returns a comparator for the given sort key. */
     static comparator(key) {
         switch (key) {
             case 'createdAt':

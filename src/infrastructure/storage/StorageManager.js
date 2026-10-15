@@ -1,5 +1,10 @@
 import {DEFAULT_LANGUAGE, STORAGE_KEYS, SUPPORTED_LANGUAGES} from '../../shared/constants/index.js';
 
+function browserStorage(name) {
+    try { return globalThis.window?.[name] ?? null; }
+    catch { return null; }
+}
+
 /**
  * IStorage interface (implicit — JS duck typing):
  *
@@ -21,9 +26,9 @@ import {DEFAULT_LANGUAGE, STORAGE_KEYS, SUPPORTED_LANGUAGES} from '../../shared/
  */
 
 export class StorageManager {
-    constructor({local = window.localStorage, session = window.sessionStorage} = {}) {
-        this.local = local;
-        this.session = session;
+    constructor({local, session} = {}) {
+        this.local = local === undefined ? browserStorage('localStorage') : local;
+        this.session = session === undefined ? browserStorage('sessionStorage') : session;
 
         // ── One-time migration: wipe legacy token keys left by previous versions ──
         this._purge('grippo_admin_token');
@@ -54,13 +59,15 @@ export class StorageManager {
 
     getViewMode() {
         try {
-            return this.local.getItem(STORAGE_KEYS.viewMode) || 'form';
+            const mode = this.local.getItem(STORAGE_KEYS.viewMode);
+            return mode === 'json' ? 'json' : 'form';
         } catch {
             return 'form';
         }
     }
 
     setViewMode(mode) {
+        if (!['form', 'json'].includes(mode)) return;
         try {
             this.local.setItem(STORAGE_KEYS.viewMode, mode);
         } catch {

@@ -1,103 +1,78 @@
-import {DEFAULT_LANGUAGE, FIELD} from '../../shared/constants/index.js';
+import {DEFAULT_LANGUAGE, FIELD, SUPPORTED_LANGUAGES} from '../../shared/constants/index.js';
+import {sanitizeUrl} from '../../shared/utils/index.js';
 import {ExerciseNormalizer} from './ExerciseNormalizer.js';
+import {EXERCISE_ENUMS} from './exerciseConstraints.js';
 
-const REQUIRED_ENUMS = {
-    weightType: ['free', 'fixed', 'body_weight'],
-    category: ['compound', 'isolation'],
-    experience: ['beginner', 'intermediate', 'advanced', 'pro'],
-    forceType: ['push', 'pull', 'hinge']
-};
+const FIELD_LABELS = {weightType: 'weight type', category: 'category', experience: 'experience level', forceType: 'force type'};
 
 export class ExerciseValidator {
-    constructor(dictionaryStore) {
-        this.dictionary = dictionaryStore;
-    }
+    constructor(dictionaryStore) { this.dictionary = dictionaryStore; }
 
     validate(entity) {
-        if (!entity || typeof entity !== 'object') {
-            return {ok: false, errors: ['Invalid entity: expected object'], warnings: []};
-        }
-        const normalized = {
-            ...entity,
-            nameTranslations: ExerciseNormalizer.ensureTranslationMap(entity.nameTranslations),
-            descriptionTranslations: ExerciseNormalizer.ensureTranslationMap(entity.descriptionTranslations)
-        };
-
-        const errors = [];
+        const issues = [];
         const warnings = [];
+        const add = (field, message) => issues.push({field, message});
+        const result = () => ({ok: !issues.length, errors: issues.map(issue => issue.message), issues, warnings});
+        if (!entity || typeof entity !== 'object' || Array.isArray(entity)) {
+            add('editor', 'Enter one exercise JSON object.');
+            return result();
+        }
+        for (const [field, label] of [['nameTranslations', 'name'], ['descriptionTranslations', 'description']]) {
+            const map = ExerciseNormalizer.ensureTranslationMap(entity[field]);
+            if (!ExerciseNormalizer.getTranslation(map, DEFAULT_LANGUAGE).trim()) add(field, `Enter the English ${label}.`);
+            if (entity[field] && (typeof entity[field] !== 'object' || Array.isArray(entity[field]))) add(field, `${field} must be a language map.`);
+            for (const language of SUPPORTED_LANGUAGES) {
+                if (entity[field] && Object.hasOwn(entity[field], language) && typeof entity[field][language] !== 'string') {
+                    add(field, `${field}.${language} must be text. Replace its value with a quoted string.`);
+                }
+            }
+        }
+        for (const [field, values] of Object.entries(EXERCISE_ENUMS)) {
+            if (!values.includes(entity[field])) add(field, `Choose a valid ${FIELD_LABELS[field]}.`);
+        }
+        if (!entity.imageUrl) warnings.push('No image added. You can add one later.');
+        else if (typeof entity.imageUrl !== 'string' || !sanitizeUrl(entity.imageUrl)) add('imageUrl', 'Use an HTTP(S) image URL or a relative image path.');
 
-        const defaultName = ExerciseNormalizer.getTranslation(normalized.nameTranslations, DEFAULT_LANGUAGE).trim();
-        const defaultDescription = ExerciseNormalizer.getTranslation(normalized.descriptionTranslations, DEFAULT_LANGUAGE).trim();
-        normalized.name = defaultName;
-        normalized.description = defaultDescription;
-        if (!defaultName) errors.push(`Missing: name (${DEFAULT_LANGUAGE.toUpperCase()})`);
-        if (!defaultDescription) errors.push(`Missing: description (${DEFAULT_LANGUAGE.toUpperCase()})`);
-        if (!normalized.weightType) errors.push('Missing: weightType');
-        if (!normalized.category) errors.push('Missing: category');
-        if (!normalized.experience) errors.push('Missing: experience');
-        if (!normalized.forceType) errors.push('Missing: forceType');
-
-        if (!normalized.imageUrl) warnings.push('imageUrl is empty');
-
-        const components = normalized.components || normalized.rules?.components;
-        if (!components || typeof components !== 'object') {
-            errors.push('Missing: components');
+        const components = entity.components ?? entity.rules?.components;
+        if (!components || typeof components !== 'object' || Array.isArray(components)) {
+            add('components', 'Components must be an object with weight inputs or null values.');
         } else {
-            const externalWeight = components.externalWeight;
-            const bodyWeight = components.bodyWeight;
-            const extraWeight = components.extraWeight;
-            const assistWeight = components.assistWeight;
-
-            const isRequiredInput = (value) => value && typeof value === 'object' && typeof value.required === 'boolean';
-            const isValidMultiplier = (value) => Number.isFinite(value) && value >= 0.05 && value <= 2;
-
-            if (externalWeight && bodyWeight) {
-                errors.push('components.externalWeight and components.bodyWeight are mutually exclusive');
+            const {externalWeight, bodyWeight, extraWeight, assistWeight} = components;
+            for (const key of ['externalWeight', 'bodyWeight', 'extraWeight', 'assistWeight']) {
+                const value = components[key];
+                if (!Object.hasOwn(components, key) || value === undefined) add('components', `Set ${key} to a weight input object or null.`);
+                if (value !== undefined && value !== null && (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.required !== 'boolean')) {
+                    add('components', `${key} must be null or an object with a boolean required field.`);
+                }
             }
-            if (externalWeight && !isRequiredInput(externalWeight)) {
-                errors.push('components.externalWeight.required must be boolean');
+            if (externalWeight && bodyWeight) add('components', 'Choose either external weight or body weight.');
+            if (bodyWeight && bodyWeight.required !== true) add('components', 'Body weight participation must have required set to true.');
+            if (bodyWeight && (!Number.isFinite(bodyWeight.multiplier) || bodyWeight.multiplier < 0.05 || bodyWeight.multiplier > 2)) {
+                add('components', 'Body weight multiplier must be between 0.05 and 2.0.');
             }
-            if (bodyWeight && !isRequiredInput(bodyWeight)) {
-                errors.push('components.bodyWeight.required must be boolean');
-            }
-            if (bodyWeight && !isValidMultiplier(bodyWeight.multiplier)) {
-                errors.push('components.bodyWeight.multiplier must be a number between 0.05 and 2.0');
-            }
-            if (!bodyWeight && (extraWeight || assistWeight)) {
-                errors.push('components.extraWeight and components.assistWeight require bodyWeight');
-            }
-            if (externalWeight && (extraWeight || assistWeight)) {
-                errors.push('components.extraWeight and components.assistWeight must be null when externalWeight is set');
-            }
-            if (extraWeight && !isRequiredInput(extraWeight)) {
-                errors.push('components.extraWeight.required must be boolean');
-            }
-            if (assistWeight && !isRequiredInput(assistWeight)) {
-                errors.push('components.assistWeight.required must be boolean');
-            }
+            if (!bodyWeight && (extraWeight || assistWeight)) add('components', 'Enable body weight before extra weight or assistance.');
         }
 
-        for (const [key, values] of Object.entries(REQUIRED_ENUMS)) {
-            if (normalized[key] && !values.includes(normalized[key])) {
-                errors.push(`${key} invalid`);
-            }
+        if (!Array.isArray(entity[FIELD.equipmentRefs])) add('equipmentRefs', 'Equipment must be a list.');
+        const refs = Array.isArray(entity[FIELD.equipmentRefs]) ? entity[FIELD.equipmentRefs] : [];
+        if (refs.some(ref => !ref || typeof ref.equipmentId !== 'string' || !ref.equipmentId)) add('equipmentRefs', 'Each equipment entry needs an equipment ID.');
+        const equipmentIds = refs.map(ref => ref?.equipmentId);
+        if (new Set(equipmentIds).size !== equipmentIds.length) add('equipmentRefs', 'Remove duplicate equipment entries.');
+        const unknownEquipment = this.dictionary?.validateEquipmentRefs(entity) || [];
+        if (unknownEquipment.length) add('equipmentRefs', 'Choose equipment from the loaded dictionary. Remove or replace unknown entries.');
+
+        const bundles = Array.isArray(entity[FIELD.bundles]) ? entity[FIELD.bundles] : [];
+        if (!bundles.length) add('bundles', 'Add at least one muscle contribution.');
+        if (bundles.some(bundle => !bundle || typeof bundle.muscleId !== 'string' || !Number.isFinite(bundle.percentage))) {
+            add('bundles', 'Every muscle contribution needs a muscle ID and a numeric percentage.');
         }
-
-        const unknownEquipment = this.dictionary?.validateEquipmentRefs(normalized) || [];
-        if (unknownEquipment.length) {
-            errors.push(`Unknown equipment: ${Array.from(new Set(unknownEquipment)).join(', ')}`);
-        }
-
-        const bundles = Array.isArray(normalized[FIELD.bundles]) ? normalized[FIELD.bundles] : [];
-        if (bundles.length === 0) errors.push('No muscle bundles added');
-
-        const {sum, outOfRange, unknownMuscles} = this.dictionary?.validateBundles(normalized) || {};
-        if (sum !== undefined && sum !== 100) errors.push(`Bundles sum ${sum}% (must be 100%)`);
-        if (outOfRange) errors.push('Bundle percentage out of [0..100]');
-        if (unknownMuscles && unknownMuscles.length) {
-            errors.push(`Unknown muscles: ${Array.from(new Set(unknownMuscles)).join(', ')}`);
-        }
-
-        return {ok: errors.length === 0, errors, warnings};
+        if (bundles.some(bundle => Number.isFinite(bundle?.percentage) && !Number.isInteger(bundle.percentage))) add('bundles', 'Use whole-number muscle percentages.');
+        const muscleIds = bundles.map(bundle => bundle?.muscleId);
+        if (new Set(muscleIds).size !== muscleIds.length) add('bundles', 'Each muscle can appear once. Merge duplicate contributions.');
+        const {sum, outOfRange, unknownMuscles} = this.dictionary?.validateBundles(entity) || {};
+        if (sum !== undefined && Math.abs(sum - 100) > 0.000001) add('bundles', `Muscle contributions total ${Number(sum.toFixed(2))}%. Adjust them to 100%.`);
+        if (outOfRange) add('bundles', 'Each muscle percentage must be between 0 and 100.');
+        if (unknownMuscles?.length) add('bundles', 'Replace unknown muscles with an option from the dictionary.');
+        return result();
     }
 }
