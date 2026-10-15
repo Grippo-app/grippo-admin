@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {runDiagnosticRules, matchesDiagnosticFilter, summarizeDiagnosticReports, getDiagnosticFilterOptions} from '../src/domain/diagnostics/index.js';
+import * as diagnostics from '../src/domain/diagnostics/index.js';
 import {diagnosticBadgeHtml, diagnosticPanelHtml, diagnosticReasonHtml, primaryAttentionFinding} from '../src/shared/components/diagnosticPresentation.js';
+import * as presentation from '../src/shared/components/diagnosticPresentation.js';
 
 const rule = (id, severity, result) => ({id, severity, title: `Rule ${id}`, evaluate: () => result});
 
@@ -77,7 +79,7 @@ test('summaries and filter options count matching records once and keep zero-cou
         counts: {error: 0, warning: 1, info: 2}, ruleCounts: {warn: 1, note: 2}});
     assert.deepEqual(getDiagnosticFilterOptions(reports, rules), [
         {value: 'all', label: 'All records (4)'}, {value: 'attention', label: 'Needs attention (1)'},
-        {value: 'unverified', label: 'Not fully checked (2)'},
+        {value: 'unverified', label: 'Checks unavailable (2)'},
         {value: 'error', label: 'Errors (0)'}, {value: 'warning', label: 'Warnings (1)'}, {value: 'info', label: 'Information (2)'},
         {value: 'rule:warn', label: 'Rule warn (1)'}, {value: 'rule:note', label: 'Rule note (2)'}, {value: 'rule:clean', label: 'Rule clean (0)'},
     ]);
@@ -101,10 +103,10 @@ test('HTML labels distinguish clean, skipped and unconfigured checks without rel
     const clean = runDiagnosticRules([rule('clean', 'error', [])], {});
     const skipped = runDiagnosticRules([rule('unavailable', 'error', null)], {});
     assert.match(diagnosticBadgeHtml(clean), /diagnostic-badge--clean[^>]*><span[^>]*>No flags found/);
-    assert.match(diagnosticBadgeHtml(skipped), /diagnostic-badge--unchecked[^>]*><span[^>]*>No flags found · 1 not verified/);
+    assert.match(diagnosticBadgeHtml(skipped), /diagnostic-badge--unchecked[^>]*><span[^>]*>No flags found · 1 check unavailable/);
     assert.match(diagnosticBadgeHtml(null), /diagnostic-badge--unchecked[^>]*><span[^>]*>Not checked/);
     assert.match(diagnosticBadgeHtml(runDiagnosticRules([], {})), />Not checked/);
-    assert.match(diagnosticPanelHtml(skipped), /0 of 1 checks completed; 1 not verified/);
+    assert.match(diagnosticPanelHtml(skipped), /0 of 1 checks completed; 1 unavailable/);
     assert.match(diagnosticPanelHtml(skipped), /does not mean those checks passed/);
     assert.match(diagnosticPanelHtml(null), /Checks have not run/);
     assert.match(diagnosticPanelHtml(null), /^<details class="diagnostic-panel"><summary/);
@@ -130,11 +132,13 @@ test('unverified checks expose their escaped rule titles without inventing expla
     const report = runDiagnosticRules(rules, {});
     assert.deepEqual(report.skippedChecks, [{ruleId: 'english', title}, {ruleId: 'dictionary', title: 'Rule dictionary'}]);
     const html = diagnosticPanelHtml(report);
-    assert.match(html, /Not verified: &lt;img src=x onerror=&quot;alert\(1\)&quot;&gt; &amp; missing text; Rule dictionary\./);
+    assert.match(html, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt; &amp; missing text/);
+    assert.match(html, /Rule dictionary/);
+    assert.match(html, /Required evidence is unavailable for this check/);
     assert.equal(html.includes('<img'), false);
     assert.doesNotMatch(html, /Rule clean|failed request|dictionary unavailable/);
     const {skippedChecks, ...legacyReport} = report;
-    assert.match(diagnosticPanelHtml(legacyReport), /Some checks have not been verified/);
+    assert.match(diagnosticPanelHtml(legacyReport), /Required evidence is unavailable for these checks/);
 });
 
 test('severity styling is paired with visible text and decorative icons while unknown checks stay neutral', () => {
@@ -158,11 +162,116 @@ test('compact panels keep findings visible and tuck skipped check names into a s
     ], {});
     const html = diagnosticPanelHtml(report);
     assert.match(html, /^<details class="diagnostic-panel" data-quality="error" open>/);
-    assert.match(html, /<p class="diagnostic-coverage">1 of 2 checks completed; 1 not verified · Checks describe the saved record, not unsaved edits\.<\/p>/);
+    assert.match(html, /<p class="diagnostic-coverage">1 of 2 checks completed; 1 unavailable · Checks describe the saved record, not unsaved edits\.<\/p>/);
     assert.doesNotMatch(html, /class="diagnostic-scope"/);
-    assert.match(html, /<details class="diagnostic-unverified"><summary>Not verified checks \(1\)<\/summary><p>Not verified: &lt;Unverified title&gt;\. This does not mean those checks passed\.<\/p><\/details>/);
+    assert.match(html, /<details class="diagnostic-unverified"><summary>Checks unavailable \(1\)<\/summary>/);
+    assert.match(html, /&lt;Unverified title&gt;/);
+    assert.match(html, /This does not mean those checks passed/);
     assert.ok(html.indexOf('Required value is missing') < html.indexOf('<details class="diagnostic-unverified"'));
     assert.doesNotMatch(html, /<Unverified title>/);
     const clean = diagnosticPanelHtml(runDiagnosticRules([rule('clean', 'error', [])], {}));
     assert.doesNotMatch(clean, /diagnostic-unverified/);
+});
+
+test('typed unavailable checks keep positive names and safe reasons without changing legacy null metadata', () => {
+    const unavailable = {status: 'unavailable', reason: 'details', message: 'Open the exercise to read original text.'};
+    const report = runDiagnosticRules([{id: 'english', severity: 'error', title: 'Missing English text', checkTitle: 'English text', evaluate: () => unavailable},
+        rule('legacy', 'warning', null), rule('clean', 'info', [])], {});
+    assert.deepEqual(report.skippedChecks, [{ruleId: 'english', title: 'English text', reason: 'details', message: unavailable.message},
+        {ruleId: 'legacy', title: 'Rule legacy'}]);
+    assert.deepEqual(runDiagnosticRules([{...rule('old', 'warning', null), checkTitle: 'Profile evidence'}], {}).skippedChecks,
+        [{ruleId: 'old', title: 'Profile evidence'}]);
+    assert.equal(report.checkedCount, 1); assert.equal(report.totalCount, 3);
+    assert.deepEqual(report.counts, {error: 0, warning: 0, info: 0});
+    assert.equal(report.highestSeverity, null);
+    for (const reason of ['source', 'details', 'reference', 'dependency', 'failed']) {
+        assert.deepEqual(diagnostics.unavailableCheck(reason, 'Evidence unavailable'), {status: 'unavailable', reason, message: 'Evidence unavailable'});
+    }
+    for (const args of [['unknown', 'Text'], ['details', '  '], ['source', null], ['failed', 'Text', [{message: ''}]]]) {
+        assert.throws(() => diagnostics.unavailableCheck(...args), TypeError);
+    }
+    assert.throws(() => runDiagnosticRules([{...rule('invalid-title', 'info', []), checkTitle: ''}], {}), TypeError);
+});
+
+test('known findings and missing evidence can coexist without falsely completing a grouped rule', () => {
+    const result = {status: 'unavailable', reason: 'source', message: 'The other required field was not supplied.',
+        findings: [{field: 'category', message: 'The supplied category is invalid.'}]};
+    const report = runDiagnosticRules([{id: 'attributes', severity: 'error', title: 'Invalid attributes', checkTitle: 'Exercise attributes', evaluate: () => result},
+        rule('clean', 'info', [])], {});
+    assert.deepEqual(report.findings, [{ruleId: 'attributes', severity: 'error', title: 'Invalid attributes', field: 'category', message: result.findings[0].message}]);
+    assert.deepEqual(report.skippedChecks, [{ruleId: 'attributes', title: 'Exercise attributes', reason: 'source', message: result.message}]);
+    assert.equal(report.counts.error, 1); assert.equal(report.highestSeverity, 'error');
+    assert.equal(report.checkedCount, 1); assert.equal(report.checkedCount + report.skippedRuleIds.length, report.totalCount);
+    assert.equal(matchesDiagnosticFilter(report, 'attention'), true); assert.equal(matchesDiagnosticFilter(report, 'unverified'), true);
+    assert.deepEqual(diagnostics.unavailableCheck('source', result.message, result.findings), result);
+});
+
+test('failed evaluators and malformed unavailable atoms expose only fixed failure metadata and no partial findings', () => {
+    const secret = 'synthetic-private-value';
+    const invalid = [undefined, [{message: 'Valid'}, {message: 3}],
+        {status: 'unavailable', reason: 'unknown', message: secret, findings: [{message: 'Do not emit this'}]},
+        {status: 'unavailable', reason: 'source', message: '', findings: [{message: 'Do not emit this'}]},
+        {status: 'unavailable', reason: 'source', message: secret, findings: [{message: 'Do not emit this'}, {message: ''}]},
+        {status: 'unavailable', reason: 'source', message: secret, findings: undefined},
+        {status: 'unavailable', reason: 'source', message: secret, findings: Array(2)}];
+    const rules = invalid.map((result, index) => rule(`bad-${index}`, 'error', result));
+    rules.push({id: 'throw', severity: 'error', title: 'Failed check', checkTitle: 'Safe check', evaluate() { throw new Error(secret); }});
+    const report = runDiagnosticRules(rules, {});
+    assert.equal(report.checkedCount, 0); assert.deepEqual(report.findings, []);
+    assert.equal(report.skippedChecks.length, rules.length);
+    for (const check of report.skippedChecks) {
+        assert.equal(check.reason, 'failed'); assert.equal(check.message, 'This check could not run. Try again later.');
+    }
+    assert.equal(report.skippedChecks.at(-1).title, 'Safe check');
+    assert.equal(JSON.stringify(report).includes(secret), false);
+});
+
+test('unavailable summaries preserve occurrence order and count each record once per exact rule, reason and message', () => {
+    const first = Object.freeze({ruleId: '__proto__', title: 'English text', reason: 'details', message: 'Open details.'});
+    const second = Object.freeze({ruleId: 'dictionary', title: 'Muscle references', reason: 'reference', message: 'Load dictionaries.'});
+    const changed = Object.freeze({...first, reason: 'source', message: 'Original text is unavailable.'});
+    const reports = [Object.freeze({skippedChecks: Object.freeze([first, first, second])}),
+        Object.freeze({skippedChecks: Object.freeze([{...first, title: 'Later title'}, changed])}),
+        {skippedChecks: [{ruleId: 'legacy', title: 'Legacy check'}]}, null];
+    assert.deepEqual(diagnostics.summarizeUnavailableChecks(reports), [{...first, count: 2}, {...second, count: 1}, {...changed, count: 1}]);
+    assert.deepEqual(diagnostics.summarizeUnavailableChecks([]), []);
+    assert.deepEqual(diagnostics.summarizeUnavailableChecks([{skippedChecks: [{...first, reason: 'invalid'}, {...first, message: ''}]}]), []);
+});
+
+test('unavailable HTML shares escaped positive explanations and generic record counts between panels and aggregates', () => {
+    const injected = '<img src=x onerror="private"> & \'quoted\'';
+    const check = {ruleId: 'english', title: injected, reason: 'source', message: injected};
+    const html = presentation.unavailableChecksHtml([{...check, count: 2}, {...check, count: 1}]);
+    assert.match(html, /class="diagnostic-unavailable-list"/);
+    assert.match(html, /class="diagnostic-unavailable-title"/);
+    assert.match(html, /Source data unavailable/); assert.match(html, /2 records/); assert.match(html, /1 record</);
+    assert.equal(html.includes('<img'), false); assert.equal(html.includes('onerror="'), false);
+    assert.match(html, /&lt;img src=x onerror=&quot;private&quot;&gt; &amp; &#39;quoted&#39;/);
+    assert.equal(presentation.unavailableChecksHtml([]), '');
+    assert.doesNotMatch(presentation.unavailableChecksHtml([{...check, count: '2 private'}]), /2 private|records/);
+    const legacy = presentation.unavailableChecksHtml([{ruleId: 'old', title: 'Older check'}]);
+    assert.match(legacy, /Required evidence is unavailable for this check/);
+    assert.doesNotMatch(legacy, /Details not loaded|Source data unavailable|Check could not run/);
+    assert.match(presentation.unavailableChecksHtml([{...check, reason: {toString: null}}]), /Evidence unavailable/);
+    for (const [reason, label] of Object.entries({source: 'Source data unavailable', details: 'Details not loaded',
+        reference: 'Reference data unavailable', dependency: 'Depends on other data', failed: 'Check could not run'})) {
+        assert.ok(presentation.unavailableChecksHtml([{...check, reason}]).includes(label));
+    }
+});
+
+test('colored badges show findings alone while neutral incomplete checks explain unavailable coverage', () => {
+    const unavailable = {status: 'unavailable', reason: 'details', message: 'Open details to inspect original text.'};
+    const partial = runDiagnosticRules([rule('error', 'error', [{message: 'Missing required value'}]), rule('unknown', 'warning', unavailable)], {});
+    for (const severity of ['error', 'warning', 'info']) {
+        const colored = runDiagnosticRules([rule('finding', severity, [{message: 'A finding'}]), rule('unknown', 'warning', unavailable)], {});
+        assert.doesNotMatch(diagnosticBadgeHtml(colored), /class="diagnostic-badge__label">[^<]*unavailable/);
+        assert.match(diagnosticBadgeHtml(colored), /title="1 of 2 checks completed; 1 unavailable"/);
+    }
+    assert.match(diagnosticBadgeHtml(partial), /class="diagnostic-badge__label">1 error<\/span>/);
+    assert.match(diagnosticPanelHtml(partial), /1 of 2 checks completed; 1 unavailable/);
+    assert.match(diagnosticPanelHtml(partial), /<details class="diagnostic-unverified"><summary>Checks unavailable \(1\)/);
+    const skipped = runDiagnosticRules([rule('unknown', 'warning', unavailable)], {});
+    assert.match(diagnosticBadgeHtml(skipped), /No flags found · 1 check unavailable/);
+    assert.match(diagnosticPanelHtml(skipped), /<details class="diagnostic-unverified" open><summary>Checks unavailable \(1\)/);
+    assert.match(diagnosticPanelHtml(skipped), /Details not loaded/); assert.match(diagnosticPanelHtml(skipped), /Open details to inspect original text/);
 });

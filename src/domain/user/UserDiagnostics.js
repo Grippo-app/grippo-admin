@@ -19,6 +19,7 @@ function checkTime(context) {
 export const USER_DIAGNOSTIC_RULES = Object.freeze([
     {
         id: 'user.profile-missing-after-24h', severity: 'warning', title: 'Registration needs review',
+        checkTitle: 'Profile and registration age',
         evaluate(user, context) {
             const profile = userProfileState(user);
             if (profile === 'unknown') return null;
@@ -32,6 +33,7 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
     },
     {
         id: 'user.workouts-without-profile', severity: 'error', title: 'Workout and profile data disagree',
+        checkTitle: 'Profile and workout consistency',
         evaluate(user) {
             const profile = userProfileState(user);
             if (profile === 'unknown') return null;
@@ -43,6 +45,7 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
     },
     {
         id: 'user.registration-date-invalid', severity: 'warning', title: 'Registration date cannot be read',
+        checkTitle: 'Registration date format',
         evaluate(user) {
             const date = registrationDate(user);
             if (!date.known) return null;
@@ -52,6 +55,7 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
     },
     {
         id: 'user.registration-date-future', severity: 'warning', title: 'Registration date is in the future',
+        checkTitle: 'Registration date chronology',
         evaluate(user, context) {
             const {timestamp} = registrationDate(user);
             const now = checkTime(context);
@@ -62,6 +66,7 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
     },
     {
         id: 'user.role-unknown', severity: 'warning', title: 'Unrecognized account role',
+        checkTitle: 'Account role',
         evaluate(user) {
             const raw = rawUser(user);
             if (!Object.hasOwn(raw, 'role') || raw.role === null || raw.role === undefined) return null;
@@ -73,6 +78,7 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
     },
     {
         id: 'user.profile-id-mismatch', severity: 'warning', title: 'Profile references disagree',
+        checkTitle: 'Profile references',
         evaluate(user) {
             const raw = rawUser(user);
             const {outerId: outer, nestedId: nested, conflict} = userProfileEvidence(user);

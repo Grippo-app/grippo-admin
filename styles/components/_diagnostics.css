@@ -62,6 +62,19 @@
 .diagnostic-unverified > summary { cursor: pointer; }
 .diagnostic-unverified > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .diagnostic-unverified > p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.diagnostic-unavailable-list { display: grid; gap: 12px; list-style: none; padding: 0; margin: 8px 0 0; }
+.diagnostic-unavailable-item { display: grid; gap: 4px; border-left: 2px solid var(--border); padding-left: 10px; overflow-wrap: anywhere; }
+.diagnostic-unavailable-title { color: var(--text); font-size: 12px; font-weight: 600; }
+.diagnostic-unavailable-count { color: var(--muted); font-size: 10px; font-weight: 400; }
+.diagnostic-unavailable-reason { color: var(--muted); font-size: 11px; }
+.diagnostic-unavailable-message { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.exercise-check-availability { min-width: 0; border-top: 1px solid var(--border); padding-top: 12px; }
+.exercise-check-availability h2 { margin: 0 0 6px; font-size: 12px; font-weight: 650; }
+.exercise-check-availability p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.exercise-check-availability .diagnostic-unavailable-list { margin-top: 12px; }
+@media (max-width: 760px) {
+    .record-filters__fields > .exercise-check-availability { grid-column: 1 / -1; }
+}
 .diagnostic-findings { list-style: none; margin: 0; padding: 0; }
 .diagnostic-panel__item { display: grid; gap: 4px; border-left: 3px solid var(--border); border-radius: 0 6px 6px 0; padding: 10px 12px; margin-top: 8px; overflow-wrap: anywhere; }
 .diagnostic-panel__title { color: var(--text); font-size: 12px; font-weight: 650; }

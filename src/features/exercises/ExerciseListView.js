@@ -2,7 +2,7 @@ import {SortMenu} from '../../shared/components/SortMenu.js';
 import {FIELD} from '../../shared/constants/index.js';
 import {escapeHtml, safeUrl} from '../../shared/utils/index.js';
 import {exerciseName} from './exercisePresentation.js';
-import {diagnosticBadgeHtml, diagnosticReasonHtml} from '../../shared/components/diagnosticPresentation.js';
+import {diagnosticBadgeHtml, diagnosticReasonHtml, unavailableChecksHtml} from '../../shared/components/diagnosticPresentation.js';
 
 const CATEGORY_PILL = {
     compound: 'pill-compound',
@@ -30,7 +30,7 @@ export class ExerciseListView {
      * @param {{
      *   store: ExerciseStore,
      *   els: { list, search, sortToggle, sortMenu, sortLabel, newBtn, loadBtn,
-     *          qualityFilter, qualitySummary, filters, filterCount, filterResults, clearFiltersBtn },
+     *          qualityFilter, qualitySummary, checkCoverage, filters, filterCount, filterResults, clearFiltersBtn },
      *   onSelect: (item) => void,
      *   onNew: () => void,
      *   onLoad: () => void,
@@ -63,7 +63,7 @@ export class ExerciseListView {
     }
 
     render() {
-        const {filtered, items, current, isLoading, searchQuery, loadError, selectingId, qualityFilter, diagnosticReports, diagnosticOptions, diagnosticSummary} = this._store.getState();
+        const {filtered, items, current, isLoading, searchQuery, loadError, selectingId, qualityFilter, diagnosticReports, diagnosticOptions, diagnosticSummary, diagnosticCoverage} = this._store.getState();
         if (!this._els.list) return;
         this._setText(this._els.count, isLoading && !items.length ? 'Loading exercises…' : loadError ? `${items.length} exercises · Refresh failed` : searchQuery.trim() || qualityFilter !== 'all' ? `${filtered.length} of ${items.length} exercises` : `${items.length} exercises`);
         if (this._els.qualityFilter && this._diagnosticOptions !== diagnosticOptions) {
@@ -74,8 +74,14 @@ export class ExerciseListView {
         if (this._els.qualitySummary) {
             const {recordCount, attentionCount, unverifiedCount} = diagnosticSummary;
             this._setText(this._els.qualitySummary, recordCount
-                ? `${attentionCount} need review${unverifiedCount ? ` · ${unverifiedCount} not fully checked` : ''}`
+                ? `${attentionCount} need review${unverifiedCount ? ` · ${unverifiedCount} with limited checks` : ''}`
                 : 'Checks run when exercises load.');
+        }
+        if (this._els.checkCoverage && this._diagnosticCoverage !== diagnosticCoverage) {
+            this._els.checkCoverage.hidden = !diagnosticSummary.recordCount;
+            this._els.checkCoverage.innerHTML = diagnosticCoverage.length ? unavailableChecksHtml(diagnosticCoverage)
+                : `<p>${diagnosticSummary.unverifiedCount ? 'Some checks lack the data needed to run. See the saved record checks for details.' : 'All configured checks completed for the loaded exercises.'}</p>`;
+            this._diagnosticCoverage = diagnosticCoverage;
         }
         const hasQualityFilter = qualityFilter !== 'all';
         this._setText(this._els.filterCount, hasQualityFilter ? '1 active' : 'Any');

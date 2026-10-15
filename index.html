@@ -129,10 +129,10 @@
         <button id="newBtn" class="btn" type="button" title="Create new exercise example">+ New exercise</button>
         <button id="loadBtn" class="btn muted" type="button" title="Reload exercises">Reload</button>
         <details id="exerciseFilters" class="record-filters">
-            <summary>Filters <span id="exerciseFilterCount">Any</span></summary>
+            <summary>Filters &amp; checks <span id="exerciseFilterCount">Any</span></summary>
             <div class="record-filters__panel" role="region" aria-labelledby="exerciseFiltersTitle">
                 <div class="record-filters__header">
-                    <strong id="exerciseFiltersTitle">Exercise filters</strong>
+                    <strong id="exerciseFiltersTitle">Exercise filters &amp; checks</strong>
                     <button class="btn" type="button">Done</button>
                 </div>
                 <div class="record-filters__fields">
@@ -140,7 +140,12 @@
                         <label for="exerciseQualityFilter">Data quality</label>
                         <select id="exerciseQualityFilter" aria-describedby="exerciseQualitySummary"><option value="all">All records</option></select>
                     </div>
-                    <p>Review issues shows saved errors and warnings. Not fully checked means some checks are unavailable.</p>
+                    <p>Review issues includes errors and warnings. Unavailable checks are separate: they do not confirm a problem or a pass.</p>
+                    <section class="exercise-check-availability" aria-labelledby="exerciseCheckCoverageTitle">
+                        <h2 id="exerciseCheckCoverageTitle">Check availability</h2>
+                        <p>Across all loaded exercises. Open a saved exercise’s checks to see its findings and availability.</p>
+                        <div id="exerciseCheckCoverage" hidden></div>
+                    </section>
                 </div>
                 <div class="record-filters__footer">
                     <span id="exerciseFilterResults"></span>

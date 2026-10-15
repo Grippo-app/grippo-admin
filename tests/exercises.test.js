@@ -880,11 +880,40 @@ function filterListSetup(store = new ExerciseStore()) {
     const view = Object.create(ExerciseListView.prototype);
     view._store = store; view._onSelect = () => {}; view._rendered = null;
     view._els = {list, filters: new Element(), filterCount: new Element(), filterResults: new Element(),
-        clearFiltersBtn: new Element(), qualityFilter: new Element()};
+        clearFiltersBtn: new Element(), qualityFilter: new Element(), qualitySummary: new Element(), checkCoverage: new Element()};
     view._bindEvents(() => {}, () => {});
     store.subscribe(() => view.render()); view.render();
     return {view, store, ...view._els};
 }
+
+test('exercise check availability follows saved evidence across filters, detail reads and reset without becoming an issue', withBundleDocument(() => {
+    const {store, checkCoverage, qualitySummary} = filterListSetup();
+    assert.equal(checkCoverage.hidden, true);
+    const raw = exercise('a'); delete raw.nameTranslations; delete raw.descriptionTranslations;
+    const complete = exercise('b'); complete.imageUrl = 'https://example.test/image.png';
+    raw.imageUrl = complete.imageUrl;
+    store.setDiagnosticContext({musclesReady: true, equipmentReady: true, muscles: new Map([['quadriceps', 'Quadriceps']]), equipment: new Map()});
+    store.setItems([raw, complete], {diagnosticSources: new Map([['a', raw], ['b', complete]])});
+    assert.equal(checkCoverage.hidden, false);
+    assert.match(checkCoverage.innerHTML, /English text/);
+    assert.match(checkCoverage.innerHTML, /Details not loaded/);
+    assert.match(checkCoverage.innerHTML, /1 record/);
+    assert.equal(qualitySummary.textContent, '0 need review · 1 with limited checks');
+    const libraryCoverage = checkCoverage.innerHTML;
+    store.setSearchQuery('no matches'); store.setQualityFilter('attention');
+    assert.equal(store.getState().filtered.length, 0);
+    assert.equal(checkCoverage.innerHTML, libraryCoverage, 'counts cover the full library, not search results');
+    store.setDiagnosticSource('a', raw, {complete: true, sourceVersion: 1});
+    assert.match(checkCoverage.innerHTML, /Source data unavailable/);
+    assert.doesNotMatch(checkCoverage.innerHTML, /Details not loaded|Missing English text/);
+    assert.equal(store.getState().diagnosticSummary.attentionCount, 0);
+    store.removeItem('a');
+    assert.match(checkCoverage.innerHTML, /All configured checks completed/);
+    assert.equal(qualitySummary.textContent, '0 need review');
+    store.reset();
+    assert.equal(checkCoverage.hidden, true);
+    assert.doesNotMatch(checkCoverage.innerHTML, /English text|Source data unavailable/);
+}));
 
 test('exercise filters count only the quality selection and report honest loading, loaded and failed-refresh results', withBundleDocument(() => {
     const {store, filters, filterCount, filterResults, clearFiltersBtn} = filterListSetup();

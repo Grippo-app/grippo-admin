@@ -20,6 +20,7 @@ const snapshot = (id = 'a') => ({id, base: {name: 'Squat', description: 'Control
 const context = {complete: true, musclesReady: true, equipmentReady: true,
     muscles: new Map([['quads', 'Quadriceps'], ['glutes', 'Glutes']]), equipment: new Map([['barbell', 'Barbell']]), translationSnapshot: snapshot()};
 const findings = (raw, ruleId, ctx = context) => diagnoseExercise(raw, ctx).findings.filter(finding => finding.ruleId === ruleId);
+const skippedCheck = (report, ruleId) => report.skippedChecks.find(check => check.ruleId === ruleId);
 const rawSources = rows => new Map(rows.map(raw => [raw.id, raw]));
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; };
 function controllerSetup(repository = {}) {
@@ -113,6 +114,114 @@ test('partial records skip unavailable checks and missing image information stay
     assert.equal(findings(missing, 'missing-image')[0].severity, 'info');
     missing.imageUrl = 123;
     assert.equal(diagnoseExercise(missing, context).skippedRuleIds.includes('missing-image'), true);
+});
+
+test('unavailable English text distinguishes list evidence from server source limitations', () => {
+    const raw = record();
+    const listReport = diagnoseExercise(raw, {...context, complete: false, translationSnapshot: null});
+    assert.equal(listReport.checkedCount, 11);
+    assert.deepEqual(skippedCheck(listReport, 'english-text'), {
+        ruleId: 'english-text', title: 'English text', reason: 'details',
+        message: 'The list response does not include stored English fields. Source translations are checked when exercise details load, if supported by the server.',
+    });
+    const detailReport = diagnoseExercise(raw, {...context, translationSnapshot: null});
+    assert.equal(detailReport.checkedCount, 11);
+    assert.deepEqual(skippedCheck(detailReport, 'english-text'), {
+        ruleId: 'english-text', title: 'English text', reason: 'source',
+        message: 'The server did not provide source translations. Localized text may be a fallback, so stored English name and description cannot be confirmed.',
+    });
+    assert.deepEqual(detailReport.findings, [], 'localized scalar text proves neither missing nor present stored English');
+    assert.equal(diagnoseExercise(raw, context).checkedCount, 12, 'the authoritative raw snapshot completes the check');
+});
+
+test('missing list fields explain unavailable details without claiming malformed or absent stored data', () => {
+    const report = diagnoseExercise({id: 'partial'}, {...context, complete: false, translationSnapshot: null});
+    assert.equal(report.checkedCount, 0);
+    assert.equal(report.findings.length, 0);
+    assert.equal(report.skippedChecks.length, 12);
+    for (const check of report.skippedChecks) {
+        assert.equal(check.reason, 'details', check.ruleId);
+        assert.ok(check.message.length > 0, check.ruleId);
+        assert.doesNotMatch(check.title, /^(Missing|Invalid|Duplicate|Unknown|No )/, check.ruleId);
+    }
+});
+
+test('failed dictionaries stay reference limitations while malformed prerequisites keep real errors', () => {
+    const unavailable = diagnoseExercise(record(), {...context, musclesReady: false, equipmentReady: false});
+    assert.equal(skippedCheck(unavailable, 'unknown-muscles').reason, 'reference');
+    assert.equal(skippedCheck(unavailable, 'unknown-equipment').reason, 'reference');
+    assert.equal(unavailable.findings.length, 0);
+    const raw = record(); raw.exerciseExampleBundles = null; raw.equipmentRefs = {}; raw.imageUrl = 123;
+    const malformed = diagnoseExercise(raw, context);
+    assert.deepEqual(malformed.findings.map(finding => finding.ruleId), ['muscle-percentages', 'equipment-entries']);
+    for (const id of ['muscle-total', 'muscle-duplicates', 'muscle-zero', 'unknown-muscles', 'equipment-duplicates', 'unknown-equipment']) {
+        assert.equal(skippedCheck(malformed, id).reason, 'dependency', id);
+        assert.ok(skippedCheck(malformed, id).message.length > 0, id);
+    }
+    assert.equal(skippedCheck(malformed, 'missing-image').reason, 'source');
+    assert.match(skippedCheck(malformed, 'missing-image').message, /unsupported format/);
+    const invalidPercent = record(); invalidPercent.exerciseExampleBundles[0].percentage = 12.5;
+    const percentages = diagnoseExercise(invalidPercent, context);
+    assert.equal(skippedCheck(percentages, 'muscle-total').reason, 'dependency');
+    assert.equal(percentages.counts.error, 1, 'invalid contributions remain actual errors');
+});
+
+test('partial attribute evidence keeps known errors without claiming the entire check completed', () => {
+    for (const category of ['compound', 'unsupported']) {
+        const report = diagnoseExercise({id: 'partial', category}, {complete: false});
+        const skipped = skippedCheck(report, 'required-enums');
+        assert.equal(skipped.reason, 'details');
+        assert.match(skipped.message, /weightType/);
+        assert.equal(report.checkedCount, 0);
+        assert.deepEqual(report.findings.map(finding => finding.field), category === 'compound' ? [] : ['category']);
+    }
+    const complete = diagnoseExercise({id: 'partial', category: 'compound'}, {complete: true});
+    assert.equal(complete.skippedRuleIds.includes('required-enums'), false);
+    assert.deepEqual(complete.findings.filter(finding => finding.ruleId === 'required-enums').map(finding => finding.field), ['weightType', 'experience', 'forceType']);
+});
+
+test('one authoritative English map cannot certify the other map or hide its known errors', () => {
+    for (const complete of [false, true]) {
+        for (const name of ['Known name', '']) {
+            const report = diagnoseExercise({...record(), nameTranslations: {en: name}}, {...context, complete, translationSnapshot: null});
+            assert.equal(skippedCheck(report, 'english-text').reason, complete ? 'source' : 'details');
+            assert.match(skippedCheck(report, 'english-text').message, /description/);
+            assert.equal(report.checkedCount, 11);
+            assert.deepEqual(report.findings.map(finding => finding.field), name ? [] : ['nameTranslations.en']);
+        }
+    }
+    const knownMissing = diagnoseExercise({...record(), nameTranslations: {}, descriptionTranslations: {}}, {...context, translationSnapshot: null});
+    assert.equal(knownMissing.skippedRuleIds.includes('english-text'), false);
+    assert.equal(knownMissing.counts.error, 2, 'authoritative missing EN values stay real findings');
+});
+
+test('unexpected evaluator failures are unavailable rather than false clean checks', () => {
+    const report = diagnoseExercise(record(), {...context, translationSnapshot: {translations: null}});
+    assert.equal(skippedCheck(report, 'english-text').reason, 'failed');
+    assert.equal(report.findings.some(finding => finding.ruleId === 'english-text'), false);
+    assert.equal(report.checkedCount, 11);
+});
+
+test('source coverage changes retain an unsaved draft and keep normalized fallback maps outside evidence', () => {
+    const raw = record();
+    const responses = ['en', 'ua', 'ru'].map(locale => ({locale, list: [{entity: raw}]}));
+    const sources = exerciseDiagnosticSources(responses);
+    const items = mergeLocalizedExerciseLists(responses);
+    assert.equal(items[0].entity.nameTranslations.en, raw.name, 'editable normalization creates a language map');
+    const store = new ExerciseStore();
+    store.setDiagnosticContext(context);
+    store.setItems(items, {diagnosticSources: sources});
+    store.setCurrent(items[0].entity);
+    store.patchCurrent({descriptionTranslations: {en: 'Unsaved draft'}});
+    const draft = store.getState().current;
+    const serialized = JSON.stringify(draft);
+    assert.equal(skippedCheck(store.getDiagnosticReport('a'), 'english-text').reason, 'details');
+    store.setDiagnosticSource('a', raw, {translationSnapshot: snapshot()});
+    assert.equal(store.getDiagnosticReport('a').skippedRuleIds.includes('english-text'), false);
+    store.setItems(items, {diagnosticSources: sources});
+    assert.equal(skippedCheck(store.getDiagnosticReport('a'), 'english-text').reason, 'details');
+    assert.equal(store.getState().current, draft);
+    assert.equal(JSON.stringify(draft), serialized, 'diagnostic provenance does not enter or rewrite the draft JSON');
 });
 
 test('stored diagnostics capture raw rows, remain immutable from caller/editor, and cache report identities', () => {

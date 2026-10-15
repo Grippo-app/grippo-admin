@@ -105,6 +105,7 @@ const exerciseListView = new ExerciseListView({
         count: document.getElementById('exerciseListCount'),
         qualityFilter: document.getElementById('exerciseQualityFilter'),
         qualitySummary: document.getElementById('exerciseQualitySummary'),
+        checkCoverage: document.getElementById('exerciseCheckCoverage'),
         filters: document.getElementById('exerciseFilters'),
         filterCount: document.getElementById('exerciseFilterCount'),
         filterResults: document.getElementById('exerciseFilterResults'),

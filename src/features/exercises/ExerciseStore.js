@@ -1,7 +1,7 @@
 import {compareStrings, toTimestamp} from '../../shared/utils/index.js';
 import {exerciseEntity, exerciseName, exerciseSearchText} from './exercisePresentation.js';
 import {diagnoseExercise, EXERCISE_DIAGNOSTIC_RULES} from '../../domain/exercise/ExerciseDiagnostics.js';
-import {getDiagnosticFilterOptions, matchesDiagnosticFilter, summarizeDiagnosticReports} from '../../domain/diagnostics/index.js';
+import {getDiagnosticFilterOptions, matchesDiagnosticFilter, summarizeDiagnosticReports, summarizeUnavailableChecks} from '../../domain/diagnostics/index.js';
 
 export class ExerciseStore {
     constructor() {
@@ -27,6 +27,7 @@ export class ExerciseStore {
             diagnosticReports: new Map(),
             diagnosticOptions: getDiagnosticFilterOptions([], EXERCISE_DIAGNOSTIC_RULES),
             diagnosticSummary: summarizeDiagnosticReports([]),
+            diagnosticCoverage: [],
         };
         this._diagnosticSources = new Map();
         this._diagnosticContext = {};
@@ -107,7 +108,7 @@ export class ExerciseStore {
         }
         const reports = items.map(item => diagnosticReports.get(exerciseEntity(item).id || item.id) ?? null);
         return {diagnosticReports, diagnosticOptions: getDiagnosticFilterOptions(reports, EXERCISE_DIAGNOSTIC_RULES),
-            diagnosticSummary: summarizeDiagnosticReports(reports)};
+            diagnosticSummary: summarizeDiagnosticReports(reports), diagnosticCoverage: summarizeUnavailableChecks(reports)};
     }
 
     setFiltered(filtered) {

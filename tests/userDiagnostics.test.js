@@ -271,7 +271,10 @@ test('unknown profile data is explained as incomplete in details without a missi
     view.render();
     assert.match(view._els.userDiagnostics.innerHTML, /Profile checks are incomplete/);
     assert.doesNotMatch(view._els.userDiagnostics.innerHTML, /diagnostic-item--warning|Warning: Registration needs review/);
-    assert.match(view._els.userDiagnostics.innerHTML, /Not verified: Registration needs review/);
+    assert.match(view._els.userDiagnostics.innerHTML, /Checks unavailable \(3\)/);
+    assert.match(view._els.userDiagnostics.innerHTML, /diagnostic-unavailable-title">Profile and registration age/);
+    assert.match(view._els.userDiagnostics.innerHTML, /Evidence unavailable/);
+    assert.doesNotMatch(view._els.userDiagnostics.innerHTML, /Registration needs review|Workout and profile data disagree|Profile references disagree/);
 });
 
 test('session reset clears cached diagnostics, active report and rendered private diagnostic messages', () => {
