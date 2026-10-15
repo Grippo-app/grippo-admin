@@ -57,7 +57,16 @@ const trainings = Array.from({length: 16}, (_, index) => ({id: `training-${index
     {id: 'bench', exerciseExample: {name: 'Bench press'}, iterations: [{externalWeight: 60, repetitions: 10}, {externalWeight: 65, repetitions: 8}, {externalWeight: 65, repetitions: 8}]},
     {id: 'pullup', exerciseExample: {name: 'Pull-up'}, iterations: [{bodyWeight: 78, bodyMultiplier: 1, extraWeight: 5, repetitions: 8}]},
 ]}));
-const weights = Array.from({length: 24}, (_, index) => ({id: `weight-${index}`, weight: +(77.4 + index * 0.12 + Math.sin(index) * 0.4).toFixed(1), createdAt: ago(index * 4)}));
+const weightScenarios = {
+    two: [{weight: 80, createdAt: ago(30)}, {weight: 80.1, createdAt: ago(1)}],
+    single: [{weight: 80, createdAt: ago(1)}],
+    flat: [{weight: 80, createdAt: ago(30)}, {weight: 80, createdAt: ago(1)}],
+    'same-time': [{weight: 80, createdAt: '2026-10-01T09:00:00Z'}, {weight: 82, createdAt: '2026-10-01T09:00:00Z'}],
+    undated: [{weight: 50}, {weight: 80, createdAt: '2026-10-01'}, {weight: 90, createdAt: '2026-10-03'}],
+    intraday: [{weight: 80, createdAt: '2026-10-01T09:00:05.100Z'}, {weight: 81, createdAt: '2026-10-01T09:00:05.200Z'}],
+};
+const weights = weightScenarios[previewParams.get('weightScenario')]
+    || Array.from({length: 24}, (_, index) => ({id: `weight-${index}`, weight: +(77.4 + index * 0.12 + Math.sin(index) * 0.4).toFixed(1), createdAt: ago(index * 4)}));
 const rawSnapshots = new Map(exercises.map(entity => [entity.id, {
     id: entity.id, base: {name: entity.name, description: entity.description},
     translations: ['en', 'ua'].map(language => ({language, name: entity.nameTranslations[language], description: entity.descriptionTranslations[language]})),

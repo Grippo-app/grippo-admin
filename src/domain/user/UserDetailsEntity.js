@@ -72,7 +72,7 @@ export class UserDetailsEntity {
             .map(weight => ({
                 id: safeString(weight.id),
                 weight: UserDetailsEntity._number(weight.weight),
-                createdAt: weight.createdAt || '',
+                createdAt: weight.createdAt ?? '',
             }))
             .filter(entry => entry.weight !== null && entry.weight > 0)
             .sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));

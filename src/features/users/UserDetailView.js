@@ -1,10 +1,11 @@
 import {UserEntity, userProfileState} from '../../domain/user/index.js';
 import {readUserWorkoutCount} from '../../domain/user/userEvidence.js';
 import {diagnosticPanelHtml} from '../../shared/components/diagnosticPresentation.js';
-import {escapeHtml, toTimestamp} from '../../shared/utils/index.js';
+import {escapeHtml} from '../../shared/utils/index.js';
 import {getAuthIcon} from '../../shared/utils/authIcons.js';
 import {Toast} from '../../shared/components/Toast.js';
 import {formatDuration, formatNumber, formatShortDate, humanizeEnum, relativeDate} from './userFormatters.js';
+import {buildWeightHistoryModel} from './weightHistoryModel.js';
 
 export class UserDetailView {
     constructor({store, els, onRoleChange, onDelete, onRetryDetails}) {
@@ -280,35 +281,44 @@ export class UserDetailView {
     _renderWeight({state, error, entries = [], userHasProfile, limit = 12}) {
         const {weightBody: body, weightSummary: summary} = this._els;
         if (this._sectionState(body, summary, {state, error, empty: !entries.length && (userHasProfile ? 'No weight records yet.' : 'No profile or weight records yet.')})) return;
-        const latest = entries[0];
-        const change = entries.length > 1 ? latest.weight - entries[entries.length - 1].weight : null;
-        const overview = `<div class="weight-overview"><strong>${formatNumber(latest.weight, {unit: 'kg', decimals: 1})}</strong><span>${change === null ? 'First recorded weight' : `${this._formatDelta(change)} across ${entries.length} records`}</span></div>`;
-        const rows = entries.slice(0, limit).map((entry, index) => this._weightRow(entry, entries[index + 1] ? entry.weight - entries[index + 1].weight : null)).join('');
+        const model = buildWeightHistoryModel(entries);
+        const value = model.latestWeight === null ? `${entries.length} measurements` : formatNumber(model.latestWeight, {unit: 'kg', decimals: 1});
+        const note = !model.datedCount ? 'Dates unavailable; the latest weight cannot be determined.'
+            : model.latestWeight === null ? 'Multiple weights share the latest timestamp; their order is unknown.'
+                : `Latest dated weight${model.change === null ? '' : ` · ${this._formatDelta(model.change)} across ${model.datedCount} dated records`}`;
+        const overview = `<div class="weight-overview"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(note)}</span></div>`;
+        const rows = model.rows.slice(0, limit).map(({entry, delta, timestamp}) => this._weightRow(entry, delta, timestamp)).join('');
         const more = entries.length > limit ? `<button type="button" class="btn user-show-more" data-user-action="more-weights">Show ${Math.min(12, entries.length - limit)} more records <span>${Math.min(limit, entries.length)} of ${entries.length}</span></button>` : '';
-        this._setBody(body, `${overview}${this._weightTrend(entries)}<div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}`);
+        this._setBody(body, `${overview}${this._weightTrend(model)}<div class="weight-table-head"><span>Recorded</span><span>Weight</span><span>Change</span></div>${rows}${more}`);
         this._setSectionNote(summary, `${entries.length} record${entries.length === 1 ? '' : 's'}`);
     }
 
-    _weightTrend(entries) {
-        const points = entries.filter(entry => toTimestamp(entry.createdAt)).slice().reverse();
-        if (points.length < 2) return '';
-        const values = points.map(entry => entry.weight);
-        const low = Math.min(...values);
-        const high = Math.max(...values);
-        const minTime = toTimestamp(points[0].createdAt);
-        const maxTime = toTimestamp(points[points.length - 1].createdAt);
-        const coordinates = points.map((entry, index) => {
-            const x = maxTime === minTime ? 12 + index / (points.length - 1) * 276 : 12 + (toTimestamp(entry.createdAt) - minTime) / (maxTime - minTime) * 276;
-            const y = high === low ? 44 : 76 - (entry.weight - low) / (high - low) * 64;
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-        });
-        const label = `Weight history: ${formatNumber(points[0].weight, {unit: 'kg', decimals: 1})} to ${formatNumber(points[points.length - 1].weight, {unit: 'kg', decimals: 1})}.`;
-        return `<div class="weight-trend"><svg viewBox="0 0 300 88" role="img" aria-label="${escapeHtml(label)}"><path class="weight-trend-grid" d="M12 12H288M12 44H288M12 76H288"/><polyline class="weight-trend-line" points="${coordinates.join(' ')}"/><circle class="weight-trend-point" cx="${coordinates[coordinates.length - 1].split(',')[0]}" cy="${coordinates[coordinates.length - 1].split(',')[1]}" r="3"/></svg><div class="weight-trend-labels"><span>${escapeHtml(formatShortDate(points[0].createdAt).slice(0, 10))}</span><span>${formatNumber(low, {decimals: 1})}–${formatNumber(high, {decimals: 1})} kg</span><span>${escapeHtml(formatShortDate(points[points.length - 1].createdAt).slice(0, 10))}</span></div></div>`;
+    _weightTrend(model) {
+        if (!model.datedCount) return '<p class="weight-trend-note">No dated measurements to plot. All records remain in the table.</p>';
+        const coordinate = point => `${(12 + point.x * 276).toFixed(2)},${(8 + point.y * 84).toFixed(2)}`;
+        const lines = model.lineSegments.map(segment => `M${segment.map(coordinate).join('L')}`).join('');
+        // Round, non-scaling strokes keep markers circular when the plot stretches horizontally.
+        const markers = model.points.map(point => `M${coordinate(point)}h0`).join('');
+        const firstDate = new Date(model.points[0].timestamp).toISOString();
+        const lastDate = new Date(model.points[model.points.length - 1].timestamp).toISOString();
+        const intraday = firstDate.slice(0, 10) === lastDate.slice(0, 10);
+        const singleTime = model.distinctTimeCount === 1;
+        const precision = singleTime || firstDate.slice(0, 19) === lastDate.slice(0, 19) ? 23
+            : firstDate.slice(0, 16) === lastDate.slice(0, 16) ? 19 : 16;
+        const dateLabel = date => `<span>${escapeHtml(date.slice(0, 10))}${intraday ? `<small>${escapeHtml(date.slice(11, precision))} UTC</small>` : ''}</span>`;
+        const dates = singleTime ? dateLabel(firstDate) : dateLabel(firstDate) + dateLabel(lastDate);
+        const notes = [];
+        if (singleTime) notes.push('Only one measurement time; no time trend yet.');
+        if (model.undatedCount) notes.push(`${model.undatedCount} undated ${model.undatedCount === 1 ? 'record is' : 'records are'} shown only in the table.`);
+        if (model.ambiguousCount) notes.push(`${model.ambiguousCount} measurements share timestamps; no order is assumed within them.`);
+        const axis = [model.axis.max, model.axis.mid, model.axis.min].map(weight => `<span>${formatNumber(weight, {decimals: Number.isInteger(weight * 10) ? 1 : 2})} kg</span>`).join('');
+        const label = `Weight history: ${model.datedCount} dated measurements. Dates in UTC; exact values are listed below.`;
+        return `<div class="weight-trend"><div class="weight-trend-axis" aria-hidden="true">${axis}</div><svg viewBox="0 0 300 100" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(label)}"><path class="weight-trend-grid" d="M12 8H288M12 50H288M12 92H288"/><path class="weight-trend-line" d="${lines}"/><path class="weight-trend-point" d="${markers}"/></svg><div class="weight-trend-labels${singleTime ? ' weight-trend-labels--single' : ''}">${dates}</div><p class="weight-trend-note">Dates in UTC · Scale adjusts to the recorded range${notes.length ? `. ${escapeHtml(notes.join(' '))}` : ''}</p></div>`;
     }
 
-    _weightRow(entry, delta) {
-        const date = formatShortDate(entry.createdAt);
-        return `<div class="weight-row"><time class="weight-date" title="${escapeHtml(date)}">${escapeHtml(relativeDate(entry.createdAt) || 'Unknown date')}<small>${escapeHtml(date)}</small></time><div class="weight-value">${formatNumber(entry.weight, {unit: 'kg', decimals: 1})}</div><span class="weight-delta ${delta === null || Math.abs(delta) < 0.05 ? 'zero' : delta > 0 ? 'up' : 'down'}" title="Compared with the previous record">${delta === null ? '—' : this._formatDelta(delta)}</span></div>`;
+    _weightRow(entry, delta, timestamp) {
+        const date = timestamp === null ? '' : new Date(timestamp).toISOString().replace('T', ' ').replace('Z', ' UTC');
+        return `<div class="weight-row"><time class="weight-date" title="${escapeHtml(date)}">${escapeHtml(timestamp === null ? 'Unknown date' : relativeDate(timestamp))}${date ? `<small>${escapeHtml(date)}</small>` : ''}</time><div class="weight-value">${formatNumber(entry.weight, {unit: 'kg', decimals: 1})}</div><span class="weight-delta ${delta === null || Math.abs(delta) < 0.05 ? 'zero' : delta > 0 ? 'up' : 'down'}" title="${delta === null ? 'Change unavailable without an unambiguous earlier measurement' : 'Compared with the previous dated measurement'}">${delta === null ? '—' : this._formatDelta(delta)}</span></div>`;
     }
 
     _formatDelta(value) {
