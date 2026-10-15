@@ -117,6 +117,8 @@ export class UserListView {
             if (select.value !== value) select.value = value;
         });
         if (this._els.filterCount) this._setText(this._els.filterCount, activeCount ? `${activeCount} active` : 'Any');
+        if (this._els.filterResults) this._setText(this._els.filterResults, state.isLoading && !state.users.length
+            ? 'Loading users…' : `${state.filtered.length} of ${state.users.length} users`);
         if (this._els.clearFiltersBtn) this._els.clearFiltersBtn.disabled = !activeCount;
         if (!state.users.length && !activeCount && this._els.filters) this._els.filters.open = false;
     }

@@ -423,7 +423,12 @@
 
         <details id="userFilters" class="user-filters">
             <summary>Filters <span id="userFilterCount">Any</span></summary>
-            <div class="user-filters__fields">
+            <div class="user-filters__panel" role="region" aria-labelledby="userFiltersTitle">
+                <div class="user-filters__header">
+                    <strong id="userFiltersTitle">User filters</strong>
+                    <button class="btn" type="button">Done</button>
+                </div>
+                <div class="user-filters__fields">
                 <div class="quality-controls">
                     <label for="userQualityFilter">Data quality</label>
                     <select id="userQualityFilter" aria-describedby="userQualitySummary"><option value="all">All records</option></select>
@@ -456,7 +461,11 @@
                     </select>
                 </label>
                 <p>Uses the loaded account data. Missing dates do not mean the account was never active.</p>
-                <button id="clearUserFilters" class="btn muted" type="button" disabled>Clear filters</button>
+                </div>
+                <div class="user-filters__footer">
+                    <span id="userFilterResults"></span>
+                    <button id="clearUserFilters" class="btn muted" type="button" disabled>Clear filters</button>
+                </div>
             </div>
         </details>
 

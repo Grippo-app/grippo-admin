@@ -73,7 +73,7 @@
 .user-copy .diagnostic-badge { margin-top: 5px; }
 @media (max-width: 760px) {
     .sidebar { max-height: none; }
-    .sidebar .list { flex: 0 1 auto; min-height: 130px; max-height: 200px; }
+    .sidebar .list { flex: 0 1 auto; min-height: min(220px, 40dvh); max-height: min(360px, 50dvh); }
     .exercise-panel > .record-diagnostics { margin: 10px 12px; }
     .diagnostic-panel__body { max-height: 360px; }
 }

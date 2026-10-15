@@ -54,6 +54,9 @@ input:disabled, select:disabled { opacity: .55; cursor: not-allowed; }
 .login-form h2 { font-size: 28px; letter-spacing: -.6px; margin: 8px 0 0; }
 .login-form p { margin: 0 0 12px; }
 .login-form .btn { margin-top: 8px; }
+@media (min-width: 761px) {
+  .sidebar .side-controls { min-height: 0; max-height: 45%; overflow-y: auto; overscroll-behavior: contain; }
+}
 @media (max-width: 1250px) {
   :root { --sidebar-w: 300px; --users-sidebar-w: 320px; }
   .app-header, .command-bar { padding-left: 18px; padding-right: 18px; }
