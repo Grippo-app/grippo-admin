@@ -256,27 +256,3 @@
     .training-iteration { grid-template-columns: 30px minmax(0, 1fr); }
     .training-iteration strong { grid-column: 2; }
 }
-.user-filters { flex: 1 0 100%; min-width: 0; border-top: 1px solid var(--border); }
-.user-filters > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0 2px; cursor: pointer; font-size: 12px; font-weight: 600; }
-.user-filters > summary > span { margin-left: auto; color: var(--brand); font-size: 11px; font-weight: 500; }
-.user-filters > summary::after { content: '⌄'; color: var(--muted); }
-.user-filters[open] > summary::after { transform: rotate(180deg); }
-/* Keep filtering independent of the record list's height. */
-.user-filters__panel { position: fixed; z-index: 25; top: 80px; right: 16px; width: min(360px, calc(100vw - var(--users-sidebar-w) - 32px)); max-height: calc(100dvh - 96px); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); box-shadow: 0 16px 56px #0008; }
-.user-filters:not([open]) > .user-filters__panel { display: none; }
-.user-filters__header, .user-filters__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; flex: 0 0 auto; }
-.user-filters__header { border-bottom: 1px solid var(--border); font-size: 14px; }
-.user-filters__footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; }
-.user-filters__header .btn, .user-filters__footer .btn { min-height: 34px; font-size: 12px; padding: 6px 12px; }
-.user-filters__footer > span { min-width: 0; overflow-wrap: anywhere; }
-.user-filters__fields { display: grid; gap: 12px; padding: 16px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.user-filters__fields > label { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
-.user-filters__fields select { width: 100%; min-width: 0; min-height: 34px; font-size: 12px; }
-.user-filters__fields > p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
-
-@media (max-width: 760px) {
-    .user-filters__panel { top: auto; right: 12px; bottom: 12px; left: 12px; width: auto; max-height: min(70dvh, 540px); }
-    .user-filters__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; padding: 12px; }
-    .user-filters__fields > .quality-controls, .user-filters__fields > p { grid-column: 1 / -1; }
-    .user-filters__header, .user-filters__footer { padding: 10px 12px; }
-}

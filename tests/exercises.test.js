@@ -875,6 +875,56 @@ test('initial list skeletons are decorative and cached rows survive list and sel
     assert.equal(row.dataset.quality, undefined);
 }));
 
+function filterListSetup(store = new ExerciseStore()) {
+    const list = new Element(); list.contains = target => list.children.includes(target);
+    const view = Object.create(ExerciseListView.prototype);
+    view._store = store; view._onSelect = () => {}; view._rendered = null;
+    view._els = {list, filters: new Element(), filterCount: new Element(), filterResults: new Element(),
+        clearFiltersBtn: new Element(), qualityFilter: new Element()};
+    view._bindEvents(() => {}, () => {});
+    store.subscribe(() => view.render()); view.render();
+    return {view, store, ...view._els};
+}
+
+test('exercise filters count only the quality selection and report honest loading, loaded and failed-refresh results', withBundleDocument(() => {
+    const {store, filters, filterCount, filterResults, clearFiltersBtn} = filterListSetup();
+    assert.equal(filterCount.textContent, 'Any'); assert.equal(clearFiltersBtn.disabled, true);
+    filters.open = true; store.setLoading(true);
+    assert.equal(filterResults.textContent, 'Loading exercises…'); assert.equal(filters.open, false);
+    store.setItems([exercise('a'), exercise('b')]); store.setLoading(false);
+    assert.equal(filterResults.textContent, '2 of 2 exercises');
+    filters.open = true; store.setQualityFilter('attention');
+    assert.equal(filterCount.textContent, '1 active'); assert.equal(clearFiltersBtn.disabled, false);
+    assert.equal(filterResults.textContent, '0 of 2 exercises');
+    assert.equal(filters.open, true, 'zero matches in a loaded library must not close active filters');
+    store.setLoadError('503 <private response>');
+    assert.equal(filterResults.textContent, '0 of 2 exercises · Refresh failed');
+    store.reset();
+    assert.equal(filterCount.textContent, 'Any'); assert.equal(filterResults.textContent, '0 of 0 exercises');
+    assert.equal(clearFiltersBtn.disabled, true); assert.equal(filters.open, false);
+}));
+
+for (const mode of ['form', 'json']) test(`clearing exercise quality filters preserves search, sorting and the live ${mode} draft`, withBundleDocument(() => {
+    const {store, form, els} = formSetup();
+    store.setItems([{...exercise('a'), nameTranslations: {en: 'Needle squat'}}, exercise('b')]);
+    const {clearFiltersBtn, filterCount, filterResults, filters} = filterListSetup(store);
+    store.setSearchQuery('needle'); store.setSortKey('createdAt'); store.setQualityFilter('attention');
+    filters.open = true;
+    els.fName.value = 'Unsaved local name';
+    if (mode === 'json') { els.viewJson.dispatch('click'); els.editor.value = '{invalid unsaved JSON'; }
+    const before = store.getState();
+    assert.equal(form.hasUnsavedChanges(), true);
+    clearFiltersBtn.dispatch('click');
+    assert.equal(store.getState().qualityFilter, 'all');
+    assert.equal(store.getState().searchQuery, 'needle'); assert.equal(store.getState().sortKey, 'createdAt');
+    assert.equal(store.getState().current, before.current); assert.equal(store.getState().viewMode, before.viewMode);
+    assert.equal(form.hasUnsavedChanges(), true);
+    if (mode === 'json') assert.equal(els.editor.value, '{invalid unsaved JSON');
+    else assert.equal(els.fName.value, 'Unsaved local name');
+    assert.equal(filterCount.textContent, 'Any'); assert.equal(clearFiltersBtn.disabled, true);
+    assert.equal(filterResults.textContent, '1 of 2 exercises'); assert.equal(filters.open, true);
+}));
+
 test('empty list messaging changes when search or quality filters become active', withBundleDocument(() => {
     const store = new ExerciseStore();
     const list = new Element(); list.contains = () => false;

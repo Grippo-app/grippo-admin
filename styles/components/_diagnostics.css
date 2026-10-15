@@ -5,6 +5,9 @@
 .quality-controls select { min-width: 0; width: 100%; min-height: 34px; font-size: 12px; text-overflow: ellipsis; }
 .quality-summary { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
 .quality-review { grid-column: 1 / -1; justify-self: start; min-height: 30px; font-size: 11px; padding: 5px 9px; }
+.quality-review-controls { display: flex; align-items: center; gap: 8px; flex: 1 0 100%; min-width: 0; }
+.quality-review-controls .quality-review { flex-shrink: 0; }
+.quality-review-controls .quality-summary { min-width: 0; flex: 1; }
 .review-queue { flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel-2); min-width: 0; }
 .exercise-panel > .review-queue { margin: 12px 20px 0; }
 .user-panel > .review-queue { margin-bottom: 16px; }

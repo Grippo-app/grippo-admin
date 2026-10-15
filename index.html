@@ -105,11 +105,9 @@
             <div class="side-controls">
                 <div class="sidebar-heading"><h1>Exercises</h1><span id="exerciseListCount" class="user-count" role="status"></span></div>
         <input id="search" type="search" placeholder="Search exercises…" aria-label="Search exercises"/>
-        <div class="quality-controls">
-            <label for="exerciseQualityFilter">Data quality</label>
-            <select id="exerciseQualityFilter" aria-describedby="exerciseQualitySummary"><option value="all">All records</option></select>
-            <p id="exerciseQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
+        <div class="quality-review-controls">
             <button id="exerciseReviewBtn" class="btn muted quality-review" type="button" hidden>Review issues</button>
+            <p id="exerciseQualitySummary" class="quality-summary" role="status" aria-live="polite"></p>
         </div>
         <div id="sortDropdown" class="sort-dropdown">
             <button id="sortToggle" class="sort-toggle" type="button" aria-haspopup="true" aria-expanded="false">
@@ -130,6 +128,26 @@
         </div>
         <button id="newBtn" class="btn" type="button" title="Create new exercise example">+ New exercise</button>
         <button id="loadBtn" class="btn muted" type="button" title="Reload exercises">Reload</button>
+        <details id="exerciseFilters" class="record-filters">
+            <summary>Filters <span id="exerciseFilterCount">Any</span></summary>
+            <div class="record-filters__panel" role="region" aria-labelledby="exerciseFiltersTitle">
+                <div class="record-filters__header">
+                    <strong id="exerciseFiltersTitle">Exercise filters</strong>
+                    <button class="btn" type="button">Done</button>
+                </div>
+                <div class="record-filters__fields">
+                    <div class="quality-controls">
+                        <label for="exerciseQualityFilter">Data quality</label>
+                        <select id="exerciseQualityFilter" aria-describedby="exerciseQualitySummary"><option value="all">All records</option></select>
+                    </div>
+                    <p>Review issues shows saved errors and warnings. Not fully checked means some checks are unavailable.</p>
+                </div>
+                <div class="record-filters__footer">
+                    <span id="exerciseFilterResults"></span>
+                    <button id="clearExerciseFilters" class="btn muted" type="button" disabled>Clear filters</button>
+                </div>
+            </div>
+        </details>
 
             </div>
             <div id="list" class="list" role="listbox" aria-label="Exercise examples list"></div>
@@ -421,14 +439,14 @@
         </div>
         <button id="reloadUsersBtn" class="btn muted" type="button">Reload</button>
 
-        <details id="userFilters" class="user-filters">
+        <details id="userFilters" class="record-filters">
             <summary>Filters <span id="userFilterCount">Any</span></summary>
-            <div class="user-filters__panel" role="region" aria-labelledby="userFiltersTitle">
-                <div class="user-filters__header">
+            <div class="record-filters__panel" role="region" aria-labelledby="userFiltersTitle">
+                <div class="record-filters__header">
                     <strong id="userFiltersTitle">User filters</strong>
                     <button class="btn" type="button">Done</button>
                 </div>
-                <div class="user-filters__fields">
+                <div class="record-filters__fields">
                 <div class="quality-controls">
                     <label for="userQualityFilter">Data quality</label>
                     <select id="userQualityFilter" aria-describedby="userQualitySummary"><option value="all">All records</option></select>
@@ -462,7 +480,7 @@
                 </label>
                 <p>Uses the loaded account data. Missing dates do not mean the account was never active.</p>
                 </div>
-                <div class="user-filters__footer">
+                <div class="record-filters__footer">
                     <span id="userFilterResults"></span>
                     <button id="clearUserFilters" class="btn muted" type="button" disabled>Clear filters</button>
                 </div>

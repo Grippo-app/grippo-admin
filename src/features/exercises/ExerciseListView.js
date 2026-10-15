@@ -29,7 +29,8 @@ export class ExerciseListView {
     /**
      * @param {{
      *   store: ExerciseStore,
-     *   els: { list, search, sortToggle, sortMenu, sortLabel, newBtn, loadBtn },
+     *   els: { list, search, sortToggle, sortMenu, sortLabel, newBtn, loadBtn,
+     *          qualityFilter, qualitySummary, filters, filterCount, filterResults, clearFiltersBtn },
      *   onSelect: (item) => void,
      *   onNew: () => void,
      *   onLoad: () => void,
@@ -76,6 +77,12 @@ export class ExerciseListView {
                 ? `${attentionCount} need review${unverifiedCount ? ` · ${unverifiedCount} not fully checked` : ''}`
                 : 'Checks run when exercises load.');
         }
+        const hasQualityFilter = qualityFilter !== 'all';
+        this._setText(this._els.filterCount, hasQualityFilter ? '1 active' : 'Any');
+        this._setText(this._els.filterResults, isLoading && !items.length ? 'Loading exercises…'
+            : `${filtered.length} of ${items.length} exercises${loadError ? ' · Refresh failed' : ''}`);
+        if (this._els.clearFiltersBtn) this._els.clearFiltersBtn.disabled = !hasQualityFilter;
+        if (!items.length && !hasQualityFilter && this._els.filters) this._els.filters.open = false;
         if (this._els.loadBtn) {
             this._els.loadBtn.disabled = isLoading;
             this._els.loadBtn.textContent = isLoading ? 'Loading…' : 'Refresh';
@@ -253,5 +260,6 @@ export class ExerciseListView {
         this._els.newBtn?.addEventListener('click', onNew);
         this._els.loadBtn?.addEventListener('click', onLoad);
         this._els.qualityFilter?.addEventListener('change', event => this._store.setQualityFilter(event.target.value));
+        this._els.clearFiltersBtn?.addEventListener('click', () => this._store.setQualityFilter('all'));
     }
 }

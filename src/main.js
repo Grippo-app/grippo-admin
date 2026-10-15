@@ -105,6 +105,10 @@ const exerciseListView = new ExerciseListView({
         count: document.getElementById('exerciseListCount'),
         qualityFilter: document.getElementById('exerciseQualityFilter'),
         qualitySummary: document.getElementById('exerciseQualitySummary'),
+        filters: document.getElementById('exerciseFilters'),
+        filterCount: document.getElementById('exerciseFilterCount'),
+        filterResults: document.getElementById('exerciseFilterResults'),
+        clearFiltersBtn: document.getElementById('clearExerciseFilters'),
         search: document.getElementById('search'),
         sortToggle: document.getElementById('sortToggle'),
         sortMenu: document.getElementById('sortMenu'),
@@ -321,7 +325,7 @@ function syncExerciseReview(state) {
     const enabled = reviewFilter(state.qualityFilter, EXERCISE_DIAGNOSTIC_RULES);
     exerciseReview.update({items: state.filtered, reports: state.diagnosticReports, selectedId: state.isNew ? null : state.current?.id,
         enabled, busy: state.isLoading || state.isSaving || state.isDetailLoading, loadError: state.loadError});
-    document.getElementById('exerciseReviewBtn').hidden = enabled || !state.diagnosticSummary.attentionCount;
+    document.getElementById('exerciseReviewBtn').hidden = enabled || !state.diagnosticSummary.recordCount;
 }
 function syncUserReview(state) {
     const enabled = reviewFilter(state.diagnosticFilter, USER_DIAGNOSTIC_RULES);
@@ -423,7 +427,7 @@ bus.on(Events.NAV_SECTION_CHANGED, ({section}) => {
 });
 
 // Close before the action runs so confirmations and validation can take focus safely.
-for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions, #userFilters')) {
+for (const menu of document.querySelectorAll('.prompt-menu, #userAccountActions, .record-filters')) {
     menu.addEventListener('click', event => {
         if (event.target.closest('button')) {
             menu.open = false;
