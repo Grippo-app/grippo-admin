@@ -1,32 +1,14 @@
 import {USER_ROLES} from '../../shared/constants/index.js';
 import {runDiagnosticRules} from '../diagnostics/index.js';
+import {parseUserTimestamp, parseUserWorkoutCount, rawUser, userProfileEvidence, userProfileState} from './userEvidence.js';
+export {userProfileState};
 
 const PROFILE_REVIEW_AGE_MS = 24 * 60 * 60 * 1000;
-const rawUser = user => user?.raw && typeof user.raw === 'object' ? user.raw : user || {};
-const idText = value => typeof value === 'string' && value.trim() ? value.trim() : null;
-
-/** Missing data is not evidence that a user has no profile. */
-export function userProfileState(user) {
-    const raw = rawUser(user);
-    if (idText(raw.profileId) || (raw.profile && typeof raw.profile === 'object' && !Array.isArray(raw.profile))) return 'present';
-    return Object.hasOwn(raw, 'profile') && raw.profile === null ? 'missing' : 'unknown';
-}
 
 function registrationDate(user) {
     const raw = rawUser(user);
-    const value = raw.createdAt ?? raw.created_at;
-    if (value === undefined || value === null || value === '') return {known: false, timestamp: null};
-    if (!(typeof value === 'string' || typeof value === 'number' || value instanceof Date)) return {known: true, timestamp: null};
-    if (typeof value === 'string') {
-        const iso = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](\d{2}):?(\d{2}))$/.exec(value);
-        if (!iso) return {known: true, timestamp: null};
-        const [, year, month, day, hour, minute, second, offsetHour, offsetMinute] = iso.map(part => Number(part ?? 0));
-        const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-        const maxDay = month === 2 ? (leapYear ? 29 : 28) : ([4, 6, 9, 11].includes(month) ? 30 : 31);
-        if (month < 1 || month > 12 || day < 1 || day > maxDay || hour > 23 || minute > 59 || second > 59 || offsetHour > 23 || offsetMinute > 59) return {known: true, timestamp: null};
-    }
-    const timestamp = new Date(value).getTime();
-    return {known: true, timestamp: Number.isFinite(timestamp) ? timestamp : null};
+    // Retain the diagnostic's legacy alias fallback; filters intentionally use field presence instead.
+    return parseUserTimestamp(raw.createdAt ?? raw.created_at);
 }
 
 function checkTime(context) {
@@ -54,10 +36,8 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
             const profile = userProfileState(user);
             if (profile === 'unknown') return null;
             if (profile === 'present') return [];
-            const value = rawUser(user).workoutsCount;
-            if (!['number', 'string'].includes(typeof value) || (typeof value === 'string' && !value.trim())) return null;
-            const count = Number(value);
-            if (!Number.isSafeInteger(count) || count < 0) return null;
+            const count = parseUserWorkoutCount(rawUser(user).workoutsCount);
+            if (count === null) return null;
             return count > 0 ? [{field: 'profile', message: 'The API reports recorded workouts and no profile for the same account. Review the account data.'}] : [];
         },
     },
@@ -95,12 +75,11 @@ export const USER_DIAGNOSTIC_RULES = Object.freeze([
         id: 'user.profile-id-mismatch', severity: 'warning', title: 'Profile references disagree',
         evaluate(user) {
             const raw = rawUser(user);
-            const outer = idText(raw.profileId);
-            const nested = idText(raw.profile?.id);
-            if (raw.profile === null && outer) {
+            const {outerId: outer, nestedId: nested, conflict} = userProfileEvidence(user);
+            if (conflict === 'null-profile') {
                 return [{field: 'profileId', message: 'The API supplied a profile ID while reporting a null profile. Review the profile references.'}];
             }
-            if (nested && Object.hasOwn(raw, 'profileId') && raw.profileId === null) {
+            if (conflict === 'null-profile-id') {
                 return [{field: 'profileId', message: 'The API supplied a nested profile while reporting a null profile ID. Review the profile references.'}];
             }
             if (userProfileState(user) === 'missing') return [];

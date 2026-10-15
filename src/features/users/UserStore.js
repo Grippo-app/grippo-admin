@@ -1,5 +1,6 @@
 import {UserEntity, UserDiagnostics, USER_DIAGNOSTIC_RULES} from '../../domain/user/index.js';
 import {getDiagnosticFilterOptions, matchesDiagnosticFilter, summarizeDiagnosticReports} from '../../domain/diagnostics/index.js';
+import {matchesUserFilters, USER_FILTER_DEFAULTS, USER_FILTER_VALUES} from '../../domain/user/UserFilters.js';
 
 export class UserStore {
     constructor({now = Date.now} = {}) {
@@ -12,6 +13,7 @@ export class UserStore {
         return {
             users: [], filtered: [], active: null,
             searchQuery: '', sortKey: 'createdAt', diagnosticFilter: 'all',
+            userFilters: {...USER_FILTER_DEFAULTS},
             diagnostics: new Map(), diagnosticSummary: summarizeDiagnosticReports([]),
             diagnosticFilterOptions: getDiagnosticFilterOptions([], USER_DIAGNOSTIC_RULES),
             isLoading: false, loadError: '', roleChangeInFlight: false, deleteInFlight: false, deleteUserId: null,
@@ -43,8 +45,9 @@ export class UserStore {
         const active = this._state.active
             ? users.find(user => user.id === this._state.active.id) || null : null;
         const selection = active ? {active} : this._clearedSelection();
-        const diagnostics = this._diagnosticPatch(users, this._now());
-        this._update({users, ...diagnostics, filtered: this._reuseRows(this._state.filtered, this._applyFilter(users, diagnostics)), ...selection});
+        const now = this._now();
+        const diagnostics = this._diagnosticPatch(users, now);
+        this._update({users, ...diagnostics, filtered: this._applyFilter(users, diagnostics, now), ...selection});
     }
 
     setActive(user) {
@@ -113,12 +116,25 @@ export class UserStore {
         this._update({diagnosticFilter, filtered: this._applyFilter(this._state.users, {diagnosticFilter})});
     }
 
+    setUserFilter(key, value) {
+        if (!Object.hasOwn(USER_FILTER_VALUES, key) || !USER_FILTER_VALUES[key].includes(value) || this._state.userFilters[key] === value) return;
+        const userFilters = {...this._state.userFilters, [key]: value};
+        this._update({userFilters, filtered: this._applyFilter(this._state.users, {userFilters})});
+    }
+
+    clearUserFilters() {
+        if (Object.values(this._state.userFilters).every(value => value === 'all')) return;
+        const userFilters = {...USER_FILTER_DEFAULTS};
+        this._update({userFilters, filtered: this._applyFilter(this._state.users, {userFilters})});
+    }
+
     /** The app supplies clock ticks; unchanged reports retain their references and UI state. */
     refreshDiagnostics(now = this._now()) {
         if (!this._state.users.length) return false;
         const diagnostics = this._diagnosticPatch(this._state.users, now);
-        if (diagnostics.diagnostics === this._state.diagnostics) return false;
-        this._update({...diagnostics, filtered: this._applyFilter(this._state.users, diagnostics)});
+        const filtered = this._applyFilter(this._state.users, diagnostics, now);
+        if (diagnostics.diagnostics === this._state.diagnostics && filtered === this._state.filtered) return false;
+        this._update({...diagnostics, filtered});
         return true;
     }
 
@@ -181,11 +197,12 @@ export class UserStore {
         return previous.length === next.length && next.every((row, index) => row === previous[index]) ? previous : next;
     }
 
-    _applyFilter(users, patch = {}) {
+    _applyFilter(users, patch = {}, now = this._now()) {
         const options = {...this._state, ...patch};
         const query = options.searchQuery.trim().toLowerCase();
         const filtered = users.filter(user =>
             matchesDiagnosticFilter(options.diagnostics.get(user.id), options.diagnosticFilter) &&
+            matchesUserFilters(user, options.userFilters, {now}) &&
             (!query || [user.name, user.email, user.id, user.profileId]
                 .some(value => String(value || '').toLowerCase().includes(query)))
         ).sort(UserEntity.comparator(options.sortKey));
