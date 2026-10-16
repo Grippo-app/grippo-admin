@@ -4,8 +4,8 @@
 .record-filters > summary > span { margin-left: auto; color: var(--brand); font-size: 11px; font-weight: 500; }
 .record-filters > summary::after { content: '⌄'; color: var(--muted); }
 .record-filters[open] > summary::after { transform: rotate(180deg); }
-/* Keep filtering independent of the record list's height. */
-.record-filters__panel { position: fixed; z-index: 25; top: 80px; right: 16px; width: min(360px, calc(100vw - var(--filter-sidebar-width) - 32px)); max-height: calc(100dvh - 96px); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); box-shadow: 0 16px 56px #0008; }
+/* Float beside the list, outside the scrollable controls, without shrinking it. */
+.record-filters__panel { position: fixed; z-index: 25; top: 80px; left: calc(var(--filter-sidebar-width) + 12px); width: min(360px, calc(100vw - var(--filter-sidebar-width) - 32px)); max-height: calc(100dvh - 96px); display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); box-shadow: 0 16px 56px #0008; }
 .record-filters:not([open]) > .record-filters__panel { display: none; }
 .record-filters__header, .record-filters__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; flex: 0 0 auto; }
 .record-filters__header { border-bottom: 1px solid var(--border); font-size: 14px; }
