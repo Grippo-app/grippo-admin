@@ -1,7 +1,7 @@
 /** Short-lived access token TTL (ms). Used to schedule silent refresh. */
 export const ACCESS_TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-export const SUPPORTED_LANGUAGES = ['en', 'ua', 'ru'];
+export const SUPPORTED_LANGUAGES = ['en', 'ua', 'ru', 'pt-BR', 'pt-PT'];
 export const DEFAULT_LANGUAGE = 'en';
 
 export const FIELD = {

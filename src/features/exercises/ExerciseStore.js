@@ -23,6 +23,7 @@ export class ExerciseStore {
             createIdentityMissing: false,
             translationProvenanceKnown: false,
             translationSnapshot: null,
+            translationReload: null,
             qualityFilter: 'all',
             diagnosticReports: new Map(),
             diagnosticOptions: getDiagnosticFilterOptions([], EXERCISE_DIAGNOSTIC_RULES),
@@ -116,7 +117,12 @@ export class ExerciseStore {
     }
 
     setCurrent(exercise, {translationProvenanceKnown = false, translationSnapshot = null} = {}) {
-        this._update({current: exercise, isNew: false, createIdentityMissing: false, translationProvenanceKnown, translationSnapshot});
+        this._update({current: exercise, isNew: false, createIdentityMissing: false, translationProvenanceKnown, translationSnapshot, translationReload: null});
+    }
+
+    requireTranslationReload(baseline, reason) {
+        this._update({translationProvenanceKnown: false, translationSnapshot: null,
+            translationReload: {baseline, reason}});
     }
 
     /**
@@ -130,11 +136,11 @@ export class ExerciseStore {
     }
 
     setNew(exercise) {
-        this._update({current: exercise, isNew: true, createIdentityMissing: false, translationProvenanceKnown: true, translationSnapshot: null});
+        this._update({current: exercise, isNew: true, createIdentityMissing: false, translationProvenanceKnown: true, translationSnapshot: null, translationReload: null});
     }
 
     clearCurrent() {
-        this._update({current: null, isNew: false, createIdentityMissing: false, translationProvenanceKnown: false, translationSnapshot: null});
+        this._update({current: null, isNew: false, createIdentityMissing: false, translationProvenanceKnown: false, translationSnapshot: null, translationReload: null});
     }
 
     setSearchQuery(q) {
@@ -173,7 +179,7 @@ export class ExerciseStore {
         this._diagnosticSources.clear();
         this._diagnosticCache.clear();
         this._update({items: [], filtered: [], current: null, isNew: false, isLoading: false,
-            isSaving: false, isDetailLoading: false, selectingId: null, loadError: '', detailError: '', createIdentityMissing: false, translationProvenanceKnown: false, translationSnapshot: null,
+            isSaving: false, isDetailLoading: false, selectingId: null, loadError: '', detailError: '', createIdentityMissing: false, translationProvenanceKnown: false, translationSnapshot: null, translationReload: null,
             qualityFilter: 'all', ...this._rebuildDiagnostics([])});
     }
 

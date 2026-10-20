@@ -200,6 +200,7 @@ const exerciseFormView = new ExerciseFormView({
     onSave: (entity) => exerciseController.saveItem(entity),
     onDelete: (id) => exerciseController.deleteItem(id),
     onLocaleChange: (locale) => exerciseController.selectLocale(locale),
+    onReloadTranslations: () => exerciseController.reloadTranslations(),
 });
 
 exerciseController = new ExerciseController({

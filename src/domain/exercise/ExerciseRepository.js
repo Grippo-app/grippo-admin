@@ -63,13 +63,18 @@ export class ExerciseRepository {
             body: JSON.stringify(payload)
         });
         if (!resp.ok) {
-            const text = await resp.text();
-            throw new Error(`${resp.status} ${resp.statusText} — ${text.slice(0, 400)}`);
+            const error = new Error(`Exercise update failed: ${resp.status} ${resp.statusText}`);
+            error.status = resp.status;
+            if (resp.status === 409) {
+                const body = await resp.json().catch(() => null);
+                if (['EXERCISE_TRANSLATIONS_STALE', 'EXERCISE_TRANSLATIONS_INCOMPLETE'].includes(body?.code)) {
+                    error.code = body.code;
+                }
+            }
+            throw error;
         }
-        // Some backends respond 204 / empty body on PUT — синтезируем минимальный ответ,
-        // чтобы вызывающий код мог надёжно обновить локальный кэш.
-        const fallback = {id, entity: {...payload, id}};
-        return resp.json().catch(() => fallback);
+        // An empty PUT response acknowledges identity only; rows and revision require a raw read.
+        return resp.json().catch(() => ({id}));
     }
 
     async delete(id) {

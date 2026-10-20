@@ -1,8 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {SUPPORTED_LANGUAGES} from '../src/shared/constants/index.js';
 import {ConfirmDialog} from '../src/shared/components/ConfirmDialog.js';
 import {SortMenu} from '../src/shared/components/SortMenu.js';
 import {Toast} from '../src/shared/components/Toast.js';
+
+test('the English admin exposes exactly the five canonical content language selectors', () => {
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    assert.match(html, /<html lang="en">/);
+    const buttons = [...html.matchAll(/data-locale="([^"]+)">([^<]+)<\/button>/g)];
+    assert.deepEqual(buttons.map(match => match[1]), SUPPORTED_LANGUAGES);
+    assert.deepEqual(buttons.map(match => match[2]), ['EN', 'UA', 'RU', 'PT-BR', 'PT-PT']);
+    assert.match(html, /aria-label="Content language"/);
+});
 
 class Element {
     constructor(tag = 'div') {

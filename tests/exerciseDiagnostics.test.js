@@ -16,7 +16,7 @@ const record = (id = 'a') => ({id, name: 'Squat', description: 'Controlled movem
     components: {externalWeight: {required: true}, bodyWeight: null, extraWeight: null, assistWeight: null},
     equipmentRefs: [{equipmentId: 'barbell'}], exerciseExampleBundles: [{muscleId: 'quads', percentage: 100}]});
 const snapshot = (id = 'a') => ({id, base: {name: 'Squat', description: 'Controlled movement'},
-    translations: [{language: 'en', name: 'Squat', description: 'Controlled movement'}]});
+    translations: [{language: 'en', name: 'Squat', description: 'Controlled movement'}], translationsRevision: 'a'.repeat(64)});
 const context = {complete: true, musclesReady: true, equipmentReady: true,
     muscles: new Map([['quads', 'Quadriceps'], ['glutes', 'Glutes']]), equipment: new Map([['barbell', 'Barbell']]), translationSnapshot: snapshot()};
 const findings = (raw, ruleId, ctx = context) => diagnoseExercise(raw, ctx).findings.filter(finding => finding.ruleId === ruleId);
@@ -204,7 +204,7 @@ test('unexpected evaluator failures are unavailable rather than false clean chec
 
 test('source coverage changes retain an unsaved draft and keep normalized fallback maps outside evidence', () => {
     const raw = record();
-    const responses = ['en', 'ua', 'ru'].map(locale => ({locale, list: [{entity: raw}]}));
+    const responses = ['en', 'ua', 'ru', 'pt-BR', 'pt-PT'].map(locale => ({locale, list: [{entity: raw}]}));
     const sources = exerciseDiagnosticSources(responses);
     const items = mergeLocalizedExerciseLists(responses);
     assert.equal(items[0].entity.nameTranslations.en, raw.name, 'editable normalization creates a language map');
@@ -226,7 +226,7 @@ test('source coverage changes retain an unsaved draft and keep normalized fallba
 
 test('stored diagnostics capture raw rows, remain immutable from caller/editor, and cache report identities', () => {
     const raw = record(); raw.exerciseExampleBundles = [{muscleId: 'quads'}];
-    const responses = ['en', 'ua', 'ru'].map(locale => ({locale, list: [{entity: raw}]}));
+    const responses = ['en', 'ua', 'ru', 'pt-BR', 'pt-PT'].map(locale => ({locale, list: [{entity: raw}]}));
     const sources = exerciseDiagnosticSources(responses);
     const items = mergeLocalizedExerciseLists(responses);
     assert.equal(items[0].entity.exerciseExampleBundles[0].percentage, 0, 'normalizer has substituted a missing value');
@@ -278,11 +278,11 @@ test('context refresh recalculates unknown references without editing current or
     assert.equal(store.getState().current, current);
 });
 
-test('list load performs only three existing locale requests and diagnoses unnormalized transport', async () => {
-    let requests = 0; const raw = record(); raw.exerciseExampleBundles = [null];
-    const {store, controller} = controllerSetup({fetchList: async () => { requests++; return [raw]; }});
+test('list load requests all five canonical locales and diagnoses unnormalized transport', async () => {
+    const requests = []; const raw = record(); raw.exerciseExampleBundles = [null];
+    const {store, controller} = controllerSetup({fetchList: async locale => { requests.push(locale); return [raw]; }});
     await controller.loadList();
-    assert.equal(requests, 3);
+    assert.deepEqual(requests, ['en', 'ua', 'ru', 'pt-BR', 'pt-PT']);
     assert.equal(store.getState().items[0].entity.exerciseExampleBundles.length, 0);
     assert.equal(store.getDiagnosticReport('a').findings.some(finding => finding.ruleId === 'muscle-percentages'), true);
 });
@@ -302,7 +302,7 @@ test('successful saves replace diagnostic source; delete and session reset remov
     const raw = record(); raw.exerciseExampleBundles[0].percentage = 90;
     const {store, controller, bus} = controllerSetup();
     store.setItems([raw], {diagnosticSources: rawSources([raw])});
-    store.setCurrent(ExerciseNormalizer.normalizeEntityShape(record()), {translationProvenanceKnown: true});
+    store.setCurrent(ExerciseNormalizer.normalizeEntityShape(record()), {translationProvenanceKnown: true, translationSnapshot: snapshot()});
     assert.equal(store.getDiagnosticReport('a').findings.some(finding => finding.ruleId === 'muscle-total'), true);
     await controller.saveItem(store.getState().current);
     assert.equal(store.getDiagnosticReport('a').findings.some(finding => finding.ruleId === 'muscle-total'), false);

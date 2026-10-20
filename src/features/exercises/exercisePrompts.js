@@ -15,8 +15,8 @@ export function buildReviewPrompt(entity, dictionaries) {
     lines.push('- The JSON in the code block MUST strictly match this schema:');
     lines.push('  {');
     lines.push('    "id"?: string,');
-    lines.push('    "name": string, "nameTranslations": {"en": string, "ua": string, "ru": string},');
-    lines.push('    "description": string, "descriptionTranslations": {"en": string, "ua": string, "ru": string},');
+    lines.push('    "name": string, "nameTranslations": {"en": string, "ua": string, "ru": string, "pt-BR": string, "pt-PT": string},');
+    lines.push('    "description": string, "descriptionTranslations": {"en": string, "ua": string, "ru": string, "pt-BR": string, "pt-PT": string},');
     lines.push('    "weightType": "free"|"fixed"|"body_weight",');
     lines.push('    "category": "compound"|"isolation",');
     lines.push('    "experience": "beginner"|"intermediate"|"advanced"|"pro",');

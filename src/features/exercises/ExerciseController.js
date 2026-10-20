@@ -138,21 +138,21 @@ export class ExerciseController {
     }
 
     async saveItem(entity) {
-        const {current, isNew, isSaving, isDetailLoading, createIdentityMissing, translationProvenanceKnown} = this._store.getState();
+        const {current, isNew, isSaving, isDetailLoading, createIdentityMissing,
+            translationProvenanceKnown, translationSnapshot: originalSnapshot} = this._store.getState();
         if (!current || isSaving || isDetailLoading || createIdentityMissing || entity?.id !== current.id) return;
         const session = this._sessionSeq;
         const selection = this._selectSeq;
-        if (!isNew && !translationProvenanceKnown) {
-            const confirmed = await this._confirm.ask({title: 'Save text for all three languages?',
-                message: 'This API replaces all localized names and descriptions when you save.',
-                detail: 'Loaded UA/RU text may be English fallback. Saving writes every currently loaded EN, UA and RU value and may turn fallback text into a stored translation. Exact preservation requires raw translation data from the backend.',
-                actionLabel: 'Save all languages', actionType: 'warn'});
-            if (!confirmed || session !== this._sessionSeq || selection !== this._selectSeq || this._store.getState().current?.id !== current.id || this._store.getState().isSaving) return;
+        if (!isNew && (!translationProvenanceKnown || originalSnapshot?.id !== current.id
+            || !/^[a-f0-9]{64}$/.test(originalSnapshot?.translationsRevision ?? ''))) {
+            Toast.show({title: 'Reload translations before saving',
+                message: 'A trusted raw snapshot with its revision is required. Your draft is unchanged.', type: 'warning'});
+            return;
         }
         const submitted = draftSignature(entity);
         this._store.setSaving(true);
         try {
-            const payload = ExerciseNormalizer.buildPersistencePayload(entity);
+            const payload = ExerciseNormalizer.buildPersistencePayload(entity, isNew ? undefined : originalSnapshot.translationsRevision);
             const saved = isNew ? await this._repo.create(payload) : await this._repo.update(current.id, payload);
             if (session !== this._sessionSeq) return;
             const responseEntity = saved?.entity || (saved && typeof saved === 'object' ? saved : {});
@@ -161,11 +161,17 @@ export class ExerciseController {
                 error.code = 'CREATE_ID_MISSING';
                 throw error;
             }
-            const finalId = responseEntity.id || current.id;
-            const refreshed = ExerciseNormalizer.normalizeEntityShape({...entity, ...responseEntity, id: finalId}, {
+            const finalId = isNew ? responseEntity.id : current.id;
+            let refreshed = ExerciseNormalizer.normalizeEntityShape({...entity, ...responseEntity, id: finalId}, {
                 locale: DEFAULT_LANGUAGE, previous: entity,
             });
-            const translationSnapshot = ExerciseTranslations.fromEntity(refreshed);
+            let translationSnapshot = null;
+            let reloadError = null;
+            try {
+                translationSnapshot = ExerciseTranslations.validateSnapshot(await this._repo.fetchTranslations(finalId), finalId);
+                refreshed = ExerciseTranslations.applySnapshot(refreshed, translationSnapshot);
+            } catch (error) { reloadError = error; }
+            if (session !== this._sessionSeq) return;
             const listItem = saved?.entity ? {...saved, entity: refreshed} : {id: finalId, entity: refreshed};
             this._store.upsertItem(listItem);
             this._store.setDiagnosticSource(finalId, {...payload, ...responseEntity, id: finalId}, {translationSnapshot, sourceVersion: ++this._sourceSeq});
@@ -176,25 +182,73 @@ export class ExerciseController {
                 try { unchanged = draftSignature(this._form?.readFormToEntity?.() || entity) === submitted; }
                 catch { unchanged = false; }
                 if (isNew) this._form?.acknowledgeCreatedIdentity?.(current.id, finalId);
-                if (unchanged) this._store.setCurrent(refreshed, {translationProvenanceKnown: true, translationSnapshot});
+                if (unchanged) this._store.setCurrent(refreshed, {translationProvenanceKnown: !!translationSnapshot, translationSnapshot});
                 else {
-                    // A successful create is persisted even if the draft JSON became invalid in-flight.
-                    if (this._form?.preserveDraftAfterSave) this._form.preserveDraftAfterSave(refreshed, {translationSnapshot});
-                    else this._store.setCurrent({...this._store.getState().current, id: finalId}, {translationProvenanceKnown: true, translationSnapshot});
+                    // Changed (or invalid) JSON cannot acquire a fresh revision without reviewing its text.
+                    if (this._form?.preserveDraftAfterSave) this._form.preserveDraftAfterSave(refreshed);
+                    else this._store.setCurrent({...this._store.getState().current, id: finalId});
                 }
                 this._form?.markSaved?.(refreshed);
+                if (reloadError) this._store.requireTranslationReload(ExerciseTranslations.fromEntity(refreshed), 'saved');
+                else if (!unchanged) this._store.requireTranslationReload(ExerciseTranslations.fromEntity(entity), 'draft');
             }
             this._bus.emit(Events.EXERCISE_SAVED, listItem);
-            Toast.show({title: isNew ? 'Exercise created' : 'Exercise saved'});
+            Toast.show(reloadError ? {title: 'Exercise saved — reload translations',
+                message: 'The write succeeded, but the raw snapshot could not reload. Your draft is retained; saving is blocked until you review a fresh snapshot.', type: 'warning'}
+                : {title: isNew ? 'Exercise created' : 'Exercise saved'});
         } catch (err) {
             if (session === this._sessionSeq) {
                 if (isNew && err.code === 'CREATE_ID_MISSING') {
                     if (selection === this._selectSeq && this._store.getState().current?.id === current.id) this._store.setCreateIdentityMissing(true);
                     Toast.show({title: 'Exercise created — refresh the library', message: err.message, type: 'warning'});
+                } else if (err.status === 409 && ['EXERCISE_TRANSLATIONS_STALE', 'EXERCISE_TRANSLATIONS_INCOMPLETE'].includes(err.code)) {
+                    Toast.show({title: 'Translations changed — review required', message: 'Your draft is retained. Review the latest stored text before saving again.', type: 'warning'});
+                    if (selection === this._selectSeq && this._store.getState().current?.id === current.id) {
+                        this._store.requireTranslationReload(originalSnapshot, 'conflict');
+                        await this._reviewTranslations({id: current.id, baseline: originalSnapshot, session, selection, draftFallback: entity});
+                    }
                 } else Toast.show({title: 'Save failed', message: err.message, type: 'error'});
             }
         } finally {
             if (session === this._sessionSeq) this._store.setSaving(false);
+        }
+    }
+
+    async reloadTranslations() {
+        const {current, isNew, isSaving, isDetailLoading, translationReload} = this._store.getState();
+        if (!current || isNew || isSaving || isDetailLoading || this._form?.flush?.() === false) return;
+        const session = this._sessionSeq;
+        const selection = this._selectSeq;
+        this._store.setSaving(true);
+        try {
+            await this._reviewTranslations({id: current.id, baseline: translationReload?.baseline ?? null, session, selection});
+        } finally {
+            if (session === this._sessionSeq) this._store.setSaving(false);
+        }
+    }
+
+    async _reviewTranslations({id, baseline, session, selection, draftFallback}) {
+        const active = () => session === this._sessionSeq && selection === this._selectSeq && this._store.getState().current?.id === id;
+        try {
+            const latest = ExerciseTranslations.validateSnapshot(await this._repo.fetchTranslations(id), id);
+            if (!active()) return;
+            const draft = this._form?.readFormToEntity?.() || draftFallback || this._store.getState().current;
+            const signature = draftSignature(draft);
+            const accepted = await this._confirm.ask({title: 'Review latest translations',
+                message: 'Compare the latest stored text with your draft and the proposed result for all five languages.',
+                detail: ExerciseTranslations.reviewDetails(draft, baseline, latest),
+                actionLabel: 'Apply reviewed text', actionType: 'warn'});
+            if (!active() || !accepted) return;
+            const live = this._form?.readFormToEntity?.() || draftFallback || this._store.getState().current;
+            if (draftSignature(live) !== signature) {
+                Toast.show({title: 'Draft changed during review', message: 'Review the latest translations again. Your edits are retained.', type: 'warning'});
+                return;
+            }
+            const reconciled = ExerciseTranslations.reconcileDraft(live, baseline, latest);
+            this._store.setCurrent(reconciled, {translationProvenanceKnown: true, translationSnapshot: latest});
+            Toast.show({title: 'Translations reviewed', message: 'Review your draft, then save when ready.'});
+        } catch (error) {
+            if (active()) Toast.show({title: 'Translations could not reload', message: error.message, type: 'error'});
         }
     }
 

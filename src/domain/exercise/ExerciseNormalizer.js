@@ -5,6 +5,11 @@ function createEmptyTranslations() {
     return Object.fromEntries(SUPPORTED_LANGUAGES.map((lang) => [lang, '']));
 }
 
+function canonicalLanguage(value) {
+    if (typeof value !== 'string') return '';
+    return SUPPORTED_LANGUAGES.find(language => language.toLowerCase() === value.toLowerCase()) || '';
+}
+
 function ensureTranslationMap(value) {
     const base = createEmptyTranslations();
     if (!value || typeof value !== 'object') return base;
@@ -31,13 +36,7 @@ function cloneArrayOfObjects(arr) {
 
 function buildLocalizedEntries(map) {
     const normalized = ensureTranslationMap(map);
-    const entries = SUPPORTED_LANGUAGES.map((lang) => {
-        const value = typeof normalized[lang] === 'string' ? normalized[lang].trim() : '';
-        const entry = {language: lang};
-        if (value) entry.value = value;
-        return entry;
-    });
-    return entries.length ? entries : [{language: DEFAULT_LANGUAGE}];
+    return SUPPORTED_LANGUAGES.map(language => ({language, value: normalized[language].trim()}));
 }
 
 function toBool(value) {
@@ -233,8 +232,8 @@ function normalizeEntityShape(src, options = {}) {
         const result = ensureTranslationMap(previous?.[mapField]);
         const explicit = new Set();
         const set = (lang, value) => {
-            if (SUPPORTED_LANGUAGES.includes(lang) && typeof value === 'string') {
-                result[lang] = value;
+            if (SUPPORTED_LANGUAGES.includes(lang) && (value === null || typeof value === 'string')) {
+                result[lang] = value ?? '';
                 explicit.add(lang);
             }
         };
@@ -244,12 +243,12 @@ function normalizeEntityShape(src, options = {}) {
         }
         if (Array.isArray(e[field])) {
             for (const entry of e[field]) {
-                const lang = typeof entry?.language === 'string' ? entry.language.toLowerCase() : '';
+                const lang = canonicalLanguage(entry?.language);
                 set(lang, entry?.value ?? entry?.name ?? entry?.text ?? '');
             }
         }
         for (const entry of Array.isArray(e.translations) ? e.translations : []) {
-            const lang = typeof entry?.language === 'string' ? entry.language.toLowerCase() : '';
+            const lang = canonicalLanguage(entry?.language);
             set(lang, entry?.[field]);
         }
         // A localized scalar is authoritative for its locale; a previous draft is only a fallback.
@@ -324,13 +323,14 @@ function mergeLocalizedEntity(base, addition) {
     return merged;
 }
 
-function buildPersistencePayload(entity) {
+function buildPersistencePayload(entity, trustedRevision) {
     const components = entity.components || {};
     const component = key => components[key] === null ? null : key === 'bodyWeight'
         ? {required: components[key]?.required, multiplier: components[key]?.multiplier}
         : {required: components[key]?.required};
     // The write DTO is strict: response IDs, timestamps and joined relations are read-only.
     return {
+        ...(trustedRevision !== undefined ? {translationsRevision: trustedRevision} : {}),
         name: buildLocalizedEntries(entity.nameTranslations),
         description: buildLocalizedEntries(entity.descriptionTranslations),
         weightType: entity.weightType,
@@ -383,8 +383,8 @@ export class ExerciseNormalizer {
         return mergeLocalizedEntity(canonical, incoming);
     }
 
-    static buildPersistencePayload(canonical) {
-        return buildPersistencePayload(canonical);
+    static buildPersistencePayload(canonical, trustedRevision) {
+        return buildPersistencePayload(canonical, trustedRevision);
     }
 
     static normalizeComponents(raw) {

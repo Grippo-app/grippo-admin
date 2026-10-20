@@ -3,6 +3,24 @@ import assert from 'node:assert/strict';
 import {StorageManager} from '../src/infrastructure/storage/StorageManager.js';
 import {STORAGE_KEYS} from '../src/shared/constants/index.js';
 
+test('content language preferences persist canonical Portuguese variants and ignore unsupported aliases', () => {
+    const values = new Map();
+    const local = {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)};
+    const storage = new StorageManager({local, session: local});
+    for (const language of ['en', 'ua', 'ru', 'pt-BR', 'pt-PT']) {
+        storage.setLocale(language);
+        assert.equal(values.get(STORAGE_KEYS.locale), language);
+        assert.equal(storage.getLocale(), language);
+    }
+    for (const alias of ['pt', 'pt-br', 'pt_BR', 'uk']) {
+        storage.setLocale(alias);
+        assert.equal(storage.getLocale(), 'pt-PT');
+        local.setItem(STORAGE_KEYS.locale, alias);
+        assert.equal(storage.getLocale(), 'en');
+        storage.setLocale('pt-PT');
+    }
+});
+
 test('unsupported saved editor mode falls back to the visible form', () => {
     const values = new Map();
     const local = {getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)};

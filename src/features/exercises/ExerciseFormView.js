@@ -37,7 +37,7 @@ export class ExerciseFormView {
      *   onDelete: (id)     => Promise<void>
      * }} deps
      */
-    constructor({store, validator, dictionaries, els, onSave, onDelete, onLocaleChange}) {
+    constructor({store, validator, dictionaries, els, onSave, onDelete, onLocaleChange, onReloadTranslations}) {
         this._store = store;
         this._validator = validator;
         this._dicts = dictionaries;
@@ -46,6 +46,7 @@ export class ExerciseFormView {
         this._onSave = onSave;
         this._onDelete = onDelete;
         this._onLocaleChange = onLocaleChange;
+        this._onReloadTranslations = onReloadTranslations;
 
         this._locale = store.getState().locale || DEFAULT_LANGUAGE;
         this._viewMode = store.getState().viewMode || 'form';
@@ -104,7 +105,7 @@ export class ExerciseFormView {
         this._createdIdentity = {fromId, toId};
     }
 
-    preserveDraftAfterSave(saved, {translationSnapshot = null} = {}) {
+    preserveDraftAfterSave(saved) {
         const {current, isNew} = this._store.getState();
         let draft = current;
         let invalidJson = null;
@@ -115,7 +116,7 @@ export class ExerciseFormView {
             if (isNew && current.id !== saved.id) invalidIdentity = {fromId: current.id, toId: saved.id};
             else if (this._jsonCreatedIdentity?.toId === current.id && saved.id === current.id) invalidIdentity = this._jsonCreatedIdentity;
         }
-        this._store.setCurrent({...draft, id: saved.id}, {translationProvenanceKnown: true, translationSnapshot});
+        this._store.setCurrent({...draft, id: saved.id});
         if (invalidJson !== null && this._els.editor) {
             this._els.editor.value = invalidJson;
             // setCurrent synchronously writes canonical JSON; restore this exact acknowledgement afterwards.
@@ -145,7 +146,7 @@ export class ExerciseFormView {
     }
 
     _updateDictionaryStatus() {
-        const {current, isSaving, isDetailLoading, createIdentityMissing} = this._store.getState();
+        const {current, isNew, isSaving, isDetailLoading, createIdentityMissing, translationProvenanceKnown, translationSnapshot} = this._store.getState();
         const notReady = this._dicts.isReady === false;
         const errors = this._dicts.errors || [];
         if (this._els.dictionaryStatus) {
@@ -155,7 +156,8 @@ export class ExerciseFormView {
                 : errors.length ? `Dictionaries could not load. ${errors.join(' ')}${this._dicts.isReady ? ' Last loaded options are still available.' : ' Retry before saving.'}`
                     : 'Muscle and equipment dictionaries are not ready. Retry loading them before saving.';
         }
-        if (this._els.saveBtn) this._els.saveBtn.disabled = !current || !!isSaving || !!isDetailLoading || notReady || !!createIdentityMissing;
+        if (this._els.saveBtn) this._els.saveBtn.disabled = !current || !!isSaving || !!isDetailLoading || notReady || !!createIdentityMissing
+            || (!isNew && (!translationProvenanceKnown || !translationSnapshot?.translationsRevision));
     }
 
     _showEditorError(error) {
@@ -225,7 +227,7 @@ export class ExerciseFormView {
      * Populate all form inputs from a canonical entity + active locale.
      *
      * @param {object} entity  — canonical exercise shape
-     * @param {string} locale  — active locale ('en' | 'ua' | 'ru')
+     * @param {string} locale  — canonical content language
      */
     writeEntityToForm(entity, locale) {
         if (!entity) return;
@@ -265,7 +267,7 @@ export class ExerciseFormView {
 
     _writeLocalizedText(entity, locale) {
         const loc = locale || this._locale;
-        const language = {en: 'English', ua: 'Ukrainian', ru: 'Russian'}[loc] || 'English';
+        const language = {en: 'English', ua: 'Ukrainian', ru: 'Russian', 'pt-BR': 'Portuguese (Brazil)', 'pt-PT': 'Portuguese (Portugal)'}[loc] || 'English';
         const required = loc === DEFAULT_LANGUAGE;
         for (const [label, input, field] of [[this._els.nameLabel, this._els.fName, 'name'], [this._els.descriptionLabel, this._els.fDescription, 'description']]) {
             if (label) label.textContent = `${language} ${field}${required ? ' *' : ' (optional)'}`;
@@ -513,6 +515,7 @@ export class ExerciseFormView {
         this._updateDictionaryStatus();
         this._diagnostics.render();
         this._renderTranslationNotice(current, isNew);
+        this._updateLocaleUI();
         this._updateConfigurationSummary();
         this._applyViewMode(viewMode);
     }
@@ -520,20 +523,23 @@ export class ExerciseFormView {
     _renderTranslationNotice(current, isNew) {
         const container = this._els.translationNotice;
         if (!container) return;
-        const {translationProvenanceKnown: known, translationSnapshot} = this._store.getState();
+        const {translationProvenanceKnown: known, translationSnapshot, translationReload, isSaving} = this._store.getState();
         const explanation = known ? ExerciseTranslations.legacyNotice(translationSnapshot)
-            : 'Translation coverage is unknown: the API may return English fallback for UA/RU. Saving replaces text in all three languages; review each language before saving.';
+            : translationReload?.reason === 'conflict' ? 'Stored translations changed. Your draft is retained. Saving is blocked until you compare and apply the latest raw snapshot.'
+                : translationReload?.reason === 'saved' ? 'The exercise was saved, but its raw snapshot could not reload. Your draft is retained. Reload and review translations before saving again.'
+                    : translationReload?.reason === 'draft' ? 'The exercise was saved while you continued editing. Your newer draft is retained. Review it against the latest stored translations before saving again.'
+                    : 'A trusted raw snapshot with a revision is unavailable. Localized text may be English fallback. Saving is blocked until the backend supports this contract and translations reload successfully.';
         container.hidden = !current || isNew || !explanation;
         if (container.hidden) {
             if (this._translationNotice) container.innerHTML = '';
             this._translationNotice = null;
             return;
         }
-        if (this._translationNotice?.id === current.id && this._translationNotice.explanation === explanation) return;
+        if (this._translationNotice?.id === current.id && this._translationNotice.explanation === explanation && this._translationNotice.isSaving === isSaving) return;
         const open = this._translationNotice?.id === current.id && container.querySelector('details')?.open;
-        const summary = known ? 'Legacy translation text · Saving will normalize it' : 'Translation coverage unknown · Review before saving';
-        container.innerHTML = `<details${open ? ' open' : ''}><summary>${escapeHtml(summary)}</summary><p>${escapeHtml(explanation)}</p></details>`;
-        this._translationNotice = {id: current.id, explanation};
+        const summary = known ? 'Legacy translation text · Saving will normalize it' : 'Saving blocked · Reload translations';
+        container.innerHTML = `<details${open || !known ? ' open' : ''}><summary>${escapeHtml(summary)}</summary><p>${escapeHtml(explanation)}</p></details>${known ? '' : `<button type="button" data-exercise-action="reload-translations"${isSaving ? ' disabled' : ''}>Review latest translations</button>`}`;
+        this._translationNotice = {id: current.id, explanation, isSaving};
     }
 
     _renderDetailLoading(loading, error, current) {
@@ -925,6 +931,9 @@ export class ExerciseFormView {
     // ── Private: event binding ───────────────────────────────────────────────
 
     _bindEvents() {
+        this._els.translationNotice?.addEventListener('click', event => {
+            if (event.target.closest?.('[data-exercise-action="reload-translations"]')) this._onReloadTranslations?.();
+        });
         this._els.detailLoading?.addEventListener('click', event => {
             if (!event.target.closest?.('[data-exercise-action="dismiss-detail-error"]')) return;
             this._store.setDetailError('');

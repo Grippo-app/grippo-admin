@@ -35,6 +35,9 @@
 .confirm-title{ font-weight: 700; font-size: 15px; }
 .confirm-message{ color: var(--muted); line-height: 1.5; font-size: 13px; }
 .confirm-detail{
+  white-space: pre-wrap;
+  max-height: 50dvh;
+  overflow: auto;
   color: var(--muted);
   font-size: 13px;
   background: var(--field);

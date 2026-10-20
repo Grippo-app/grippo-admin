@@ -13,14 +13,67 @@ import {EventBus} from '../src/infrastructure/events/EventBus.js';
 import {Events} from '../src/infrastructure/events/events.js';
 import {Toast} from '../src/shared/components/Toast.js';
 import {buildReviewPrompt} from '../src/features/exercises/exercisePrompts.js';
+import {SUPPORTED_LANGUAGES} from '../src/shared/constants/index.js';
 
 Toast.show = () => {};
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return {promise, resolve}; };
 const exercise = id => ({...Normalizer.emptyTemplate(), id,
-    name: 'Squat', description: 'Controlled squat', nameTranslations: {en: 'Squat', ua: 'Присідання', ru: ''},
-    descriptionTranslations: {en: 'Controlled squat', ua: 'Контрольоване присідання', ru: ''},
+    name: 'Squat', description: 'Controlled squat', nameTranslations: {en: 'Squat', ua: 'Присідання', ru: '', 'pt-BR': '', 'pt-PT': ''},
+    descriptionTranslations: {en: 'Controlled squat', ua: 'Контрольоване присідання', ru: '', 'pt-BR': '', 'pt-PT': ''},
     weightType: 'free', category: 'compound', experience: 'beginner', forceType: 'push',
     exerciseExampleBundles: [{muscleId: 'quadriceps', percentage: 100}], equipmentRefs: []});
+const revision = 'a'.repeat(64);
+const trustedSnapshot = entity => ({...ExerciseTranslations.fromEntity(entity), translationsRevision: revision});
+const trustedOptions = entity => ({translationProvenanceKnown: true, translationSnapshot: trustedSnapshot(entity)});
+
+test('five canonical translation languages survive normalization and explicit trimmed write entries', () => {
+    const nameTranslations = Object.fromEntries(SUPPORTED_LANGUAGES.map(language => [language, ` Name ${language} `]));
+    const descriptionTranslations = Object.fromEntries(SUPPORTED_LANGUAGES.map(language => [language, ` Description ${language} `]));
+    const normalized = Normalizer.normalizeEntityShape({...exercise('five'), nameTranslations, descriptionTranslations});
+    const payload = Normalizer.buildPersistencePayload(normalized, revision);
+    assert.deepEqual(payload.name, SUPPORTED_LANGUAGES.map(language => ({language, value: `Name ${language}`})));
+    assert.deepEqual(payload.description, SUPPORTED_LANGUAGES.map(language => ({language, value: `Description ${language}`})));
+    const roundTrip = Normalizer.normalizeEntityShape({...payload, id: 'five'});
+    assert.deepEqual(roundTrip.nameTranslations, Object.fromEntries(payload.name.map(row => [row.language, row.value])));
+    assert.deepEqual(roundTrip.descriptionTranslations, Object.fromEntries(payload.description.map(row => [row.language, row.value])));
+    assert.equal(payload.translationsRevision, revision);
+});
+
+test('both localized array representations resolve case-insensitively to canonical Portuguese IDs', () => {
+    const arrayEntity = Normalizer.normalizeEntityShape({name: [{language: 'PT-br', value: 'Agachamento BR'}, {language: 'pt-pt', value: 'Agachamento PT'}],
+        description: [{language: 'pt-Br', value: 'Descrição BR'}, {language: 'PT-PT', value: 'Descrição PT'}]});
+    const rowEntity = Normalizer.normalizeEntityShape({translations: [{language: 'pt-br', name: 'Agachamento BR', description: 'Descrição BR'},
+        {language: 'PT-pt', name: 'Agachamento PT', description: 'Descrição PT'}]});
+    for (const entity of [arrayEntity, rowEntity]) {
+        assert.equal(entity.nameTranslations['pt-BR'], 'Agachamento BR');
+        assert.equal(entity.nameTranslations['pt-PT'], 'Agachamento PT');
+        assert.equal(entity.descriptionTranslations['pt-BR'], 'Descrição BR');
+        assert.equal(entity.descriptionTranslations['pt-PT'], 'Descrição PT');
+        assert.deepEqual(Object.keys(entity.nameTranslations), SUPPORTED_LANGUAGES);
+    }
+    const aliases = Normalizer.normalizeEntityShape({translations: [{language: 'pt', name: 'Unsafe generic', description: ''}, {language: 'pt_BR', name: 'Unsafe alias', description: ''}]});
+    assert.equal(aliases.nameTranslations['pt-BR'], '');
+});
+
+test('partial and nullable translation input emits explicit empty strings for all absent values', () => {
+    const previous = {...exercise('a'), nameTranslations: {...exercise('a').nameTranslations, 'pt-BR': 'Previous name'}};
+    const entity = Normalizer.normalizeEntityShape({translations: [{language: 'pt-BR', name: null, description: ' Description only '},
+        {language: 'pt-PT', name: null, description: null}]}, {previous});
+    assert.equal(entity.nameTranslations['pt-BR'], '');
+    const payload = Normalizer.buildPersistencePayload(entity, revision);
+    assert.deepEqual(payload.name.find(row => row.language === 'pt-BR'), {language: 'pt-BR', value: ''});
+    assert.deepEqual(payload.description.find(row => row.language === 'pt-BR'), {language: 'pt-BR', value: 'Description only'});
+    assert.deepEqual(payload.name.find(row => row.language === 'pt-PT'), {language: 'pt-PT', value: ''});
+    assert.deepEqual(payload.description.find(row => row.language === 'pt-PT'), {language: 'pt-PT', value: ''});
+    assert.equal(payload.name.length, 5);
+    assert.equal(payload.description.length, 5);
+});
+
+test('editable JSON cannot supply a revision and the create payload never reads its token', () => {
+    const entity = {...exercise('a'), translationsRevision: 'f'.repeat(64), translationSnapshot: {translationsRevision: 'f'.repeat(64)}};
+    assert.equal(Object.hasOwn(Normalizer.buildPersistencePayload(entity), 'translationsRevision'), false);
+    assert.equal(Normalizer.buildPersistencePayload(entity, revision).translationsRevision, revision);
+});
 
 class Element {
     constructor(tagName = '') {
@@ -96,8 +149,42 @@ test('exercise heading uses localized names with English fallback while language
     store.setLocale('ru');
     assert.equal(els.currentId.textContent, 'Squat');
     assert.equal(els.nameLabel.textContent, 'Russian name (optional)');
+    for (const language of ['pt-BR', 'pt-PT']) {
+        store.setLocale(language);
+        assert.match(els.nameLabel.textContent, /Portuguese.*name \(optional\)/);
+        assert.match(els.descriptionLabel.textContent, /Portuguese.*description \(optional\)/);
+        assert.equal(els.fName.required, false);
+        assert.equal(els.fDescription.required, false);
+    }
     store.setNew({...exercise('new'), name: '', nameTranslations: {en: '', ua: '', ru: ''}});
     assert.equal(els.currentId.textContent, 'New exercise');
+});
+
+test('all five content languages survive Form and JSON roundtrips and preserve unsaved locale drafts', () => {
+    const initial = {...exercise('five'), nameTranslations: Object.fromEntries(SUPPORTED_LANGUAGES.map(language => [language, `Name ${language}`])),
+        descriptionTranslations: Object.fromEntries(SUPPORTED_LANGUAGES.map(language => [language, `Description ${language}`]))};
+    const {store, form, els} = formSetup(initial);
+    const localeButtons = SUPPORTED_LANGUAGES.map(language => { const button = new Element(); button.dataset.locale = language; return button; });
+    els.localeButtons = localeButtons; form._bindEvents();
+    for (const [index, language] of SUPPORTED_LANGUAGES.entries()) {
+        localeButtons[index].dispatch('click');
+        assert.equal(store.getState().locale, language);
+        assert.equal(els.fName.value, `Name ${language}`);
+        els.fName.value = `Edited ${language}`;
+        els.fDescription.value = `Edited description ${language}`;
+        els.viewJson.dispatch('click');
+        const json = JSON.parse(els.editor.value);
+        assert.equal(json.nameTranslations[language], `Edited ${language}`);
+        els.viewForm.dispatch('click');
+        assert.equal(els.fDescription.value, `Edited description ${language}`);
+    }
+    localeButtons[0].dispatch('click');
+    const entity = form.readFormToEntity();
+    for (const language of SUPPORTED_LANGUAGES) {
+        assert.equal(entity.nameTranslations[language], `Edited ${language}`);
+        assert.equal(entity.descriptionTranslations[language], `Edited description ${language}`);
+    }
+    assert.equal(form.hasUnsavedChanges(), true);
 });
 
 test('configuration disclosures preserve drafts and their open state across language, mode and same-record refreshes', () => {
@@ -130,7 +217,7 @@ for (const edited of [false, true]) test(`create identity acknowledgement retain
     const {store, form, els} = formSetup(null);
     const pending = deferred();
     const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {ask: async () => true},
-        repository: {create: () => pending.promise, fetchDetail: async id => exercise(id), fetchTranslations: async id => ExerciseTranslations.fromEntity(exercise(id))}});
+        repository: {create: () => pending.promise, fetchDetail: async id => exercise(id), fetchTranslations: async id => trustedSnapshot(exercise(id))}});
     form._onSave = entity => controller.saveItem(entity);
     const referenceFields = new Element();
     const querySelectorAll = els.builder.querySelectorAll.bind(els.builder);
@@ -328,8 +415,9 @@ test('changing locale uses loaded translations without a request or data overwri
 
 test('save completion updates the list without replacing a later selected exercise', async () => {
     const pending = deferred();
-    const {store, controller} = controllerSetup({update: () => pending.promise, fetchDetail: async () => exercise('b')});
-    store.setCurrent(exercise('a'));
+    const {store, controller} = controllerSetup({update: () => pending.promise, fetchDetail: async () => exercise('b'),
+        fetchTranslations: async id => trustedSnapshot(exercise(id))});
+    store.setCurrent(exercise('a'), trustedOptions(exercise('a')));
     const saving = controller.saveItem(exercise('a'));
     await controller.selectItem({id: 'b'});
     pending.resolve({id: 'a'});
@@ -342,7 +430,7 @@ test('save completion updates the list without replacing a later selected exerci
 test('save completion after logout cannot restore exercise data', async () => {
     const pending = deferred();
     const {store, bus, controller} = controllerSetup({update: () => pending.promise});
-    store.setCurrent(exercise('a'), {translationProvenanceKnown: true});
+    store.setCurrent(exercise('a'), trustedOptions(exercise('a')));
     const saving = controller.saveItem(exercise('a'));
     bus.emit(Events.AUTH_LOGOUT);
     pending.resolve(exercise('a'));
@@ -371,6 +459,7 @@ test('review prompt preserves translation maps and components in its schema', ()
     const prompt = buildReviewPrompt(exercise('a'), {muscles: new Map(), equipment: new Map()});
     assert.match(prompt, /nameTranslations/);
     assert.match(prompt, /Preserve all translation maps, components/);
+    assert.match(prompt, /"pt-BR": string, "pt-PT": string/);
 });
 
 test('cancelling a later selection does not leave an earlier detail request stuck loading', async () => {
@@ -428,11 +517,12 @@ for (const action of ['save', 'form', 'locale']) test(`a repaired in-flight JSON
     store.setNew(exercise(localId));
     let creates = 0;
     const updates = [];
+    let persisted = exercise(serverId);
     const pending = deferred();
-    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {},
+    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {ask: async () => true},
         repository: {create: () => { creates++; return pending.promise; }, update: async (id, payload) => {
-            updates.push({id, payload}); return {id: serverId};
-        }}});
+            updates.push({id, payload}); persisted = Normalizer.normalizeEntityShape({...payload, id}); return {id: serverId};
+        }, fetchTranslations: async () => trustedSnapshot(persisted)}});
     els.viewJson.dispatch('click');
     const saving = controller.saveItem(form.readFormToEntity());
     const edited = {...exercise(localId), nameTranslations: {...exercise(localId).nameTranslations, en: 'Keep my later JSON edit'}};
@@ -453,6 +543,11 @@ for (const action of ['save', 'form', 'locale']) test(`a repaired in-flight JSON
     els.editor.value = repaired;
     if (action === 'save') {
         await controller.saveItem(form.readFormToEntity());
+        assert.equal(updates.length, 0, 'the repaired draft cannot use a raw revision it has not reviewed');
+        assert.equal(store.getState().translationSnapshot, null);
+        await controller.reloadTranslations();
+        assert.equal(updates.length, 0, 'reviewing the latest text does not retry the write');
+        await controller.saveItem(form.readFormToEntity());
         assert.equal(updates.length, 1); assert.equal(updates[0].id, serverId);
         assert.equal(updates[0].payload.name.find(row => row.language === 'en').value, 'Keep my later JSON edit');
     } else if (action === 'form') {
@@ -469,6 +564,75 @@ for (const action of ['save', 'form', 'locale']) test(`a repaired in-flight JSON
     assert.equal(JSON.parse(els.editor.value).id, serverId);
     els.editor.value = repaired;
     assert.throws(() => form.readFormToEntity(), /ID cannot be changed/, 'the old ID is no longer accepted after canonical JSON has been written');
+});
+
+test('invalid in-flight create JSON cannot acquire an imported Portuguese revision before explicit review', async () => {
+    const localId = '11111111-1111-4111-8111-111111111111';
+    const serverId = '22222222-2222-4222-8222-222222222222';
+    const {store, form, els} = formSetup(null);
+    const create = deferred(), rawStarted = deferred(), rawRead = deferred();
+    const updates = [];
+    const reviews = [];
+    let reads = 0;
+    let persisted = exercise(serverId);
+    let serverRevision = 'b'.repeat(64);
+    const snapshot = () => ({...trustedSnapshot(persisted), translationsRevision: serverRevision});
+    const controller = new ExerciseController({store, formView: form, bus: new EventBus(),
+        confirmDialog: {ask: async options => { reviews.push(options); return true; }},
+        repository: {create: () => create.promise, fetchTranslations: async id => {
+            assert.equal(id, serverId);
+            reads++;
+            if (reads === 1) { rawStarted.resolve(); return rawRead.promise; }
+            return snapshot();
+        }, update: async (id, payload) => {
+            updates.push({id, payload});
+            persisted = Normalizer.normalizeEntityShape({...payload, id});
+            serverRevision = 'c'.repeat(64);
+            return {id};
+        }}});
+    store.setNew(exercise(localId));
+    els.viewJson.dispatch('click');
+    const submitted = form.readFormToEntity();
+    const saving = controller.saveItem(submitted);
+    const repaired = JSON.stringify({...submitted, nameTranslations: {...submitted.nameTranslations, en: 'Later English draft'}}, null, 2);
+    const invalid = repaired.replace(/\n}$/, ',\n}');
+    els.editor.value = invalid;
+    create.resolve({id: serverId});
+    await rawStarted.promise;
+    persisted = {...persisted, nameTranslations: {...persisted.nameTranslations, 'pt-BR': 'Imported BR name', 'pt-PT': 'Imported PT name'},
+        descriptionTranslations: {...persisted.descriptionTranslations, 'pt-BR': 'Imported BR description', 'pt-PT': 'Imported PT description'}};
+    rawRead.resolve(snapshot());
+    await saving;
+    assert.equal(els.editor.value, invalid);
+    assert.equal(store.getState().current.id, serverId);
+    assert.equal(store.getState().translationSnapshot, null);
+    assert.equal(store.getState().translationProvenanceKnown, false);
+    assert.equal(store.getState().translationReload.reason, 'draft');
+    assert.equal(els.saveBtn.disabled, true);
+    els.editor.value = repaired;
+    const draft = form.readFormToEntity();
+    assert.equal(draft.id, serverId, 'repair retains the acknowledged server identity');
+    assert.equal(draft.nameTranslations['pt-BR'], '');
+    await controller.saveItem(draft);
+    assert.equal(updates.length, 0);
+    assert.equal(reads, 1, 'a blocked save does not load a token or retry');
+    await controller.reloadTranslations();
+    assert.equal(reviews.length, 1);
+    assert.match(reviews[0].detail, /Imported BR name/);
+    assert.match(reviews[0].detail, /Imported PT description/);
+    assert.equal(updates.length, 0, 'review does not perform a write');
+    const reviewed = form.readFormToEntity();
+    assert.equal(reviewed.id, serverId);
+    assert.equal(reviewed.nameTranslations.en, 'Later English draft');
+    assert.equal(reviewed.nameTranslations['pt-BR'], 'Imported BR name');
+    assert.equal(reviewed.descriptionTranslations['pt-PT'], 'Imported PT description');
+    assert.equal(store.getState().translationSnapshot.translationsRevision, 'b'.repeat(64));
+    await controller.saveItem(reviewed);
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].id, serverId);
+    assert.equal(updates[0].payload.translationsRevision, 'b'.repeat(64));
+    assert.deepEqual(updates[0].payload.name.find(row => row.language === 'pt-BR'), {language: 'pt-BR', value: 'Imported BR name'});
+    assert.deepEqual(updates[0].payload.description.find(row => row.language === 'pt-PT'), {language: 'pt-PT', value: 'Imported PT description'});
 });
 
 for (const reset of ['select', 'new', 'logout']) test(`created JSON identity acknowledgement is revoked after ${reset}`, async () => {
@@ -492,8 +656,8 @@ for (const reset of ['select', 'new', 'logout']) test(`created JSON identity ack
 test('an acknowledged created draft remains recoverable if JSON becomes invalid again during its first update', async () => {
     const {store, form, els} = formSetup(null);
     const create = deferred(), update = deferred();
-    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {},
-        repository: {create: () => create.promise, update: () => update.promise}});
+    const controller = new ExerciseController({store, formView: form, bus: new EventBus(), confirmDialog: {ask: async () => true},
+        repository: {create: () => create.promise, update: () => update.promise, fetchTranslations: async id => trustedSnapshot(exercise(id))}});
     store.setNew(exercise('local-id')); els.viewJson.dispatch('click');
     const draft = JSON.parse(els.editor.value);
     const saving = controller.saveItem(form.readFormToEntity());
@@ -501,6 +665,8 @@ test('an acknowledged created draft remains recoverable if JSON becomes invalid 
     create.resolve({id: 'saved-id'}); await saving;
     draft.nameTranslations.en = 'First repaired edit';
     els.editor.value = JSON.stringify(draft, null, 2);
+    await controller.reloadTranslations();
+    draft.id = form.readFormToEntity().id;
     const updating = controller.saveItem(form.readFormToEntity());
     draft.descriptionTranslations.en = 'Another edit while updating';
     const repaired = JSON.stringify(draft, null, 2);
@@ -517,8 +683,9 @@ test('an acknowledged created draft remains recoverable if JSON becomes invalid 
 
 test('a list response started before save cannot replace the updated local list', async () => {
     const pending = deferred();
-    const {store, controller} = controllerSetup({fetchList: () => pending.promise, update: async () => ({...exercise('a'), imageUrl: '/updated.png'})});
-    store.setCurrent(exercise('a'));
+    const {store, controller} = controllerSetup({fetchList: () => pending.promise, update: async () => ({...exercise('a'), imageUrl: '/updated.png'}),
+        fetchTranslations: async id => trustedSnapshot(exercise(id))});
+    store.setCurrent(exercise('a'), trustedOptions(exercise('a')));
     const loading = controller.loadList();
     await controller.saveItem(exercise('a'));
     pending.resolve([{entity: exercise('a')}]);
@@ -588,13 +755,15 @@ test('JSON and validation reject non-text translations before normalization can 
     els.viewJson.dispatch('click');
     for (const value of [{}, [], 42, true, null]) {
         for (const field of ['nameTranslations', 'descriptionTranslations']) {
-            const draft = {...exercise('a'), [field]: {en: value}};
-            assert.equal(validator.validate(draft).ok, false);
-            els.editor.value = JSON.stringify(draft);
-            assert.throws(() => form.readFormToEntity(), /must be text/);
-            els.viewForm.dispatch('click');
-            assert.equal(store.getState().viewMode, 'json');
-            assert.deepEqual(JSON.parse(els.editor.value)[field].en, value);
+            for (const language of SUPPORTED_LANGUAGES) {
+                const draft = {...exercise('a'), [field]: {...exercise('a')[field], [language]: value}};
+                assert.equal(validator.validate(draft).ok, false);
+                els.editor.value = JSON.stringify(draft);
+                assert.throws(() => form.readFormToEntity(), /must be text/);
+                els.viewForm.dispatch('click');
+                assert.equal(store.getState().viewMode, 'json');
+                assert.deepEqual(JSON.parse(els.editor.value)[field][language], value);
+            }
         }
     }
 });
@@ -1036,10 +1205,11 @@ test('validation matches backend integer percentages, explicit component keys, a
 test('create uses the actual server-generated identity rather than the draft UUID', async () => {
     const {store, controller} = controllerSetup({create: async payload => {
         assert.equal(Object.hasOwn(payload, 'id'), false);
+        assert.equal(Object.hasOwn(payload, 'translationsRevision'), false);
         return {id: 'server-generated'};
     }});
     store.setNew(exercise('draft-uuid'));
-    await controller.saveItem(exercise('draft-uuid'));
+    await controller.saveItem({...exercise('draft-uuid'), translationsRevision: 'f'.repeat(64)});
     assert.equal(store.getState().current.id, 'server-generated');
     assert.equal(store.getState().items[0].entity.id, 'server-generated');
     assert.equal(store.getState().isNew, false);
@@ -1063,57 +1233,53 @@ test('a create response without identity blocks duplicate creates until the crea
 
 test('list loading fetches every locale and supports real scalar translated names in search', async () => {
     const requested = [];
-    const localizedNames = {en: 'Barbell Bench Press', ua: 'Жим штанги лежачи', ru: 'Жим штанги лёжа'};
+    const localizedNames = {en: 'Barbell Bench Press', ua: 'Жим штанги лежачи', ru: 'Жим штанги лёжа', 'pt-BR': 'Supino brasileiro', 'pt-PT': 'Supino português'};
     const {store, controller} = controllerSetup({fetchList: async locale => {
         requested.push(locale);
         return [{entity: {id: 'bench', name: localizedNames[locale], description: 'Localized description', exerciseExampleBundles: [], equipmentRefs: []}, usageCount: 2}];
     }});
     await controller.loadList();
-    assert.deepEqual(requested.sort(), ['en', 'ru', 'ua']);
+    assert.deepEqual(requested.sort(), [...SUPPORTED_LANGUAGES].sort());
     assert.equal(store.getState().items.length, 1);
     store.setSearchQuery('Жим штанги лежачи');
     assert.equal(store.getState().filtered.length, 1);
     assert.equal(store.getState().filtered[0].entity.name, 'Barbell Bench Press');
     assert.equal(store.getState().filtered[0].usageCount, 2);
+    for (const language of ['pt-BR', 'pt-PT']) {
+        store.setSearchQuery(localizedNames[language]);
+        assert.equal(store.getState().filtered[0].entity.id, 'bench');
+    }
 });
 
-test('cancelling replacement of unknown-provenance translations sends no save request', async () => {
+test('unknown-provenance translations cannot save even when confirmation would be accepted', async () => {
     let confirmations = 0;
     let updates = 0;
     const {store, controller} = controllerSetup({update: async () => { updates++; return {id: 'a'}; }});
     store.setCurrent(exercise('a'));
     // An editor field cannot change trusted provenance metadata held separately in the store.
     store.patchCurrent({translationProvenanceKnown: true});
-    controller._confirm = {ask: async options => { confirmations++; assert.match(options.detail, /English fallback/); return false; }};
+    controller._confirm = {ask: async () => { confirmations++; return true; }};
     await controller.saveItem({...exercise('a'), translationProvenanceKnown: true});
-    assert.equal(confirmations, 1);
+    assert.equal(confirmations, 0);
     assert.equal(updates, 0);
     assert.equal(store.getState().translationProvenanceKnown, false);
 });
 
-test('confirming localized replacement saves all text and establishes known saved content', async () => {
-    let confirmations = 0;
+test('a provenance flag without the raw snapshot revision cannot authorize an existing update', async () => {
     let updates = 0;
-    const {store, controller} = controllerSetup({update: async (_, payload) => {
-        updates++;
-        assert.deepEqual(payload.name.map(entry => entry.language), ['en', 'ua', 'ru']);
-        return {id: 'a'};
-    }});
-    store.setCurrent(exercise('a'));
-    controller._confirm = {ask: async () => { confirmations++; return true; }};
+    const {store, controller} = controllerSetup({update: async () => { updates++; return {id: 'a'}; }});
+    store.setCurrent(exercise('a'), {translationProvenanceKnown: true, translationSnapshot: ExerciseTranslations.fromEntity(exercise('a'))});
     await controller.saveItem(exercise('a'));
-    assert.equal(updates, 1);
-    assert.equal(store.getState().translationProvenanceKnown, true);
+    assert.equal(updates, 0);
     await controller.saveItem(exercise('a'));
-    assert.equal(updates, 2);
-    assert.equal(confirmations, 1);
+    assert.equal(updates, 0);
 });
 
 test('new exercises and authoritative raw language maps do not need fallback replacement confirmation', async () => {
     let confirmations = 0;
     const {store, controller} = controllerSetup({create: async () => ({id: 'new-saved'}),
         update: async () => ({id: 'a'}), fetchDetail: async () => ({entity: exercise('a')}),
-        fetchTranslations: async () => ExerciseTranslations.fromEntity(exercise('a'))});
+        fetchTranslations: async id => trustedSnapshot(exercise(id))});
     controller._confirm = {ask: async () => { confirmations++; return true; }};
     store.setNew(exercise('draft'));
     await controller.saveItem(exercise('draft'));
@@ -1204,7 +1370,28 @@ test('native textarea line-ending normalization is not an edit while changed des
     assert.equal(form.hasUnsavedChanges(), true);
 });
 
-const rawSnapshot = (id = 'a', translations = [{language: 'en', name: 'Squat', description: 'Controlled squat'}], base = {name: 'Squat', description: 'Controlled squat'}) => ({id, base, translations});
+const rawSnapshot = (id = 'a', translations = [{language: 'en', name: 'Squat', description: 'Controlled squat'}], base = {name: 'Squat', description: 'Controlled squat'}) => ({id, base, translations, translationsRevision: revision});
+
+test('a trusted snapshot preserves nullable raw rows, base and revision from one response', () => {
+    const raw = rawSnapshot('five', [{language: 'pt-BR', name: null, description: 'Descrição BR'},
+        {language: 'pt-PT', name: 'Agachamento PT', description: ''}], {name: null, description: 'Base description'});
+    const snapshot = ExerciseTranslations.validateSnapshot(raw, 'five');
+    assert.deepEqual(snapshot, raw);
+    const entity = ExerciseTranslations.applySnapshot(exercise('five'), snapshot);
+    assert.equal(entity.nameTranslations['pt-BR'], '');
+    assert.equal(entity.descriptionTranslations['pt-BR'], 'Descrição BR');
+    assert.equal(entity.nameTranslations['pt-PT'], 'Agachamento PT');
+    assert.equal(entity.descriptionTranslations['pt-PT'], '');
+    assert.equal(entity.nameTranslations.ua, '');
+    assert.equal(entity.descriptionTranslations.ua, '');
+    assert.equal(Object.hasOwn(ExerciseTranslations.fromEntity(entity), 'translationsRevision'), false);
+});
+
+test('missing or malformed raw revisions cannot establish a trusted snapshot', () => {
+    for (const translationsRevision of [undefined, null, '', 'A'.repeat(64), 'f'.repeat(63), 'not-a-revision', 42]) {
+        assert.throws(() => ExerciseTranslations.validateSnapshot({...rawSnapshot(), translationsRevision}, 'a'), /revision|snapshot/i);
+    }
+});
 const localizedExercise = id => {
     const {nameTranslations, descriptionTranslations, ...entity} = exercise(id);
     return {entity};
@@ -1214,8 +1401,18 @@ function rawTranslationSetup(snapshot, overrides = {}) {
     const setup = formSetup(null);
     const payloads = [];
     let confirmations = 0;
-    const repository = {fetchDetail: async id => localizedExercise(id), fetchTranslations: async () => snapshot,
-        update: async (id, payload) => { payloads.push(payload); return {id}; }, ...overrides};
+    let storedSnapshot = snapshot;
+    const repository = {fetchDetail: async id => localizedExercise(id), fetchTranslations: async () => storedSnapshot,
+        update: async (id, payload) => {
+            payloads.push(payload);
+            const text = value => value || null;
+            const translations = payload.name.map(row => ({language: row.language, name: text(row.value),
+                description: text(payload.description.find(description => description.language === row.language).value)}))
+                .filter(row => row.name !== null || row.description !== null);
+            storedSnapshot = {...rawSnapshot(id, translations, {name: text(payload.name[0].value), description: text(payload.description[0].value)}),
+                translationsRevision: 'b'.repeat(64)};
+            return {id};
+        }, ...overrides};
     const controller = new ExerciseController({store: setup.store, formView: setup.form, repository, bus: new EventBus(),
         confirmDialog: {ask: async () => { confirmations++; return true; }}});
     return {...setup, controller, payloads, confirmations: () => confirmations};
@@ -1230,6 +1427,65 @@ test('the raw translation repository uses the protected admin read route and pre
     assert.equal(requested.options.headers.Authorization, 'Bearer synthetic');
     repository._client._fetch = async () => new Response(null, {status: 404});
     await assert.rejects(() => repository.fetchTranslations('a'), error => error.status === 404);
+});
+
+test('a real repository 204 refreshes trusted rows and revision without leaking the write token into editable JSON', async () => {
+    const entity = {...exercise('a'), components: {externalWeight: null, bodyWeight: {required: true, multiplier: 0.73}, extraWeight: {required: false}, assistWeight: null},
+        equipmentRefs: [{equipmentId: 'barbell'}], exerciseExampleBundles: [{muscleId: 'quadriceps', percentage: 75}, {muscleId: 'hamstrings', percentage: 25}]};
+    const {store, form, els} = formSetup(entity);
+    store.setCurrent(entity, trustedOptions(entity));
+    const requests = [];
+    const fresh = {...trustedSnapshot(entity), translationsRevision: 'b'.repeat(64)};
+    const repository = new ExerciseRepository({buildHeaders: () => ({}), _fetch: async (url, options) => {
+        requests.push({url, options});
+        if (options.method === 'PUT') return new Response(null, {status: 204});
+        assert.match(url, /\/admin\/exercise-examples\/a\/translations$/);
+        return Response.json(fresh);
+    }});
+    const controller = new ExerciseController({store, formView: form, repository, bus: new EventBus(), confirmDialog: {}});
+    els.fCategory.value = 'isolation';
+    await controller.saveItem(form.readFormToEntity());
+    assert.equal(requests.length, 2);
+    assert.equal(JSON.parse(requests[0].options.body).translationsRevision, revision);
+    assert.equal(store.getState().translationSnapshot.translationsRevision, 'b'.repeat(64));
+    assert.equal(store.getState().translationProvenanceKnown, true);
+    const current = store.getState().current;
+    assert.equal(current.category, 'isolation');
+    assert.deepEqual(current.components, entity.components);
+    assert.deepEqual(current.exerciseExampleBundles, entity.exerciseExampleBundles);
+    assert.deepEqual(current.equipmentRefs, entity.equipmentRefs);
+    assert.deepEqual(current.nameTranslations, entity.nameTranslations);
+    assert.equal(Object.hasOwn(current, 'translationsRevision'), false);
+    assert.equal(Object.hasOwn(store.getState().items[0].entity, 'translationsRevision'), false);
+    els.viewJson.dispatch('click');
+    const editable = JSON.parse(els.editor.value);
+    assert.equal(Object.hasOwn(editable, 'translationsRevision'), false);
+    assert.equal(Object.hasOwn(editable, 'translationSnapshot'), false);
+    assert.deepEqual(editable.components, entity.components);
+});
+
+test('update failures expose only safe known 409 codes and never echo the response body', async () => {
+    const marker = 'synthetic-private-response-body';
+    const cases = [
+        {status: 409, body: {code: 'EXERCISE_TRANSLATIONS_STALE', message: marker}, code: 'EXERCISE_TRANSLATIONS_STALE'},
+        {status: 409, body: {code: 'EXERCISE_TRANSLATIONS_INCOMPLETE', message: marker}, code: 'EXERCISE_TRANSLATIONS_INCOMPLETE'},
+        {status: 409, body: {code: {value: 'EXERCISE_TRANSLATIONS_STALE'}, message: marker}},
+        {status: 409, body: {code: 'OTHER_CONFLICT', message: marker}},
+        {status: 409, malformed: true},
+        {status: 500, body: {code: 'EXERCISE_TRANSLATIONS_STALE', message: marker}},
+    ];
+    for (const scenario of cases) {
+        const repository = new ExerciseRepository({buildHeaders: () => ({}), _fetch: async () => scenario.malformed
+            ? new Response(`{${marker}`, {status: scenario.status})
+            : Response.json(scenario.body, {status: scenario.status})});
+        await assert.rejects(() => repository.update('a', Normalizer.buildPersistencePayload(exercise('a'), revision)), error => {
+            assert.equal(error.status, scenario.status);
+            assert.equal(error.code, scenario.code);
+            assert.match(error.message, new RegExp(`Exercise update failed: ${scenario.status}`));
+            assert.equal(error.message.includes(marker), false);
+            return true;
+        });
+    }
 });
 
 test('an English-only raw snapshot stays without UA/RU values after an attribute-only edit', async () => {
@@ -1252,14 +1508,14 @@ test('raw nullable fields remain independent while distinct untouched UA/RU text
         {language: 'ru', name: 'Приседание', description: null}];
     const {controller, store, form, els, payloads} = rawTranslationSetup(rawSnapshot('a', translations));
     await controller.selectItem({id: 'a'});
-    assert.deepEqual(store.getState().current.nameTranslations, {en: 'Squat', ua: '', ru: 'Приседание'});
-    assert.deepEqual(store.getState().current.descriptionTranslations, {en: 'Controlled squat', ua: 'Український опис', ru: ''});
+    assert.deepEqual(store.getState().current.nameTranslations, {en: 'Squat', ua: '', ru: 'Приседание', 'pt-BR': '', 'pt-PT': ''});
+    assert.deepEqual(store.getState().current.descriptionTranslations, {en: 'Controlled squat', ua: 'Український опис', ru: '', 'pt-BR': '', 'pt-PT': ''});
     store.setLocale('ua');
     assert.equal(els.fName.value, '');
     assert.equal(els.fDescription.value, 'Український опис');
     els.fExperience.value = 'intermediate';
     await controller.saveItem(form.readFormToEntity());
-    assert.deepEqual(payloads[0].name.find(entry => entry.language === 'ua'), {language: 'ua'});
+    assert.deepEqual(payloads[0].name.find(entry => entry.language === 'ua'), {language: 'ua', value: ''});
     assert.deepEqual(payloads[0].description.find(entry => entry.language === 'ua'), {language: 'ua', value: 'Український опис'});
     assert.deepEqual(payloads[0].name.find(entry => entry.language === 'ru'), {language: 'ru', value: 'Приседание'});
     assert.deepEqual(store.getState().translationSnapshot.translations, translations);
@@ -1275,10 +1531,28 @@ test('explicitly clearing a stored locale removes that content without clearing 
     els.fName.value = '';
     els.fDescription.value = '';
     await controller.saveItem(form.readFormToEntity());
-    assert.deepEqual(payloads[0].name.find(entry => entry.language === 'ua'), {language: 'ua'});
-    assert.deepEqual(payloads[0].description.find(entry => entry.language === 'ua'), {language: 'ua'});
+    assert.deepEqual(payloads[0].name.find(entry => entry.language === 'ua'), {language: 'ua', value: ''});
+    assert.deepEqual(payloads[0].description.find(entry => entry.language === 'ua'), {language: 'ua', value: ''});
     assert.deepEqual(store.getState().translationSnapshot.translations.map(row => row.language), ['en', 'ru']);
     assert.deepEqual(store.getState().translationSnapshot.translations[1], translations[2]);
+});
+
+test('explicitly clearing both Brazilian Portuguese fields removes only that row after the trusted reload', async () => {
+    const translations = [{language: 'en', name: 'Squat', description: 'Controlled squat'},
+        {language: 'pt-BR', name: 'Agachamento BR', description: 'Descrição BR'},
+        {language: 'pt-PT', name: 'Agachamento PT', description: 'Descrição PT'}];
+    const {controller, store, form, els, payloads} = rawTranslationSetup(rawSnapshot('a', translations));
+    await controller.selectItem({id: 'a'});
+    store.setLocale('pt-BR');
+    els.fName.value = '  ';
+    els.fDescription.value = '';
+    await controller.saveItem(form.readFormToEntity());
+    assert.deepEqual(payloads[0].name.find(row => row.language === 'pt-BR'), {language: 'pt-BR', value: ''});
+    assert.deepEqual(payloads[0].description.find(row => row.language === 'pt-BR'), {language: 'pt-BR', value: ''});
+    assert.equal(payloads[0].translationsRevision, revision);
+    assert.deepEqual(store.getState().translationSnapshot.translations.map(row => row.language), ['en', 'pt-PT']);
+    assert.equal(store.getState().translationSnapshot.translationsRevision, 'b'.repeat(64));
+    assert.equal(store.getState().current.nameTranslations['pt-PT'], 'Agachamento PT');
 });
 
 test('legacy base-only English remains readable, warns about promotion, and never creates UA/RU text', async () => {
@@ -1332,10 +1606,11 @@ test('the concise persistent translation disclosure preserves its DOM for the sa
 test('raw 404 compatibility fallback is used only after successful localized reads and stays unverified', async () => {
     const localized = deferred();
     let rawRequests = 0;
+    let updates = 0;
     const {store, controller} = controllerSetup({fetchDetail: () => localized.promise, fetchTranslations: async () => {
         rawRequests++;
         const error = new Error('Old deployed API'); error.status = 404; throw error;
-    }});
+    }, update: async () => { updates++; return {id: 'a'}; }});
     const selecting = controller.selectItem({id: 'a'});
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(rawRequests, 1, 'raw read runs while the localized reads are pending');
@@ -1346,6 +1621,11 @@ test('raw 404 compatibility fallback is used only after successful localized rea
     assert.equal(store.getState().current.id, 'a');
     assert.equal(store.getState().translationProvenanceKnown, false);
     assert.equal(store.getState().translationSnapshot, null);
+    const draft = {...store.getState().current, category: 'isolation'};
+    store.patchCurrent(draft);
+    await controller.saveItem(draft);
+    assert.equal(updates, 0);
+    assert.equal(store.getState().current.category, 'isolation');
 });
 
 test('failed localized reads cannot apply an already-started raw snapshot or replace the existing selection', async () => {
@@ -1429,8 +1709,8 @@ test('late raw snapshots cannot replace a new exercise, a newer selection, or a 
     }
 });
 
-test('raw snapshot metadata stays outside editable JSON and JSON fields cannot override it', async () => {
-    const {store, controller, form, els} = rawTranslationSetup(rawSnapshot());
+test('raw snapshot metadata stays outside editable JSON and JSON fields cannot override the saved revision', async () => {
+    const {store, controller, form, els, payloads} = rawTranslationSetup(rawSnapshot());
     await controller.selectItem({id: 'a'});
     const trustedSnapshot = store.getState().translationSnapshot;
     els.viewJson.dispatch('click');
@@ -1438,8 +1718,13 @@ test('raw snapshot metadata stays outside editable JSON and JSON fields cannot o
     assert.equal(Object.hasOwn(json, 'translationSnapshot'), false);
     json.translationSnapshot = rawSnapshot('forged', [{language: 'ua', name: 'forged', description: 'forged'}]);
     json.translationProvenanceKnown = false;
+    json.translationsRevision = 'f'.repeat(64);
     els.editor.value = JSON.stringify(json);
     assert.equal(form.flush(), true);
     assert.equal(store.getState().translationSnapshot, trustedSnapshot);
     assert.equal(store.getState().translationProvenanceKnown, true);
+    assert.equal(store.getState().translationSnapshot.translationsRevision, revision);
+    await controller.saveItem(form.readFormToEntity());
+    assert.equal(payloads.length, 1);
+    assert.equal(payloads[0].translationsRevision, revision);
 });

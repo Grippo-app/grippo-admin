@@ -17,9 +17,23 @@ const latency = previewDelay('latency', 140);
 const deviceLatency = previewDelay('deviceLatency', latency);
 const mutationLatency = previewDelay('mutationLatency', latency);
 let exerciseFailurePending = previewParams.get('failExercise');
+const fixtureLanguages = ['en', 'ua', 'ru', 'pt-BR', 'pt-PT'];
+let translationConflictPending = previewParams.get('conflict');
+let failedSavePending = previewParams.get('failSave') === '1';
+let postSaveRawFailurePending = previewParams.get('postSaveRawFailure') === '1';
+let failedRawReloadId = null;
+const exerciseRequests = [];
+// Mock counters stand in for opaque server tokens; this fixture never hashes client text.
+let revisionCounter = 0;
+const nextRevision = () => (++revisionCounter).toString(16).padStart(64, '0');
+const copy = value => JSON.parse(JSON.stringify(value));
 
 class MemoryStorage {
-    constructor() { this.values = new Map([['grippo_admin_refresh_v2', 'fixture-refresh']]); }
+    constructor() {
+        this.values = new Map([['grippo_admin_refresh_v2', 'fixture-refresh']]);
+        const locale = previewParams.get('locale');
+        if (fixtureLanguages.includes(locale)) this.values.set('grippo_admin_locale', locale);
+    }
     getItem(key) { return this.values.get(key) ?? null; }
     setItem(key, value) { this.values.set(key, String(value)); }
     removeItem(key) { this.values.delete(key); }
@@ -28,16 +42,17 @@ Object.defineProperty(window, 'localStorage', {value: new MemoryStorage()});
 Object.defineProperty(window, 'sessionStorage', {value: new MemoryStorage()});
 const ago = days => new Date(Date.now() - days * 86_400_000).toISOString();
 let exercises = [
-    ['bench', 'Bench press', 'Жим лежачи', 'compound', 'beginner', 'free', 'push'],
-    ['squat', 'Barbell squat', 'Присідання зі штангою', 'compound', 'intermediate', 'free', 'push'],
-    ['pullup', 'Pull-up', 'Підтягування', 'compound', 'advanced', 'body_weight', 'pull'],
-    ['curl', 'Dumbbell curl', 'Згинання рук з гантелями', 'isolation', 'beginner', 'free', 'pull'],
-    ['deadlift', 'Romanian deadlift', 'Румунська тяга', 'compound', 'intermediate', 'free', 'hinge'],
-    ['fly', 'Cable fly', 'Зведення рук у кросовері', 'isolation', 'beginner', 'fixed', 'push'],
-].map(([id, name, ua, category, experience, weightType, forceType], index) => ({
-    id, name, nameTranslations: {en: name, ua, ru: ''},
+    ['bench', 'Bench press', 'Жим лежачи', 'Жим лёжа', 'Supino reto', 'Supino plano', 'compound', 'beginner', 'free', 'push'],
+    ['squat', 'Barbell squat', 'Присідання зі штангою', 'Приседания со штангой', 'Agachamento com barra', 'Agachamento com barra', 'compound', 'intermediate', 'free', 'push'],
+    ['pullup', 'Pull-up', 'Підтягування', 'Подтягивания', 'Barra fixa', 'Elevação na barra', 'compound', 'advanced', 'body_weight', 'pull'],
+    ['curl', 'Dumbbell curl', 'Згинання рук з гантелями', 'Сгибание рук с гантелями', 'Rosca com halteres', 'Flexão de braços com halteres', 'isolation', 'beginner', 'free', 'pull'],
+    ['deadlift', 'Romanian deadlift', 'Румунська тяга', 'Румынская тяга', 'Levantamento terra romeno', 'Peso morto romeno', 'compound', 'intermediate', 'free', 'hinge'],
+    ['fly', 'Cable fly', 'Зведення рук у кросовері', 'Сведение рук в кроссовере', 'Crucifixo no cabo', 'Aberturas no cabo', 'isolation', 'beginner', 'fixed', 'push'],
+].map(([id, name, ua, ru, br, pt, category, experience, weightType, forceType], index) => ({
+    id, name, nameTranslations: {en: name, ua, ru, 'pt-BR': br, 'pt-PT': pt},
     description: 'A controlled movement focused on strength and consistent technique.',
-    descriptionTranslations: {en: 'A controlled movement focused on strength and consistent technique.', ua: 'Контрольований рух для розвитку сили та правильної техніки.', ru: ''},
+    descriptionTranslations: {en: 'A controlled movement focused on strength and consistent technique.', ua: 'Контрольований рух для розвитку сили та правильної техніки.', ru: 'Контролируемое движение для развития силы и правильной техники.',
+        'pt-BR': 'Movimento controlado para desenvolver força e manter a técnica.', 'pt-PT': 'Movimento controlado para desenvolver força e manter uma técnica consistente.'},
     category, experience, weightType, forceType, createdAt: ago(index * 9), imageUrl: '',
     components: {externalWeight: weightType === 'body_weight' ? null : {required: true}, bodyWeight: weightType === 'body_weight' ? {required: true, multiplier: 1} : null, extraWeight: null, assistWeight: null},
     equipmentRefs: [{equipmentId: 'barbell'}],
@@ -69,15 +84,27 @@ const weightScenarios = {
 const weights = weightScenarios[previewParams.get('weightScenario')]
     || Array.from({length: 24}, (_, index) => ({id: `weight-${index}`, weight: +(77.4 + index * 0.12 + Math.sin(index) * 0.4).toFixed(1), createdAt: ago(index * 4)}));
 const rawSnapshots = new Map(exercises.map(entity => [entity.id, {
-    id: entity.id, base: {name: entity.name, description: entity.description},
-    translations: ['en', 'ua'].map(language => ({language, name: entity.nameTranslations[language], description: entity.descriptionTranslations[language]})),
+    id: entity.id, translationsRevision: nextRevision(), base: {name: entity.name, description: entity.description},
+    translations: fixtureLanguages.map(language => ({language, name: entity.nameTranslations[language], description: entity.descriptionTranslations[language]})),
 }]));
 // Offline QA cases: confirmed English only, legacy base only, and an older deployed API.
 rawSnapshots.get('curl').translations = rawSnapshots.get('curl').translations.filter(row => row.language === 'en');
 rawSnapshots.get('bench').translations = [];
-banner.title = 'Raw translation examples: Dumbbell curl = English only; Bench press = legacy base only; Cable fly = compatibility 404.';
+if (previewParams.get('translations') === 'beforeImport') {
+    for (const snapshot of rawSnapshots.values()) snapshot.translations = snapshot.translations.filter(row => !row.language.startsWith('pt-'));
+}
+if (previewParams.get('translations') === 'partial') {
+    rawSnapshots.get('pullup').translations.find(row => row.language === 'pt-BR').name = null;
+    rawSnapshots.get('pullup').translations.find(row => row.language === 'pt-PT').description = null;
+}
+banner.title = 'Raw translation examples: Pull-up = all five languages; Dumbbell curl = English only; Bench press = legacy base only; Cable fly = compatibility 404.';
 let failedGoal = false;
 const response = value => Response.json(value);
+const saveError = (status, code, message) => Response.json({code, message}, {status});
+Object.defineProperty(window, '__exercisePreview', {value: Object.freeze({
+    get requests() { return copy(exerciseRequests); },
+    get snapshots() { return copy(Object.fromEntries(rawSnapshots)); },
+})});
 window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
     if (url.origin !== 'https://grippo-app.com') throw new Error('Fixture preview blocks external requests.');
@@ -88,6 +115,7 @@ window.fetch = async (input, options = {}) => {
     const path = url.pathname;
     const method = options.method || 'GET';
     const payload = options.body ? JSON.parse(options.body) : null;
+    if (path.includes('exercise-examples')) exerciseRequests.push({method, path: `${path}${url.search}`, payload: copy(payload)});
     const localized = entity => {
         if (!entity) return null;
         const locale = new Headers(options.headers).get('accept-language') || 'en';
@@ -115,21 +143,76 @@ window.fetch = async (input, options = {}) => {
     const rawTranslationRoute = path.match(/^\/admin\/exercise-examples\/([^/]+)\/translations$/);
     if (rawTranslationRoute && method === 'GET') {
         const id = decodeURIComponent(rawTranslationRoute[1]);
-        return id !== 'fly' && rawSnapshots.has(id) ? response(rawSnapshots.get(id)) : new Response(null, {status: 404, statusText: 'Raw translation route unavailable'});
+        if (previewParams.get('raw404') === '1' || previewParams.get('translations') === 'raw404' || id === 'fly' || !rawSnapshots.has(id)) {
+            return new Response(null, {status: 404, statusText: 'Raw translation route unavailable'});
+        }
+        if (failedRawReloadId === id) {
+            failedRawReloadId = null;
+            return new Response(null, {status: 503, statusText: 'Fixture saved snapshot temporarily unavailable'});
+        }
+        const snapshot = copy(rawSnapshots.get(id));
+        if (previewParams.get('translations') === 'legacy') delete snapshot.translationsRevision;
+        return response(snapshot);
     }
-    if (path === '/admin/exercise-examples' && method !== 'GET') {
+    if (path === '/admin/exercise-examples' && ['POST', 'PUT'].includes(method)) {
         const id = method === 'POST' ? crypto.randomUUID() : url.searchParams.get('id') || payload.id;
-        const nameTranslations = Object.fromEntries(payload.name.map(entry => [entry.language, entry.value || '']));
-        const descriptionTranslations = Object.fromEntries(payload.description.map(entry => [entry.language, entry.value || '']));
-        const entity = {...payload, id, name: nameTranslations.en, description: descriptionTranslations.en, nameTranslations, descriptionTranslations};
+        if (method === 'POST' && Object.hasOwn(payload, 'translationsRevision')) {
+            return saveError(400, 'FIXTURE_INVALID_BODY', 'POST does not accept translationsRevision.');
+        }
+        if (!Array.isArray(payload.name) || !Array.isArray(payload.description)
+            || [payload.name, payload.description].some(entries => entries.some(entry => !fixtureLanguages.includes(entry?.language)
+                || (entry.value !== undefined && typeof entry.value !== 'string')))) {
+            return saveError(400, 'FIXTURE_INVALID_BODY', 'Use canonical language entries and string values.');
+        }
+        if (Object.hasOwn(payload, 'translationsRevision') && (typeof payload.translationsRevision !== 'string'
+            || payload.translationsRevision.length !== 64 || !/^[a-f0-9]{64}$/.test(payload.translationsRevision))) {
+            return saveError(400, 'FIXTURE_INVALID_BODY', 'Invalid translationsRevision.');
+        }
+        const current = rawSnapshots.get(id);
+        const isPortuguese = language => language === 'pt-BR' || language === 'pt-PT';
+        if (method === 'PUT') {
+            if (!current) return new Response(null, {status: 404, statusText: 'Exercise not found'});
+            if (['stale', 'incomplete'].includes(translationConflictPending)) {
+                const code = translationConflictPending === 'stale' ? 'EXERCISE_TRANSLATIONS_STALE' : 'EXERCISE_TRANSLATIONS_INCOMPLETE';
+                translationConflictPending = null;
+                // Simulate a concurrent import while the editor still holds its earlier snapshot.
+                current.translations = current.translations.filter(row => row.language !== 'pt-PT').concat({language: 'pt-PT',
+                    name: 'Tradução importada para revisão', description: 'Descrição sintética importada durante a edição.'});
+                current.translationsRevision = nextRevision();
+                return saveError(409, code, 'Fixture translation snapshot changed. Review the imported text.');
+            }
+            if (failedSavePending) {
+                failedSavePending = false;
+                return new Response('Synthetic save failure', {status: 503, statusText: 'Fixture save temporarily unavailable'});
+            }
+            const portugueseRows = current.translations.filter(row => isPortuguese(row.language));
+            const hasPortugueseInput = [payload.name, payload.description].some(entries => entries.some(entry => isPortuguese(entry.language) && entry.value?.trim()));
+            if ((portugueseRows.length || hasPortugueseInput || payload.translationsRevision !== undefined)
+                && payload.translationsRevision !== current.translationsRevision) {
+                return saveError(409, 'EXERCISE_TRANSLATIONS_STALE', 'Reload the stored translations before saving.');
+            }
+            if (portugueseRows.some(row => [payload.name, payload.description].some(entries => !entries.some(entry => entry.language === row.language && typeof entry.value === 'string')))) {
+                return saveError(409, 'EXERCISE_TRANSLATIONS_INCOMPLETE', 'Both fields must explicitly include each existing Portuguese translation.');
+            }
+        }
+        const toMap = entries => Object.fromEntries(fixtureLanguages.map(language => [language, entries.find(entry => entry.language === language)?.value?.trim() || '']));
+        const nameTranslations = toMap(payload.name);
+        const descriptionTranslations = toMap(payload.description);
+        const {translationsRevision, ...fields} = payload;
+        const entity = {...fields, id, name: nameTranslations.en, description: descriptionTranslations.en, nameTranslations, descriptionTranslations};
         exercises = exercises.filter(exercise => exercise.id !== id).concat(entity);
-        rawSnapshots.set(id, {id, base: {name: entity.name, description: entity.description},
-            translations: ['en', 'ua', 'ru'].map(language => ({language, name: nameTranslations[language] || null, description: descriptionTranslations[language] || null}))
+        rawSnapshots.set(id, {id, translationsRevision: nextRevision(), base: {name: entity.name, description: entity.description},
+            translations: fixtureLanguages.map(language => ({language, name: nameTranslations[language] || null, description: descriptionTranslations[language] || null}))
                 .filter(row => row.name !== null || row.description !== null)});
-        return response({entity});
+        if (postSaveRawFailurePending) {
+            postSaveRawFailurePending = false;
+            failedRawReloadId = id;
+        }
+        return method === 'POST' ? Response.json({id}, {status: 201}) : new Response(null, {status: 204});
     }
     if (path.startsWith('/admin/exercise-examples/') && method === 'DELETE') {
         exercises = exercises.filter(exercise => exercise.id !== path.split('/').pop());
+        rawSnapshots.delete(path.split('/').pop());
         return new Response(null, {status: 204});
     }
     if (path === '/admin/users') return response(users);
